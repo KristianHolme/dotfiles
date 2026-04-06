@@ -13,11 +13,12 @@ source ~/dotfiles/default/dot-bashrc-functions
 # !! Contents within this block are managed by juliaup !!
 
 case ":$PATH:" in
-*:$HOME/.juliaup/bin:*) ;;
+    *:/home/claw/.juliaup/bin:*)
+        ;;
 
-*)
-    export PATH=$HOME/.juliaup/bin${PATH:+:${PATH}}
-    ;;
+    *)
+        export PATH=/home/claw/.juliaup/bin${PATH:+:${PATH}}
+        ;;
 esac
 
 # <<< juliaup initialize <<<
@@ -102,3 +103,6 @@ eval "$(starship init bash)"
 if command -v zoxide &>/dev/null; then
     eval "$(zoxide init bash)"
 fi
+
+# OpenClaw Completion
+source "/home/claw/.openclaw/completions/openclaw.bash"
