@@ -28,6 +28,7 @@ SERVERS=(
     "bengal"
     "kaspi"
     "sibir"
+    "claw"
 )
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
