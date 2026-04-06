@@ -119,21 +119,17 @@ setup_syncthing() {
 create_dirs() {
     log_info "Creating directory structure..."
     
-    # Inbox - where new stuff goes (user drops here)
-    ensure_dir "$INBOX_PATH/papers"
-    ensure_dir "$INBOX_PATH/books"
-    ensure_dir "$INBOX_PATH/web"
-    ensure_dir "$INBOX_PATH/code"
-    ensure_dir "$INBOX_PATH/images"
-    ensure_dir "$INBOX_PATH/audio"
+    # Inbox - where new stuff goes (flat structure - user throws everything here)
+    ensure_dir "$INBOX_PATH"
     
     # Raw - processed/organized raw materials (agent moves from inbox to here)
     ensure_dir "$RAW_PATH/papers"
     ensure_dir "$RAW_PATH/books"
     ensure_dir "$RAW_PATH/web"
-    ensure_dir "$RAW_PATH/code"
     ensure_dir "$RAW_PATH/images"
     ensure_dir "$RAW_PATH/audio"
+    ensure_dir "$RAW_PATH/plots"
+    ensure_dir "$RAW_PATH/data"
     
     # Wiki - compiled knowledge (references raw/ via links)
     ensure_dir "$VAULT_PATH/wiki/concepts"

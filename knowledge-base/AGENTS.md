@@ -6,8 +6,8 @@ This folder contains a personal knowledge management system based on Andrej Karp
 
 ```
 ~/Knowledge/
-├── inbox/     # Drop new items here (PDFs, articles, notes)
-├── raw/       # Agent moves organized items here from inbox
+├── inbox/     # Drop new items here (flat structure - no organizing needed)
+├── raw/       # Agent moves organized items here from inbox (has subfolders)
 ├── code/      # Julia projects for data analysis and plotting
 └── wiki/      # Compiled knowledge (links to raw/ and code/)
 ```
@@ -15,9 +15,15 @@ This folder contains a personal knowledge management system based on Andrej Karp
 ## Workflow
 
 ### Document Ingest
-1. **User** drops new items in `inbox/`
-2. **Agent** processes inbox → moves to `raw/` (organized naming) + creates wiki note with link
+1. **User** drops new items in `inbox/` (any file, flat structure - no organizing)
+2. **Agent** processes inbox → identifies type → moves to `raw/` (organized subfolders) + creates wiki note with link
 3. **Wiki** notes always contain `raw: "[[../../raw/path/to/file]]"` links
+
+**Agent organizing rules:**
+- PDFs → `raw/papers/author-year-title.pdf`
+- Web articles → `raw/web/site-date-title.md`
+- Images → `raw/images/date-description.png`
+- Data files → `raw/data/filename.csv`
 
 ### Data Analysis
 1. **User** asks for data analysis/plots

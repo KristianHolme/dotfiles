@@ -29,12 +29,8 @@ This will:
 
 ```
 ~/Knowledge/                    # Main vault (synced via Syncthing)
-├── 📥 inbox/                   # DROP NEW THINGS HERE
-│   ├── papers/                 # New PDFs, papers
-│   ├── books/                  # Book notes
-│   ├── web/                    # Web article saves
-│   ├── images/                 # Screenshots, diagrams
-│   └── audio/                  # Voice memos
+├── 📥 inbox/                   # DROP NEW THINGS HERE (flat - any file type)
+│                               # Agent organizes when moving to raw/
 │
 ├── 📁 raw/                     # PROCESSED/ORGANIZED (agent moves here)
 │   ├── papers/                 # Organized papers from inbox
@@ -72,17 +68,22 @@ This will:
 
 ### 1. Capture (You)
 ```
-# Drop new paper in inbox
-~/Knowledge/inbox/papers/new-paper.pdf
+# Drop anything in inbox (flat structure - no organizing needed)
+~/Knowledge/inbox/random-paper.pdf
+~/Knowledge/inbox/article-from-web.md
+~/Knowledge/inbox/screenshot.png
+~/Knowledge/inbox/voice-memo.m4a
 ```
 
 ### 2. Process (Agent)
 ```
 # Agent finds items in inbox
-# 1. Reads the paper
-# 2. Moves PDF to raw/papers/organized-name.pdf
-# 3. Creates wiki/papers/paper-summary.md with link:
-#    raw: "[[../../raw/papers/organized-name.pdf]]"
+# 1. Identifies file type and content
+# 2. Moves to organized location in raw/:
+#    - PDFs → raw/papers/author-year-title.pdf
+#    - Web articles → raw/web/site-date-title.md
+#    - Images → raw/images/date-description.png
+# 3. Creates wiki note with link to raw/
 # 4. Empty inbox for this item
 ```
 
