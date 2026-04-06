@@ -4,185 +4,177 @@ Personal knowledge management system based on Andrej Karpathy's LLM Knowledge Ba
 
 ## Overview
 
-This system implements a two-tier knowledge architecture:
+Three-tier knowledge architecture (inside `~/Knowledge/` vault):
 
-- **`~/raw/`** - Unstructured ingestion (PDFs, web articles, notes, screenshots)
-- **`~/Knowledge/wiki/`** - Compiled, interlinked knowledge base (Obsidian vault)
-
-The workflow is designed to leverage LLMs for automatically processing raw materials into structured, searchable knowledge.
+- **`inbox/`** - Unprocessed new items (you drop things here)
+- **`raw/`** - Processed/organized raw materials (agent moves from inbox)
+- **`wiki/`** - Compiled knowledge (links to raw/ via Obsidian `[[...]]` links)
 
 ## Quick Start
 
 ```bash
-# Run the setup script (idempotent - safe to run multiple times)
+# Run the setup script
 ~/dotfiles/knowledge-base/bin/dotfiles-setup-knowledgebase
 ```
 
 This will:
-1. Install required tools (QMD via npm, ripgrep via pacman)
-2. Create the directory structure
-3. Configure Syncthing for cross-device sync
-4. Set up note templates
-5. Install OpenClaw skills
+1. Install QMD (`npm install -g @tobilu/qmd`)
+2. Install ripgrep (`pacman -S ripgrep`)
+3. Create the inbox/raw/wiki structure
+4. Configure Syncthing
+5. Set up templates
 
 ## Directory Structure
 
 ```
 ~/Knowledge/                    # Main vault (synced via Syncthing)
-├── 📥 Inbox/                  # New notes, fleeting ideas
-├── 📚 wiki/                   # Compiled knowledge
-│   ├── concepts/              # Core concepts and definitions
-│   ├── papers/                # Paper summaries with backlinks
-│   ├── people/                # People profiles
-│   ├── projects/              # Project documentation
-│   ├── topics/                # Topic overviews
-│   └── index.md               # Main entry point
-├── 📅 Daily/                  # Daily notes (YYYY-MM-DD.md)
-├── 🔗 MOCs/                   # Maps of Content (navigation pages)
-├── 📎 Attachments/            # Images, PDFs, external files
-├── 🏷️ Tags.md                 # Tag directory
-└── .templates/                # Note templates
+├── 📥 inbox/                   # DROP NEW THINGS HERE
+│   ├── papers/                 # New PDFs, papers
+│   ├── books/                  # Book notes
+│   ├── web/                    # Web article saves
+│   ├── code/                   # Code snippets
+│   ├── images/                 # Screenshots, diagrams
+│   └── audio/                  # Voice memos
+│
+├── 📁 raw/                     # PROCESSED/ORGANIZED (agent moves here)
+│   ├── papers/                 # Organized papers from inbox
+│   ├── books/                  # Organized books
+│   ├── web/                    # Organized web saves
+│   ├── code/                   # Organized code
+│   ├── images/                 # Organized images
+│   └── audio/                  # Organized audio
+│
+├── 📚 wiki/                    # COMPILED KNOWLEDGE (links to raw/)
+│   ├── concepts/               # Core concepts (link to raw/papers/)
+│   ├── papers/                 # Paper summaries with links
+│   ├── people/                 # People profiles
+│   ├── projects/               # Project docs
+│   ├── topics/                 # Topic overviews
+│   └── index.md                # Main entry point
+│
+├── 📅 Daily/                   # Daily notes (YYYY-MM-DD.md)
+├── 🔗 MOCs/                    # Maps of Content (navigation)
+├── 📎 Attachments/             # Inline images for wiki notes
+└── .templates/                 # Note templates
+```
 
-~/raw/                         # Raw data ingestion (synced separately)
-├── papers/                    # PDF papers
-├── books/                     # Book highlights/notes
-├── web/                       # Web article saves (markdown)
-├── code/                      # Code snippets, repos
-├── images/                    # Screenshots, diagrams
-├── audio/                     # Podcasts, voice memos
-├── processed/                 # Already-processed files
-└── index.md                   # Knowledge base index (in raw/)
+## Workflow
+
+### 1. Capture (You)
+```
+# Drop new paper in inbox
+~/Knowledge/inbox/papers/new-paper.pdf
+```
+
+### 2. Process (Agent)
+```
+# Agent finds items in inbox
+# 1. Reads the paper
+# 2. Moves PDF to raw/papers/organized-name.pdf
+# 3. Creates wiki/papers/paper-summary.md with link:
+#    raw: "[[../../raw/papers/organized-name.pdf]]"
+# 4. Empty inbox for this item
+```
+
+### 3. Use (You + Agent)
+```
+# Search wiki for info
+qmd search "neural architecture search"
+
+# Follow link to raw paper
+# In wiki/papers/paper-summary.md:
+#   raw: "[[../../raw/papers/attention-is-all-you-need.pdf]]"
+# Click link to open original PDF
+```
+
+## Key Principle
+
+**Wiki never duplicates raw content** — it links to it:
+
+```markdown
+---
+title: Attention Is All You Need
+raw: "[[../../raw/papers/attention-is-all-you-need.pdf]]"
+---
+
+# Attention Is All You Need
+
+## Summary
+Brief summary here...
+
+## Full Paper
+See [[../../raw/papers/attention-is-all-you-need.pdf|original paper]]
 ```
 
 ## Components
 
 ### 1. QMD - Fast Search
 
-QMD (by Tobi) provides lightning-fast full-text search over your vault using ripgrep.
-
 ```bash
-qmd search "neural architecture search"    # Search notes
-qmd search --tag papers                     # Search by tag
-qmd index                                   # Rebuild search index
-qmd recent                                  # Recently modified notes
-qmd backlinks "Concept Note"                # Find backlinks
+qmd search "neural architecture search"  # Search wiki
+qmd search --path raw/papers "transformer"  # Search raw papers
+qmd search --tag papers                   # All paper notes
+qmd index                                 # Rebuild index
 ```
 
-Configuration: `~/.config/qmd/config.yaml`
-
-Install via npm: `npm install -g @tobilu/qmd`
+Install: `npm install -g @tobilu/qmd`
 
 ### 2. Syncthing - Cross-Device Sync
-
-Peer-to-peer synchronization across your devices.
 
 - Work laptop
 - Personal laptop
 - Phone (Android)
 
-Configure at: http://localhost:8384
+Configure: http://localhost:8384
 
 ### 3. OpenClaw Skills
 
-Two skills for knowledge base interaction:
+- **knowledge-base** - Search wiki, read notes, create new notes
+- **knowledge-base-ingest** - Process inbox → raw + wiki
 
-- **knowledge-base** - Search and use the knowledge base
-- **knowledge-base-ingest** - Process raw materials into the wiki
-
-## Workflow
-
-### Daily Usage
-
-1. **Capture** - Add content to `~/raw/` (papers, web articles, notes)
-2. **Process** - Run the ingest skill to compile into wiki
-3. **Search** - Use QMD to find information
-4. **Connect** - Create backlinks between related concepts
-
-### From Raw to Wiki
+## Ingest Skill Workflow
 
 ```
-~/raw/papers/paper.pdf
-    ↓ [LLM Agent processes]
+~/Knowledge/inbox/papers/paper.pdf
+    ↓ [Agent detects new item]
+    ↓ [Reads and summarizes]
+    ↓ [Moves to organized location]
+~/Knowledge/raw/papers/author-year-title.pdf
+    ↓ [Creates wiki note with link]
 ~/Knowledge/wiki/papers/paper-summary.md
-    ↓ [Manual refinement + backlinks]
-Connected knowledge graph in Obsidian
-```
-
-## Tools & Usage
-
-### QMD Commands
-
-```bash
-# Search for a topic
-qmd search "neural architecture search"
-
-# Search with context
-qmd search --context 3 "attention mechanism"
-
-# Search by tag
-qmd search --tag papers
-
-# List recently modified
-qmd recent --limit 10
-
-# Show backlinks
-qmd backlinks "Attention Mechanism"
-
-# Rebuild index (if needed)
-qmd index
-```
-
-### File Operations
-
-```bash
-# Create new note
-cat > ~/Knowledge/wiki/papers/new-paper.md << 'EOF'
----
-date: 2024-01-01
-tags: [paper]
----
-# Title
-...
-EOF
-
-# Read existing note
-cat ~/Knowledge/wiki/concepts/transformer.md
-
-# Edit note
-$EDITOR ~/Knowledge/wiki/concepts/transformer.md
+    (contains: raw: "[[../../raw/papers/author-year-title.pdf]]")
 ```
 
 ## Templates
 
-Templates are stored in `~/Knowledge/.templates/`:
+**Paper summary template** (`~/Knowledge/.templates/paper.md`):
 
-- **paper.md** - Academic paper summaries
-- **concept.md** - Concept definitions
-- **project.md** - Project documentation
+```markdown
+---
+date: {{date:YYYY-MM-DD}}
+tags: [paper, ml]
+status: unread
+raw: "[[../../raw/papers/FILENAME]]"
+---
 
-## Configuration
+# Title
 
-### Environment Variables
+## Metadata
+- **Authors:** 
+- **Venue:** 
+- **Year:** 
+- **Raw:** See link above
 
-```bash
-export KNOWLEDGE_VAULT_PATH="$HOME/Knowledge"
-export KNOWLEDGE_RAW_PATH="$HOME/raw"
+## Summary
+
+## Key Contributions
+
+## Related
+- [[concept-a]]
 ```
-
-### Syncthing Ignore Patterns
-
-The `.stignore` file excludes:
-- `.obsidian/` - Obsidian config (device-specific)
-- Large media files
-- Build artifacts
-- Git directories
 
 ## References
 
-- [Andrej Karpathy's LLM Knowledge Base post](https://twitter.com/karpathy/status/1772925336763494570)
+- [Andrej Karpathy's LLM Knowledge Base thread](https://twitter.com/karpathy/status/1772925336763494570)
 - [QMD - Query Markdown Database](https://github.com/tobi/qmd)
 - [Syncthing](https://syncthing.net/)
-
-## License
-
-Part of the dotfiles repository.

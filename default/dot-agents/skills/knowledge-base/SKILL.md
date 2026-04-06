@@ -1,6 +1,6 @@
 ---
 name: knowledge-base
-description: Search and interact with personal knowledge base (Obsidian vault with QMD)
+description: Search and interact with personal knowledge base (inbox/raw/wiki structure)
 metadata:
   {
     "openclaw":
@@ -30,243 +30,218 @@ metadata:
 
 # Knowledge Base Skill
 
-Search and interact with your personal knowledge base (Obsidian vault + QMD).
+Search and interact with your knowledge base (inbox/raw/wiki structure).
+
+## Structure
+
+```
+~/Knowledge/
+├── inbox/     # Unprocessed new items (you add here)
+├── raw/       # Organized raw materials (agent moves here from inbox)
+└── wiki/      # Compiled knowledge with links to raw/
+```
 
 ## Purpose
 
-This skill enables you to:
-- Search your knowledge base using fast full-text search (QMD)
-- Find related concepts via backlinks
-- Create new notes from templates (via file operations)
-- Read and edit existing notes
-- Answer questions based on your knowledge base content
+- **Search** wiki and raw materials via QMD
+- **Read** wiki notes and raw materials
+- **Create** new wiki notes with links to raw/
+- **Check** inbox status
+- **Answer** questions based on your knowledge
 
-## Configuration
+## Tools
 
-Default vault path: `~/Knowledge`
-Set via: `knowledge-base.vault_path` in OpenClaw config
-
-## Tools Available
-
-### 1. QMD - Fast Full-Text Search
+### 1. QMD - Search
 
 ```bash
-# Search for a topic
+# Search wiki
 qmd search "neural architecture search"
+qmd search --path wiki "transformer"
 
-# Search with context (n lines around match)
-qmd search --context 3 "attention mechanism"
+# Search raw materials
+qmd search --path raw/papers "attention"
+qmd search --path raw "author name"
 
 # Search by tag
 qmd search --tag papers
+qmd search --tag concepts
 
-# Search in specific directory
-qmd search --path wiki/concepts "transformer"
-
-# List recently modified notes
+# Recently modified
 qmd recent --limit 10
 
-# Show backlinks to a note
+# Backlinks
 qmd backlinks "Attention Mechanism"
 ```
 
-### 2. ripgrep (rg) - Fallback Search
+### 2. File Operations
 
 ```bash
-# Basic search
-rg -i "search term" ~/Knowledge
+# Read wiki note
+cat ~/Knowledge/wiki/papers/attention-is-all-you-need.md
 
-# Search with file type
-rg -i "search term" ~/Knowledge --type md
+# Read raw material (PDF text)
+pdftotext ~/Knowledge/raw/papers/vaswani-2017-attention.pdf - | head -100
 
-# Show surrounding context
-rg -C 3 -i "search term" ~/Knowledge
-```
-
-### 3. File Operations
-
-```bash
-# Create new note from template
-cat > ~/Knowledge/wiki/papers/new-paper.md << 'EOF'
+# Create new wiki note
+cat > ~/Knowledge/wiki/concepts/new-concept.md << 'EOF'
 ---
 date: 2024-01-15
-tags: [paper, ml]
-authors: Author Name
-venue: Conference Name
-year: 2024
-status: unread
+tags: [concept, ml]
 ---
 
-# Paper Title
+# Concept Name
 
-## Summary
+## Definition
 
-## Key Contributions
+## Explanation
 
 ## Related
-- [[concept-a]]
-- [[paper-b]]
+- [[../../raw/papers/vaswani-2017-attention.pdf|Source Paper]]
 EOF
 
-# Read existing note
-cat ~/Knowledge/wiki/concepts/transformer.md
-
-# Edit note
+# Edit existing note
 edit ~/Knowledge/wiki/concepts/transformer.md
 
-# List notes in a directory
-ls ~/Knowledge/wiki/papers/
+# Check inbox
+ls ~/Knowledge/inbox/papers/
+ls ~/Knowledge/inbox/web/
+find ~/Knowledge/inbox -type f | wc -l
 
-# Check if note exists
-[[ -f ~/Knowledge/wiki/concepts/transformer.md ]] && echo "exists"
+# List wiki directory
+ls ~/Knowledge/wiki/papers/
+ls ~/Knowledge/wiki/concepts/
+```
+
+### 3. ripgrep - Fallback Search
+
+```bash
+rg -i "search term" ~/Knowledge/wiki
+rg -i "search term" ~/Knowledge/raw/papers
+rg -C 3 "term" ~/Knowledge/wiki/papers/
 ```
 
 ## Usage Patterns
 
-### Finding Information
+### Search for Information
 
 **User:** "What do I know about neural architecture search?"
 
 ```bash
-# Search the vault
+# Search wiki
 qmd search "neural architecture search"
 
-# If results found, read the relevant notes
+# If found, read the note
 cat ~/Knowledge/wiki/concepts/neural-architecture-search.md
 
-# Look for related concepts
+# Also check for related papers
+qmd search --path raw/papers "neural architecture"
+
+# Find connections
 qmd backlinks "Neural Architecture Search"
 ```
 
-### Creating New Notes
+### Read Raw Material
 
-**User:** "Create a note for the Transformer paper"
+**User:** "Show me the paper on attention"
 
 ```bash
-# Create from paper template
-cat > ~/Knowledge/wiki/papers/attention-is-all-you-need.md << 'EOF'
+# Find in wiki first
+qmd search "attention is all you need"
+cat ~/Knowledge/wiki/papers/attention-is-all-you-need.md
+
+# Follow link to raw PDF
+cat ~/Knowledge/raw/papers/vaswani-2017-attention.pdf
+# (or extract text)
+pdftotext ~/Knowledge/raw/papers/vaswani-2017-attention.pdf - | head -500
+```
+
+### Check Inbox
+
+**User:** "What's in my inbox?"
+
+```bash
+# List all items
+find ~/Knowledge/inbox -type f
+
+# By type
+ls ~/Knowledge/inbox/papers/ 2>/dev/null || echo "No papers"
+ls ~/Knowledge/inbox/web/ 2>/dev/null || echo "No web"
+ls ~/Knowledge/inbox/images/ 2>/dev/null || echo "No images"
+
+# Count
+echo "Total in inbox: $(find ~/Knowledge/inbox -type f | wc -l)"
+```
+
+### Create Note
+
+**User:** "Create a note for the concept of self-attention"
+
+```bash
+# Check if exists
+qmd search "self-attention"
+ls ~/Knowledge/wiki/concepts/ | grep -i attention
+
+# Create if not exists
+cat > ~/Knowledge/wiki/concepts/self-attention.md << 'EOF'
 ---
-date: 2024-01-15
-tags: [paper, transformers, nlp]
-authors: Vaswani et al.
-venue: NeurIPS
-year: 2017
-status: unread
+date: $(date +%Y-%m-%d)
+tags: [concept, transformers, attention]
 ---
 
-# Attention Is All You Need
+# Self-Attention
 
-## Metadata
-- **Authors:** Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin
-- **Venue:** NeurIPS 2017
-- **Year:** 2017
+## Definition
+A mechanism where each position in a sequence attends to all positions...
 
-## Summary
-The Transformer architecture...
+## Mathematical Formulation
+$Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V$
 
-## Key Contributions
-1. Proposed self-attention mechanism
-2. Achieved SOTA on translation tasks
-3. More parallelizable than RNNs/LSTMs
-
-## Methods
-- Multi-head attention
-- Positional encoding
-- Feed-forward layers
+## In Context
+Introduced in [[../../raw/papers/vaswani-2017-attention.pdf|Attention Is All You Need]].
 
 ## Related
-- [[RNN]]
-- [[LSTM]]
-- [[Self-Attention]]
+- [[Multi-Head Attention]]
+- [[Transformer]]
+- [[../../raw/papers/vaswani-2017-attention.pdf|Original Paper]]
 EOF
 ```
 
-### Answering Questions
+### Daily Check
 
-**User:** "Explain the attention mechanism based on my notes"
-
-```bash
-# Search for relevant notes
-qmd search "attention mechanism"
-qmd search "self-attention"
-qmd search "transformer"
-
-# Read the most relevant notes
-cat ~/Knowledge/wiki/concepts/attention-mechanism.md
-
-# Synthesize answer based on notes
-```
-
-### Daily Workflow
-
-**User:** "Show me my recent notes and what I was working on"
+**User:** "What was I working on recently?"
 
 ```bash
-# Recently modified notes
+# Recent wiki edits
 qmd recent --limit 20
 
-# Today's daily note (if exists)
-DAILY_NOTE="$HOME/Knowledge/Daily/$(date +%Y-%m-%d).md"
-[[ -f "$DAILY_NOTE" ]] && cat "$DAILY_NOTE"
+# Today's daily note
+DAILY="$HOME/Knowledge/Daily/$(date +%Y-%m-%d).md"
+[[ -f "$DAILY" ]] && cat "$DAILY"
+
+# Inbox status
+echo "Inbox: $(find ~/Knowledge/inbox -type f | wc -l) items waiting"
 ```
 
-### Checking for Duplicates
+## Linking to Raw Materials
 
-Before creating a new note, check if it already exists:
+Always link to raw/ rather than duplicating:
 
-```bash
-# Search by title
-qmd search "paper title"
+```markdown
+# In wiki/papers/paper-summary.md:
+---
+title: Paper Title
+raw: "[[../../raw/papers/author-2024-title.pdf]]"
+---
 
-# Search by concept name
-qmd search "neural architecture search"
+Summary here...
 
-# Check specific path
-ls ~/Knowledge/wiki/papers/ | grep -i "attention"
-```
-
-## Example Interactions
-
-### Search and Summarize
-
-```
-User: "What do I know about diffusion models?"
-→ qmd search "diffusion models"
-→ Results: wiki/papers/ddpm.md, wiki/concepts/diffusion.md
-→ Read both files
-→ Provide summary with citations from your notes
-```
-
-### Find Connections
-
-```
-User: "What papers relate to transformers?"
-→ qmd backlinks "Transformer"
-→ qmd search --tag transformers
-→ List all related papers and concepts
-```
-
-### Quick Capture
-
-```
-User: "Quick note: idea about using LLMs for knowledge extraction"
-→ Create file in Inbox or Daily note
-→ Add to ~/Knowledge/Inbox/llm-knowledge-extraction.md
-→ Tag for later processing
+Full paper: [[../../raw/papers/author-2024-title.pdf|click to open]]
 ```
 
 ## Best Practices
 
-1. **Start with search** - Always search before creating new notes to avoid duplicates
-2. **Use backlinks** - Find related concepts via `qmd backlinks`
-3. **Create from templates** - Use consistent structure for papers, concepts, etc.
-4. **Link everything** - Add backlinks to connect concepts
-5. **Tag appropriately** - Use consistent tags for easy filtering
-
-## Notes
-
-- QMD maintains an index for fast search; run `qmd index` if search seems stale
-- The vault is synced via Syncthing; changes propagate to all devices
-- Daily notes format: `YYYY-MM-DD.md` in `~/Knowledge/Daily/`
-- Templates are in `~/Knowledge/.templates/`
-- Focus on file operations (cat, edit, ls) rather than specialized CLI tools
+1. **Search first** — Before creating, check if note exists
+2. **Use links** — Reference raw/ materials, don't duplicate
+3. **Consistent tags** — Use tag patterns across notes
+4. **Backlinks** — Add `qmd backlinks` to find connections
+5. **Check inbox** — Remind user if inbox is accumulating

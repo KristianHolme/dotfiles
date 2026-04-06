@@ -1,12 +1,12 @@
 ---
 name: knowledge-base-ingest
-description: Process raw materials in ~/raw and compile into structured knowledge base
+description: Process items from inbox/ to raw/ and create wiki notes with links
 metadata:
   {
     "openclaw":
       {
         "emoji": "📥",
-        "requires": { "anyBins": ["qmd", "pdftotext", "pandoc"] },
+        "requires": { "anyBins": ["qmd", "pdftotext"] },
         "install":
           [
             {
@@ -16,13 +16,6 @@ metadata:
               "bins": ["pdftotext"],
               "label": "Install poppler (for pdftotext)",
             },
-            {
-              "id": "pandoc",
-              "kind": "pacman",
-              "package": "pandoc",
-              "bins": ["pandoc"],
-              "label": "Install pandoc",
-            },
           ],
       },
   }
@@ -30,378 +23,352 @@ metadata:
 
 # Knowledge Base Ingest Skill
 
-Process raw materials from `~/raw/` and compile them into structured notes in your knowledge base.
+Process items from `~/Knowledge/inbox/` → organize into `~/Knowledge/raw/` → create wiki notes linking to raw materials.
 
-## Purpose
+## Purpose (Karpathy Workflow)
 
-This skill implements the Karpathy workflow:
-1. Scan `~/raw/` for unprocessed files
-2. Extract and structure content
-3. Create properly formatted notes in `~/Knowledge/wiki/`
-4. Add tags, backlinks, and metadata
-5. Move processed files to `~/raw/processed/`
+1. **Scan inbox/** for unprocessed items
+2. **Move** item to organized location in raw/ (rename, categorize)
+3. **Create** wiki note with **link** to raw material (not copy)
+4. **Empty** inbox for this item
 
-## Workflow
+## Key Principle
 
-```
-~/raw/papers/         →  LLM reads, summarizes  →  ~/Knowledge/wiki/papers/
-~/raw/web/            →  Structure & clean      →  ~/Knowledge/wiki/topics/
-~/raw/images/         →  (Manual processing)    →  ~/Knowledge/Attachments/
-~/raw/books/          →  Extract highlights     →  ~/Knowledge/wiki/books/
-```
+**Wiki never duplicates content** — it links to raw/ via Obsidian `[[...]]` links:
 
-## File Types Supported
-
-- **PDFs** (papers, books) → Extracted via `pdftotext`
-- **Markdown** (web saves) → Restructured and linked
-- **HTML** (web pages) → Converted via `pandoc`
-- **Images** → Moved to Attachments (manual description recommended)
-- **Code repos** → Summary created in wiki/projects/
-
-## Process Steps
-
-For each raw file:
-
-1. **Identify file type** and appropriate processing method
-2. **Check for duplicates** using QMD search
-3. **Extract content** (PDF text, markdown, etc.)
-4. **Summarize with LLM** - Create structured summary
-5. **Create note** in appropriate wiki folder (via file write)
-6. **Add metadata** - Tags, date, source, author
-7. **Add backlinks** - Link to related concepts
-8. **Move to processed/** - Archive original file
-
-## Tools Available
-
-### Text Extraction
-
-```bash
-# Extract PDF text (first 500 lines for metadata)
-pdftotext -layout "paper.pdf" - | head -500
-
-# Convert HTML to Markdown
-pandoc -f html -t markdown "article.html" -o "article.md"
-
-# Read markdown files
-cat "notes.md"
-```
-
-### Check for Duplicates
-
-```bash
-# Search for similar titles/content
-qmd search "paper title"
-qmd search "author name"
-```
-
-### File Operations
-
-```bash
-# Create note from template
-cat > ~/Knowledge/wiki/papers/paper-name.md << 'EOF'
+```markdown
 ---
-date: 2024-01-15
-tags: [paper, ml]
-...
-EOF
-
-# Move to processed
-mv "~/raw/papers/paper.pdf" "~/raw/processed/"
-
-# Or copy and archive
-cp "~/raw/papers/paper.pdf" "~/raw/processed/"
-rm "~/raw/papers/paper.pdf"
-```
-
-## Usage Patterns
-
-### Process All Raw Files
-
-**User:** "Process my raw folder"
-
-```bash
-# 1. List all unprocessed files in ~/raw/
-find ~/raw -type f -not -path "*/processed/*" -not -name ".DS_Store"
-
-# 2. For each file, determine type and process:
-#    - PDFs: Extract text, identify metadata, create note
-#    - MD files: Restructure, add metadata
-#    - HTML: Convert to MD, restructure
-#    - Images: Move to Attachments
-
-# 3. Create appropriate wiki note
-# 4. Move to processed/
-
-# Report summary:
-# - X papers processed → wiki/papers/
-# - Y web articles → wiki/topics/
-# - Z images → Attachments/
-```
-
-### Process Specific Directory
-
-**User:** "Process the papers I just added"
-
-```bash
-# List PDFs in ~/raw/papers/
-ls -la ~/raw/papers/*.pdf
-
-# Process each:
-for pdf in ~/raw/papers/*.pdf; do
-    # Extract first page for metadata
-    pdftotext -f 1 -l 1 "$pdf" - | head -50
-    
-    # LLM identifies title, authors, key points
-    
-    # Create wiki note
-    filename=$(basename "$pdf" .pdf)
-    cat > "~/Knowledge/wiki/papers/${filename}.md" << 'EOF'
----
-date: $(date +%Y-%m-%d)
-tags: [paper]
-status: unread
----
-
-# Title from LLM extraction
-
-## Metadata
-- **Authors:** extracted authors
-- **Venue:** extracted venue
-- **Year:** extracted year
-
-## Summary
-LLM-generated summary from PDF content
-
-## Related
-- [[concept-a]]
-- [[paper-b]]
-EOF
-    
-    # Move to processed
-    mv "$pdf" ~/raw/processed/
-done
-```
-
-### Process Single File
-
-**User:** "Add this PDF to my knowledge base"
-
-```bash
-# Read PDF content (first N pages)
-pdftotext "~/raw/papers/new-paper.pdf" - | head -500 > /tmp/paper.txt
-cat /tmp/paper.txt
-
-# Check for duplicates
-qmd search "extracted title"
-
-# Create note
-cat > ~/Knowledge/wiki/papers/new-paper.md << 'EOF'
----
-date: 2024-01-15
-tags: [paper, transformers]
-authors: Authors
-venue: NeurIPS
-year: 2024
-status: unread
+title: Paper Title
+raw: "[[../../raw/papers/author-2024-title.pdf]]"
 ---
 
 # Paper Title
 
 ## Summary
-...
-EOF
+Brief summary...
 
-# Move to processed
-mv "~/raw/papers/new-paper.pdf" ~/raw/processed/
+## Full Source
+See [[../../raw/papers/author-2024-title.pdf|original PDF]]
 ```
 
-## Note Templates
+## Workflow
 
-### Paper Summary Template
+### User
+```
+# User drops new paper in inbox
+~/Knowledge/inbox/papers/random-download.pdf
+```
 
-```markdown
+### Agent
+```
+# 1. Read PDF
+pdftotext "~/Knowledge/inbox/papers/random-download.pdf" - | head -500
+
+# 2. Identify metadata (title, authors, year, venue)
+
+# 3. Create organized filename
+#    FROM: random-download.pdf
+#    TO:   author-2024-paper-title.pdf
+
+# 4. Move to raw/
+mv "~/Knowledge/inbox/papers/random-download.pdf" \
+   "~/Knowledge/raw/papers/author-2024-paper-title.pdf"
+
+# 5. Create wiki note with LINK to raw
+#    (wiki contains summary, raw contains full PDF)
+cat > "~/Knowledge/wiki/papers/paper-title.md" << 'EOF'
 ---
-date: YYYY-MM-DD
-tags: [paper, {field}]
-authors: {authors}
-venue: {venue}
-year: {year}
-status: unread|reading|read
-raw_source: ~/raw/processed/filename.pdf
+date: 2024-01-15
+tags: [paper, ml]
+status: unread
+raw: "[[../../raw/papers/author-2024-paper-title.pdf]]"
 ---
 
-# {title}
+# Paper Title
 
 ## Metadata
-- **Authors:** {authors}
-- **Venue:** {venue}
-- **Year:** {year}
+- **Authors:** Author Name
+- **Venue:** Venue Name
+- **Year:** 2024
+- **Source:** [[../../raw/papers/author-2024-paper-title.pdf|PDF]]
 
 ## Summary
-{LLM-generated summary}
+LLM-generated summary...
 
 ## Key Contributions
 - Point 1
 - Point 2
-- Point 3
-
-## Methods
-{Description of approach}
-
-## Results
-{Key findings}
-
-## My Notes
-{Personal observations, connections}
 
 ## Related
-- [[Concept A]]
-- [[Paper B]]
-- [[Project C]]
+- [[concept-a]]
+- [[paper-b]]
+EOF
 
----
-
-*Processed: {date}*
-*Source: {original filename}*
+# 6. Result: inbox empty for this item, raw has organized PDF, wiki has summary with link
 ```
 
-### Web Article Template
+## Tools
 
-```markdown
----
-date: YYYY-MM-DD
-tags: [article, {topic}]
-author: {author}
-url: {original_url}
-status: unread|read
-raw_source: ~/raw/processed/filename.md
----
-
-# {title}
-
-## Source
-{url}
-
-## Summary
-{LLM-generated summary}
-
-## Key Points
-- Point 1
-- Point 2
-
-## Related
-- [[Topic A]]
-- [[Concept B]]
-
----
-
-*Processed: {date}*
-```
-
-### Book Notes Template
-
-```markdown
----
-date: YYYY-MM-DD
-tags: [book, {genre}]
-author: {author}
-title: {title}
-status: reading|read
-raw_source: ~/raw/books/
----
-
-# {title} - {author}
-
-## Summary
-{Overview of book}
-
-## Key Insights
-- Insight 1
-- Insight 2
-
-## Quotes
-> "Quote text" — Page X
-
-## Related
-- [[Concept A]]
-- [[Paper B]]
-
----
-
-*Processed: {date}*
-```
-
-## Duplicate Detection
-
-Before creating a new note, check if it already exists:
+### Check Inbox
 
 ```bash
-# Search by title
-qmd search "paper title"
+# List all unprocessed items in inbox
+ls -la ~/Knowledge/inbox/*/
+find ~/Knowledge/inbox -type f -not -name ".DS_Store"
 
-# Search by author
-qmd search "author name"
-
-# Check specific path
-ls ~/Knowledge/wiki/papers/ | grep -i "partial-title"
+# Check specific folder
+ls ~/Knowledge/inbox/papers/
+ls ~/Knowledge/inbox/web/
 ```
 
-If duplicate found:
-- Skip creation
-- Optionally update existing note with new info
-- Log the duplicate
+### Extract Content
 
-## Backlink Strategy
+```bash
+# PDF text extraction
+pdftotext -layout "~/Knowledge/inbox/papers/file.pdf" - | head -500
 
-When processing, identify and create links to:
-- **Concepts** mentioned in the content → `[[concepts/...]]`
-- **Related papers** → `[[papers/...]]`
-- **People** mentioned → `[[people/...]]`
-- **Projects** it relates to → `[[projects/...]]`
+# Markdown files
+cat "~/Knowledge/inbox/web/article.md"
 
-Use `qmd search` to find existing notes to link to.
+# HTML conversion (if needed)
+pandoc -f html -t markdown "file.html" -o "file.md"
+```
 
-## Error Handling
+### Move to Raw (Organize)
 
-- **Failed PDF extraction** → Log error, skip file, notify user
-- **Duplicate detected** → Log, skip creation
-- **Missing metadata** → Create note with available info, flag for manual review
-- **Unknown file type** → Move to `~/raw/unrecognized/`, notify user
+```bash
+# Rename and move to organized location
+# Pattern: author-year-descriptive-name.ext
 
-## Batch Processing
+# Example: Paper
+mv "~/Knowledge/inbox/papers/confusing-name.pdf" \
+   "~/Knowledge/raw/papers/vaswani-2017-attention-is-all-you-need.pdf"
 
-For efficiency, process files in batches:
-1. Group by type (all PDFs, all MDs)
-2. Process similar files together
-3. Report summary at end
+# Example: Web article
+mv "~/Knowledge/inbox/web/article-123.html" \
+   "~/Knowledge/raw/web/karpathy-llm-knowledge-base-guide.md"
+
+# Example: Image
+mv "~/Knowledge/inbox/images/screenshot.png" \
+   "~/Knowledge/raw/images/diagram-architecture-2024.png"
+```
+
+### Create Wiki Note (with Link)
+
+```bash
+# Create wiki note that LINKS to raw (never copies)
+VAULT="$HOME/Knowledge"
+
+cat > "$VAULT/wiki/papers/paper-name.md" << 'EOF'
+---
+date: 2024-01-15
+tags: [paper, ml]
+status: unread
+raw: "[[../../raw/papers/filename.pdf]]"
+---
+
+# Title
+
+## Summary
+Brief summary...
+
+## Source
+[[../../raw/papers/filename.pdf|Original PDF]]
+
+## Related
+- [[concept-a]]
+EOF
+```
+
+### Check for Duplicates
+
+```bash
+# Before moving to raw, check if similar file exists
+ls ~/Knowledge/raw/papers/ | grep -i "author-name"
+qmd search "paper title"
+```
+
+## Usage Patterns
+
+### Process Single Item
+
+**User:** "Process this paper in my inbox"
+
+```bash
+# 1. Check what's in inbox/papers
+ls ~/Knowledge/inbox/papers/
+
+# 2. Read the PDF
+pdftotext "~/Knowledge/inbox/papers/file.pdf" - | head -500
+
+# 3. Identify metadata (LLM reads and extracts)
+#    - Title: Attention Is All You Need
+#    - Authors: Vaswani et al.
+#    - Year: 2017
+#    - Venue: NeurIPS
+
+# 4. Move to organized raw/ location
+mv "~/Knowledge/inbox/papers/file.pdf" \
+   "~/Knowledge/raw/papers/vaswani-2017-attention-is-all-you-need.pdf"
+
+# 5. Create wiki note with LINK
+cat > "~/Knowledge/wiki/papers/attention-is-all-you-need.md" << 'EOF'
+---
+date: 2024-01-15
+tags: [paper, transformers, nlp]
+authors: Vaswani et al.
+venue: NeurIPS
+year: 2017
+status: unread
+raw: "[[../../raw/papers/vaswani-2017-attention-is-all-you-need.pdf]]"
+---
+
+# Attention Is All You Need
+
+## Metadata
+- **Authors:** Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin
+- **Venue:** NeurIPS 2017
+- **Year:** 2017
+- **Source:** [[../../raw/papers/vaswani-2017-attention-is-all-you-need.pdf|PDF]]
+
+## Summary
+The Transformer architecture...
+
+## Key Contributions
+1. Proposed self-attention mechanism
+2. More parallelizable than RNNs
+
+## Methods
+- Multi-head attention
+- Positional encoding
+
+## Related
+- [[RNN]]
+- [[LSTM]]
+- [[Self-Attention]]
+- [[../../raw/papers/vaswani-2017-attention-is-all-you-need.pdf|Original PDF]]
+EOF
+
+# 6. Done - inbox empty, raw organized, wiki has summary with link
+```
+
+### Process All Inbox Items
+
+**User:** "Process everything in my inbox"
+
+```bash
+# List all items in inbox
+find ~/Knowledge/inbox -type f | while read file; do
+    # Determine type
+    case "$file" in
+        *.pdf)
+            # Paper processing
+            pdftotext "$file" - | head -500
+            # Extract metadata
+            # Move to raw/papers/
+            # Create wiki/papers/note.md with link
+            ;;
+        *.md)
+            # Web article processing
+            cat "$file"
+            # Move to raw/web/
+            # Create wiki/topics/note.md with link
+            ;;
+        *.png|*.jpg)
+            # Image processing
+            # Move to raw/images/
+            # Create description in wiki if needed
+            ;;
+    esac
+done
+```
+
+### Check Inbox Status
+
+**User:** "What's in my inbox?"
+
+```bash
+# Count items
+find ~/Knowledge/inbox -type f | wc -l
+
+# List by type
+ls ~/Knowledge/inbox/papers/ 2>/dev/null || echo "No papers"
+ls ~/Knowledge/inbox/web/ 2>/dev/null || echo "No web articles"
+ls ~/Knowledge/inbox/images/ 2>/dev/null || echo "No images"
+```
+
+## File Naming Convention
+
+When moving from inbox to raw, use descriptive names:
+
+```
+# Papers
+author-year-title-keywords.pdf
+vaswani-2017-attention-is-all-you-need.pdf
+
+# Web articles
+author-or-site-date-title.md
+karpathy-2024-llm-knowledge-base-guide.md
+
+# Books
+author-year-book-title.pdf
+
+# Code repos
+date-project-name/
+2024-01-15-transformer-impl/
+
+# Images
+date-description.png
+2024-01-15-transformer-architecture.png
+```
+
+## Link Formats
+
+In wiki notes, link to raw materials:
+
+```markdown
+# Relative link from wiki/papers/ to raw/papers/
+[[../../raw/papers/vaswani-2017-attention.pdf|Original PDF]]
+
+# Relative link from wiki/concepts/ to raw/papers/
+[[../../raw/papers/vaswani-2017-attention.pdf|Vaswani et al. 2017]]
+
+# In YAML frontmatter
+raw: "[[../../raw/papers/vaswani-2017-attention.pdf]]"
+```
 
 ## Best Practices
 
-1. **Always check for duplicates** before creating new notes
-2. **Preserve raw sources** - Keep original in processed/
-3. **Add backlinks liberally** - Connect new notes to existing knowledge
-4. **Use consistent tags** - Follow existing tag patterns
-5. **Include source URLs** - Always reference where content came from
-6. **Flag for review** - Mark uncertain extractions for manual check
+1. **Always link, never copy** — Wiki references raw/, doesn't duplicate
+2. **Organized filenames** — Use author-year-title pattern in raw/
+3. **Check duplicates** — Before moving to raw, check if similar exists
+4. **Preserve originals** — Keep raw/ files untouched (reference only)
+5. **Summary in wiki** — Put synthesized knowledge in wiki/, full source in raw/
+6. **Clear inbox** — After processing, item should be out of inbox/
 
 ## Reporting
 
-After processing, provide a summary:
+After processing:
 
 ```
 📥 Ingest Complete
 ==================
-✓ 3 papers → wiki/papers/
-✓ 5 web articles → wiki/topics/
-✓ 2 images → Attachments/
+Processed from inbox/:
+✓ 3 papers → raw/papers/ + wiki/papers/ (with links)
+✓ 5 web articles → raw/web/ + wiki/topics/ (with links)
+✓ 2 images → raw/images/
 ⚠ 1 duplicate skipped
-⚠ 1 extraction error (logged)
+⚠ 1 item needs manual review
+
+Current inbox status:
+📁 inbox/papers/ - 0 items
+📁 inbox/web/ - 0 items
+📁 inbox/images/ - 1 item (needs manual processing)
 ```
 
-## Focus
+## Error Handling
 
-This skill focuses on **file operations** (cat, write, mv) and **qmd** for search. No complex CLI tools needed - just:
-- Read/write files
-- Move files around
-- Search with qmd
-- Process with standard tools (pdftotext, pandoc)
+- **PDF extraction fails** → Log error, leave in inbox, notify user
+- **Duplicate detected** → Log, skip, ask if update needed
+- **Unknown file type** → Move to inbox/unrecognized/, notify user
+- **Metadata extraction uncertain** → Create wiki note, flag for review
