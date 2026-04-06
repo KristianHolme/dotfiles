@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 #
 # dotfiles-setup-knowledgebase
-# Idempotent setup script for the knowledge base system
-# Based on Andrej Karpathy's LLM Knowledge Base workflow
+# Setup knowledge base on Arch Linux
 #
 
 set -euo pipefail
@@ -18,7 +17,6 @@ NC='\033[0m'
 VAULT_PATH="${KNOWLEDGE_VAULT_PATH:-$HOME/Knowledge}"
 RAW_PATH="${KNOWLEDGE_RAW_PATH:-$HOME/raw}"
 QMD_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/qmd"
-OBSIDIAN_CLI_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/obsidian-cli"
 
 # Logging
 log_info() { echo -e "${BLUE}ℹ${NC}  $1"; }
@@ -36,147 +34,48 @@ ensure_dir() {
     fi
 }
 
-# Detect OS/arch
-detect_os() {
-    case "$(uname -s)" in
-        Linux*)     echo "linux";;
-        Darwin*)    echo "macos";;
-        *)          echo "unknown";;
-    esac
-}
-detect_arch() {
-    case "$(uname -m)" in
-        x86_64|amd64)   echo "amd64";;
-        arm64|aarch64)  echo "arm64";;
-        *)              echo "unknown";;
-    esac
-}
-OS=$(detect_os)
-ARCH=$(detect_arch)
-
-# Check prerequisites
-check_prerequisites() {
-    log_info "Checking prerequisites ($OS/$ARCH)..."
-    [[ "$OS" == "unknown" ]] && { log_error "Unsupported OS"; exit 1; }
-    [[ "$ARCH" == "unknown" ]] && { log_error "Unsupported arch"; exit 1; }
-    command_exists curl || { log_error "curl required"; exit 1; }
-    log_success "Prerequisites OK"
-}
-
-# Install package (Arch-first)
-install_package() {
-    local cmd="$1" pkg="${2:-$1}"
-    command_exists "$cmd" && { log_info "$cmd exists"; return 0; }
-    
-    log_info "Installing $pkg..."
-    local success=false
-    
-    if [[ "$OS" == "macos" ]] && command_exists brew; then
-        brew install "$pkg" 2>/dev/null && success=true
-    elif [[ "$OS" == "linux" ]]; then
-        if command_exists yay; then
-            yay -S --needed --noconfirm "$pkg" 2>/dev/null && success=true
-        elif command_exists paru; then
-            paru -S --needed --noconfirm "$pkg" 2>/dev/null && success=true
-        elif command_exists apt-get; then
-            sudo apt-get update -qq && sudo apt-get install -y "$pkg" 2>/dev/null && success=true
-        elif command_exists pacman; then
-            sudo pacman -S --needed --noconfirm "$pkg" 2>/dev/null && success=true
-        fi
-    fi
-    
-    [[ "$success" == "true" ]] || { log_error "Failed to install $pkg"; return 1; }
-    command_exists "$cmd" || { log_error "$cmd not in PATH"; return 1; }
-    log_success "Installed $pkg"
-}
-
-# Install QMD (AUR first, then official install script)
+# Install QMD via npm (recommended method)
 install_qmd() {
-    command_exists qmd && { log_info "QMD exists"; return 0; }
-    log_info "Installing QMD..."
-    
-    # Try AUR on Arch
-    if [[ "$OS" == "linux" ]]; then
-        if command_exists yay && yay -S --needed --noconfirm qmd 2>/dev/null; then
-            log_success "QMD via yay"; return 0
-        elif command_exists paru && paru -S --needed --noconfirm qmd 2>/dev/null; then
-            log_success "QMD via paru"; return 0
-        fi
+    if command_exists qmd; then
+        log_info "QMD already installed"
+        return 0
     fi
     
-    # Fallback: official install script
-    local tmp="/tmp/qmd-install-$$.sh"
-    curl -fsSL "https://raw.githubusercontent.com/tobi/qmd/main/install.sh" -o "$tmp" || { log_error "Download failed"; return 1; }
-    chmod +x "$tmp"
-    "$tmp" || { rm -f "$tmp"; log_error "Install failed"; return 1; }
-    rm -f "$tmp"
-    command_exists qmd || { log_error "QMD not in PATH"; return 1; }
+    log_info "Installing QMD via npm..."
+    
+    if ! command_exists npm; then
+        log_info "Installing npm..."
+        sudo pacman -S --needed --noconfirm npm nodejs
+    fi
+    
+    npm install -g @tobilu/qmd
+    
+    if ! command_exists qmd; then
+        log_error "QMD installation failed"
+        return 1
+    fi
+    
     log_success "QMD installed"
 }
 
-# Install obsidian-cli (AUR first, then GitHub releases)
-install_obsidian_cli() {
-    command_exists obsidian-cli && { log_info "obsidian-cli exists"; return 0; }
-    log_info "Installing obsidian-cli..."
-    
-    # Try AUR on Arch
-    if [[ "$OS" == "linux" ]]; then
-        if command_exists yay && yay -S --needed --noconfirm obsidian-cli-bin 2>/dev/null; then
-            log_success "obsidian-cli via yay"; return 0
-        elif command_exists paru && paru -S --needed --noconfirm obsidian-cli-bin 2>/dev/null; then
-            log_success "obsidian-cli via paru"; return 0
-        fi
+# Install ripgrep (pacman)
+install_ripgrep() {
+    if command_exists rg; then
+        log_info "ripgrep already installed"
+        return 0
     fi
     
-    # Fallback: GitHub releases
-    local pattern=""
-    case "$OS/$ARCH" in
-        linux/amd64) pattern="linux-amd64";;
-        linux/arm64) pattern="linux-arm64";;
-        macos/amd64) pattern="darwin-amd64";;
-        macos/arm64) pattern="darwin-arm64";;
-    esac
-    [[ -z "$pattern" ]] && { log_error "No binary for $OS/$ARCH"; return 1; }
-    
-    local url
-    url=$(curl -fsSL "https://api.github.com/repos/Bip901/obsidian-cli/releases/latest" 2>/dev/null | \
-        grep "browser_download_url" | grep "$pattern" | head -1 | cut -d'"' -f4)
-    [[ -z "$url" ]] && { log_error "No download URL"; return 1; }
-    
-    local tmp="/tmp/obsidian-cli-$$"
-    curl -fsSL "$url" -o "$tmp" || { log_error "Download failed"; return 1; }
-    chmod +x "$tmp"
-    
-    local dir="$HOME/.local/bin"
-    ensure_dir "$dir"
-    mv "$tmp" "$dir/obsidian-cli"
-    
-    # Add to PATH if needed
-    [[ ":$PATH:" != *":$dir:"* ]] && export PATH="$dir:$PATH"
-    command_exists obsidian-cli || { log_error "Not in PATH"; return 1; }
-    log_success "obsidian-cli installed"
+    log_info "Installing ripgrep..."
+    sudo pacman -S --needed --noconfirm ripgrep
+    log_success "ripgrep installed"
 }
 
-# Verify tools
-verify_tools() {
-    log_info "Verifying..."
-    local ok=true
-    for cmd in qmd obsidian-cli rg; do
-        if command_exists "$cmd"; then
-            log_success "$cmd: $(which $cmd)"
-        else
-            log_error "$cmd missing"
-            ok=false
-        fi
-    done
-    [[ "$ok" == "true" ]] || { log_error "Some tools failed"; exit 1; }
-}
-
-# Setup configs
+# Setup QMD config
 setup_qmd_config() {
     ensure_dir "$QMD_CONFIG_DIR"
     local f="$QMD_CONFIG_DIR/config.yaml"
     [[ -f "$f" ]] && { log_info "QMD config exists"; return 0; }
+    
     cat > "$f" << EOF
 vault_path: $VAULT_PATH
 index_path: ${XDG_CACHE_HOME:-$HOME/.cache}/qmd/index.db
@@ -194,23 +93,13 @@ EOF
     log_success "QMD config created"
 }
 
-setup_obsidian_cli_config() {
-    ensure_dir "$OBSIDIAN_CLI_CONFIG_DIR"
-    local f="$OBSIDIAN_CLI_CONFIG_DIR/config.json"
-    [[ -f "$f" ]] && { log_info "obsidian-cli config exists"; return 0; }
-    cat > "$f" << EOF
-{
-  "default_vault": "$VAULT_PATH",
-  "templates_path": "$VAULT_PATH/.templates"
-}
-EOF
-    log_success "obsidian-cli config created"
-}
-
 # Setup Syncthing
 setup_syncthing() {
     log_info "Setting up Syncthing..."
-    command_exists syncthing || install_package syncthing
+    
+    if ! command_exists syncthing; then
+        sudo pacman -S --needed --noconfirm syncthing
+    fi
     
     systemctl --user is-enabled syncthing.service &>/dev/null || {
         systemctl --user enable syncthing.service
@@ -225,9 +114,11 @@ setup_syncthing() {
     log_info "Syncthing UI: http://localhost:8384"
 }
 
-# Create directories
+# Create directory structure
 create_dirs() {
-    log_info "Creating structure..."
+    log_info "Creating directory structure..."
+    
+    # Vault
     ensure_dir "$VAULT_PATH/Inbox"
     ensure_dir "$VAULT_PATH/wiki/concepts"
     ensure_dir "$VAULT_PATH/wiki/papers"
@@ -238,6 +129,8 @@ create_dirs() {
     ensure_dir "$VAULT_PATH/MOCs"
     ensure_dir "$VAULT_PATH/Attachments"
     ensure_dir "$VAULT_PATH/.templates"
+    
+    # Raw
     ensure_dir "$RAW_PATH/papers"
     ensure_dir "$RAW_PATH/books"
     ensure_dir "$RAW_PATH/web"
@@ -263,9 +156,9 @@ EOF
         log_success ".stignore created"
     fi
     
-    # Index note
-    if [[ ! -f "$VAULT_PATH/wiki/index.md" ]]; then
-        cat > "$VAULT_PATH/wiki/index.md" << 'EOF'
+    # Index note in raw folder
+    if [[ ! -f "$RAW_PATH/index.md" ]]; then
+        cat > "$RAW_PATH/index.md" << 'EOF'
 # Knowledge Base Index
 
 Welcome to your personal knowledge base.
@@ -287,7 +180,7 @@ Welcome to your personal knowledge base.
 
 *Last updated: {{date}}*
 EOF
-        log_success "Index note created"
+        log_success "Index note created in ~/raw"
     fi
 }
 
@@ -338,12 +231,13 @@ print_summary() {
     echo ""
     echo "🔧 Tools:"
     command_exists qmd && echo "   ✓ QMD" || echo "   ✗ QMD"
-    command_exists obsidian-cli && echo "   ✓ obsidian-cli" || echo "   ✗ obsidian-cli"
+    command_exists rg && echo "   ✓ ripgrep" || echo "   ✗ ripgrep"
     echo ""
     echo "🚀 Next:"
     echo "   1. Syncthing: http://localhost:8384"
     echo "   2. Install Obsidian"
     echo "   3. Open $VAULT_PATH"
+    echo "   4. Add content to $RAW_PATH"
     echo ""
 }
 
@@ -354,13 +248,9 @@ main() {
     echo "========================"
     echo ""
     
-    check_prerequisites
-    install_package ripgrep
+    install_ripgrep
     install_qmd
-    install_obsidian_cli
-    verify_tools
     setup_qmd_config
-    setup_obsidian_cli_config
     create_dirs
     setup_syncthing
     create_templates

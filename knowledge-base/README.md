@@ -19,7 +19,7 @@ The workflow is designed to leverage LLMs for automatically processing raw mater
 ```
 
 This will:
-1. Install required tools (QMD, obsidian-cli, ripgrep)
+1. Install required tools (QMD via npm, ripgrep via pacman)
 2. Create the directory structure
 3. Configure Syncthing for cross-device sync
 4. Set up note templates
@@ -43,14 +43,15 @@ This will:
 ├── 🏷️ Tags.md                 # Tag directory
 └── .templates/                # Note templates
 
-~/raw/                         # Raw data ingestion
+~/raw/                         # Raw data ingestion (synced separately)
 ├── papers/                    # PDF papers
 ├── books/                     # Book highlights/notes
-├── web/                       # Web article saves
+├── web/                       # Web article saves (markdown)
 ├── code/                      # Code snippets, repos
 ├── images/                    # Screenshots, diagrams
 ├── audio/                     # Podcasts, voice memos
-└── processed/                 # Already-processed files
+├── processed/                 # Already-processed files
+└── index.md                   # Knowledge base index (in raw/)
 ```
 
 ## Components
@@ -64,35 +65,24 @@ qmd search "neural architecture search"    # Search notes
 qmd search --tag papers                     # Search by tag
 qmd index                                   # Rebuild search index
 qmd recent                                  # Recently modified notes
+qmd backlinks "Concept Note"                # Find backlinks
 ```
 
 Configuration: `~/.config/qmd/config.yaml`
 
-### 2. obsidian-cli - Vault Management
+Install via npm: `npm install -g @tobilu/qmd`
 
-Command-line interface to Obsidian vaults.
+### 2. Syncthing - Cross-Device Sync
 
-```bash
-obsidian-cli ls                              # List vaults
-obsidian-cli open ~/Knowledge                # Open vault
-obsidian-cli new "Paper Notes"               # Create note from template
-obsidian-cli daily                           # Open daily note
-```
-
-Configuration: `~/.config/obsidian-cli/config.json`
-
-### 3. Syncthing - Cross-Device Sync
-
-Peer-to-peer synchronization across all your devices.
+Peer-to-peer synchronization across your devices.
 
 - Work laptop
 - Personal laptop
 - Phone (Android)
-- iPad (via Möbius Sync)
 
 Configure at: http://localhost:8384
 
-### 4. OpenClaw Skills
+### 3. OpenClaw Skills
 
 Two skills for knowledge base interaction:
 
@@ -105,8 +95,8 @@ Two skills for knowledge base interaction:
 
 1. **Capture** - Add content to `~/raw/` (papers, web articles, notes)
 2. **Process** - Run the ingest skill to compile into wiki
-3. **Search** - Use QMD or the knowledge-base skill to find information
-4. **Connect** - Create backlinks between related concepts in Obsidian
+3. **Search** - Use QMD to find information
+4. **Connect** - Create backlinks between related concepts
 
 ### From Raw to Wiki
 
@@ -116,6 +106,50 @@ Two skills for knowledge base interaction:
 ~/Knowledge/wiki/papers/paper-summary.md
     ↓ [Manual refinement + backlinks]
 Connected knowledge graph in Obsidian
+```
+
+## Tools & Usage
+
+### QMD Commands
+
+```bash
+# Search for a topic
+qmd search "neural architecture search"
+
+# Search with context
+qmd search --context 3 "attention mechanism"
+
+# Search by tag
+qmd search --tag papers
+
+# List recently modified
+qmd recent --limit 10
+
+# Show backlinks
+qmd backlinks "Attention Mechanism"
+
+# Rebuild index (if needed)
+qmd index
+```
+
+### File Operations
+
+```bash
+# Create new note
+cat > ~/Knowledge/wiki/papers/new-paper.md << 'EOF'
+---
+date: 2024-01-01
+tags: [paper]
+---
+# Title
+...
+EOF
+
+# Read existing note
+cat ~/Knowledge/wiki/concepts/transformer.md
+
+# Edit note
+$EDITOR ~/Knowledge/wiki/concepts/transformer.md
 ```
 
 ## Templates
@@ -147,7 +181,6 @@ The `.stignore` file excludes:
 
 - [Andrej Karpathy's LLM Knowledge Base post](https://twitter.com/karpathy/status/1772925336763494570)
 - [QMD - Query Markdown Database](https://github.com/tobi/qmd)
-- [obsidian-cli](https://github.com/Bip901/obsidian-cli)
 - [Syncthing](https://syncthing.net/)
 
 ## License

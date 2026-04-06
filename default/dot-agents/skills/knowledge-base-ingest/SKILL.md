@@ -6,26 +6,22 @@ metadata:
     "openclaw":
       {
         "emoji": "📥",
-        "requires":
-          {
-            "anyBins": ["qmd", "obsidian-cli", "pdftotext", "pandoc"],
-            "config": ["knowledge-base.vault_path", "knowledge-base.raw_path"],
-          },
+        "requires": { "anyBins": ["qmd", "pdftotext", "pandoc"] },
         "install":
           [
             {
               "id": "pdftotext",
-              "kind": "shell",
-              "label": "Install pdftotext (poppler-utils)",
-              "command": "sudo apt-get update && sudo apt-get install -y poppler-utils",
+              "kind": "pacman",
+              "package": "poppler",
               "bins": ["pdftotext"],
+              "label": "Install poppler (for pdftotext)",
             },
             {
               "id": "pandoc",
-              "kind": "shell",
-              "label": "Install pandoc",
-              "command": "sudo apt-get install -y pandoc || brew install pandoc",
+              "kind": "pacman",
+              "package": "pandoc",
               "bins": ["pandoc"],
+              "label": "Install pandoc",
             },
           ],
       },
@@ -56,7 +52,7 @@ This skill implements the Karpathy workflow:
 
 ## File Types Supported
 
-- **PDFs** (papers, books) → Extracted via `pdftotext` or read directly
+- **PDFs** (papers, books) → Extracted via `pdftotext`
 - **Markdown** (web saves) → Restructured and linked
 - **HTML** (web pages) → Converted via `pandoc`
 - **Images** → Moved to Attachments (manual description recommended)
@@ -70,7 +66,7 @@ For each raw file:
 2. **Check for duplicates** using QMD search
 3. **Extract content** (PDF text, markdown, etc.)
 4. **Summarize with LLM** - Create structured summary
-5. **Create note** in appropriate wiki folder
+5. **Create note** in appropriate wiki folder (via file write)
 6. **Add metadata** - Tags, date, source, author
 7. **Add backlinks** - Link to related concepts
 8. **Move to processed/** - Archive original file
@@ -80,8 +76,8 @@ For each raw file:
 ### Text Extraction
 
 ```bash
-# Extract PDF text
-pdftotext -layout "paper.pdf" - | head -100
+# Extract PDF text (first 500 lines for metadata)
+pdftotext -layout "paper.pdf" - | head -500
 
 # Convert HTML to Markdown
 pandoc -f html -t markdown "article.html" -o "article.md"
@@ -98,26 +94,17 @@ qmd search "paper title"
 qmd search "author name"
 ```
 
-### Create Notes
-
-```bash
-# Create from template
-obsidian-cli new "wiki/papers/paper-name" --template paper
-
-# Or create manually
-write ~/Knowledge/wiki/papers/paper-name.md << 'CONTENT'
----
-tags: [paper, ml]
----
-# Paper Name
-## Summary
-...
-CONTENT
-```
-
 ### File Operations
 
 ```bash
+# Create note from template
+cat > ~/Knowledge/wiki/papers/paper-name.md << 'EOF'
+---
+date: 2024-01-15
+tags: [paper, ml]
+...
+EOF
+
 # Move to processed
 mv "~/raw/papers/paper.pdf" "~/raw/processed/"
 
@@ -137,10 +124,10 @@ rm "~/raw/papers/paper.pdf"
 find ~/raw -type f -not -path "*/processed/*" -not -name ".DS_Store"
 
 # 2. For each file, determine type and process:
-#    - PDFs → Extract, summarize as paper
-#    - MD files → Restructure as topic/concept
-#    - HTML → Convert to MD, restructure
-#    - Images → Move to Attachments
+#    - PDFs: Extract text, identify metadata, create note
+#    - MD files: Restructure, add metadata
+#    - HTML: Convert to MD, restructure
+#    - Images: Move to Attachments
 
 # 3. Create appropriate wiki note
 # 4. Move to processed/
@@ -167,7 +154,28 @@ for pdf in ~/raw/papers/*.pdf; do
     # LLM identifies title, authors, key points
     
     # Create wiki note
-    obsidian-cli new "wiki/papers/${basename}" --template paper
+    filename=$(basename "$pdf" .pdf)
+    cat > "~/Knowledge/wiki/papers/${filename}.md" << 'EOF'
+---
+date: $(date +%Y-%m-%d)
+tags: [paper]
+status: unread
+---
+
+# Title from LLM extraction
+
+## Metadata
+- **Authors:** extracted authors
+- **Venue:** extracted venue
+- **Year:** extracted year
+
+## Summary
+LLM-generated summary from PDF content
+
+## Related
+- [[concept-a]]
+- [[paper-b]]
+EOF
     
     # Move to processed
     mv "$pdf" ~/raw/processed/
@@ -181,14 +189,27 @@ done
 ```bash
 # Read PDF content (first N pages)
 pdftotext "~/raw/papers/new-paper.pdf" - | head -500 > /tmp/paper.txt
-read /tmp/paper.txt
+cat /tmp/paper.txt
 
 # Check for duplicates
 qmd search "extracted title"
 
 # Create note
-obsidian-cli new "wiki/papers/new-paper" --template paper
-edit ~/Knowledge/wiki/papers/new-paper.md
+cat > ~/Knowledge/wiki/papers/new-paper.md << 'EOF'
+---
+date: 2024-01-15
+tags: [paper, transformers]
+authors: Authors
+venue: NeurIPS
+year: 2024
+status: unread
+---
+
+# Paper Title
+
+## Summary
+...
+EOF
 
 # Move to processed
 mv "~/raw/papers/new-paper.pdf" ~/raw/processed/
@@ -376,3 +397,11 @@ After processing, provide a summary:
 ⚠ 1 duplicate skipped
 ⚠ 1 extraction error (logged)
 ```
+
+## Focus
+
+This skill focuses on **file operations** (cat, write, mv) and **qmd** for search. No complex CLI tools needed - just:
+- Read/write files
+- Move files around
+- Search with qmd
+- Process with standard tools (pdftotext, pandoc)
