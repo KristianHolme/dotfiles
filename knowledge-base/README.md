@@ -22,8 +22,47 @@ This will:
 1. Install QMD (`npm install -g @tobilu/qmd`)
 2. Install ripgrep (`pacman -S ripgrep`)
 3. Create the inbox/raw/code/wiki structure
-4. Configure Syncthing
+4. Configure Syncthing (install + enable service)
 5. Set up templates
+
+## Syncthing Setup (Manual Steps Required)
+
+The setup script installs and starts Syncthing, but **you must manually configure device pairing**:
+
+### Step 1: Open Syncthing UI
+On each device, open: http://localhost:8384
+
+### Step 2: Get Device ID
+On each device, go to **Actions → Show ID** and copy the long device ID.
+
+### Step 3: Add Devices
+1. On your primary device, click **Add Remote Device**
+2. Enter the Device ID from your other device
+3. Give it a name (e.g., "laptop", "phone")
+4. Click **Save**
+5. Repeat on the other device (add the primary device ID)
+
+### Step 4: Share the Knowledge Folder
+1. On your primary device, in the Folders section, click **Add Folder**
+2. **Folder ID**: `knowledge-base`
+3. **Folder Path**: `~/Knowledge`
+4. **Sharing**: Check the box for your other device(s)
+5. Click **Save**
+
+### Step 5: Accept on Other Devices
+On each other device:
+1. You'll see a prompt asking to add the "knowledge-base" folder
+2. Click **Add**
+3. Set **Folder Path** to `~/Knowledge`
+4. Click **Save**
+
+### Step 6: Verify Sync
+Drop a file in `~/Knowledge/inbox/` on one device. It should appear on the other device within seconds.
+
+**Troubleshooting:**
+- Devices must be on the same network (or have internet access for global discovery)
+- Check firewall settings if devices don't see each other
+- Use "local discovery only" for offline LAN sync
 
 ## Directory Structure
 
