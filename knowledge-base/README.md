@@ -4,11 +4,12 @@ Personal knowledge management system based on Andrej Karpathy's LLM Knowledge Ba
 
 ## Overview
 
-Three-tier knowledge architecture (inside `~/Knowledge/` vault):
+Four-tier knowledge architecture (inside `~/Knowledge/` vault):
 
 - **`inbox/`** - Unprocessed new items (you drop things here)
 - **`raw/`** - Processed/organized raw materials (agent moves from inbox)
-- **`wiki/`** - Compiled knowledge (links to raw/ via Obsidian `[[...]]` links)
+- **`code/`** - Julia projects for data analysis and plotting
+- **`wiki/`** - Compiled knowledge (links to raw/ and code/ via Obsidian `[[...]]` links)
 
 ## Quick Start
 
@@ -20,7 +21,7 @@ Three-tier knowledge architecture (inside `~/Knowledge/` vault):
 This will:
 1. Install QMD (`npm install -g @tobilu/qmd`)
 2. Install ripgrep (`pacman -S ripgrep`)
-3. Create the inbox/raw/wiki structure
+3. Create the inbox/raw/code/wiki structure
 4. Configure Syncthing
 5. Set up templates
 
@@ -32,7 +33,6 @@ This will:
 │   ├── papers/                 # New PDFs, papers
 │   ├── books/                  # Book notes
 │   ├── web/                    # Web article saves
-│   ├── code/                   # Code snippets
 │   ├── images/                 # Screenshots, diagrams
 │   └── audio/                  # Voice memos
 │
@@ -40,21 +40,31 @@ This will:
 │   ├── papers/                 # Organized papers from inbox
 │   ├── books/                  # Organized books
 │   ├── web/                    # Organized web saves
-│   ├── code/                   # Organized code
 │   ├── images/                 # Organized images
-│   └── audio/                  # Organized audio
+│   ├── audio/                  # Organized audio
+│   ├── plots/                  # Generated plots from code/
+│   └── data/                   # Processed datasets
 │
-├── 📚 wiki/                    # COMPILED KNOWLEDGE (links to raw/)
-│   ├── concepts/               # Core concepts (link to raw/papers/)
+├── 💻 code/                    # JULIA PROJECTS (data analysis & plots)
+│   ├── analysis-a/             # Julia project for analysis A
+│   │   ├── Project.toml
+│   │   ├── src/AnalysisA.jl
+│   │   └── scripts/plot_results.jl
+│   └── experiment-b/           # Julia project for experiment B
+│
+├── 📚 wiki/                    # COMPILED KNOWLEDGE
+│   ├── concepts/               # Core concepts
 │   ├── papers/                 # Paper summaries with links
 │   ├── people/                 # People profiles
 │   ├── projects/               # Project docs
 │   ├── topics/                 # Topic overviews
+│   ├── data-analysis/          # Data analysis summaries
+│   │   └── analysis-name.md    # Links to plots AND scripts
 │   └── index.md                # Main entry point
 │
 ├── 📅 Daily/                   # Daily notes (YYYY-MM-DD.md)
 ├── 🔗 MOCs/                    # Maps of Content (navigation)
-├── 📎 Attachments/             # Inline images for wiki notes
+├── 📎 Attachments/             # Inline images for wiki
 └── .templates/                 # Note templates
 ```
 
@@ -76,7 +86,17 @@ This will:
 # 4. Empty inbox for this item
 ```
 
-### 3. Use (You + Agent)
+### 3. Data Analysis (Agent + Julia)
+```
+# User asks for data analysis/plots
+# 1. Agent creates Julia project in code/project-name/
+# 2. Script generates plots to raw/plots/
+# 3. Agent creates wiki/data-analysis/project.md linking to:
+#    - Plots: [[../../raw/plots/figure.png]]
+#    - Script: [[../../code/project-name/scripts/plot.jl]]
+```
+
+### 4. Use (You + Agent)
 ```
 # Search wiki for info
 qmd search "neural architecture search"
@@ -87,9 +107,9 @@ qmd search "neural architecture search"
 # Click link to open original PDF
 ```
 
-## Key Principle
+## Key Principles
 
-**Wiki never duplicates raw content** — it links to it:
+**1. Wiki never duplicates raw content** — it links to it:
 
 ```markdown
 ---
@@ -106,6 +126,27 @@ Brief summary here...
 See [[../../raw/papers/attention-is-all-you-need.pdf|original paper]]
 ```
 
+**2. Data analysis lives in code/, outputs to raw/, documented in wiki/**:
+
+```markdown
+---
+title: Experiment Results Analysis
+date: 2024-01-15
+tags: [analysis, julia]
+---
+
+# Experiment Results
+
+## Plots
+![Results](../../raw/plots/experiment-results.png)
+
+## Script
+Analysis performed by [[../../code/experiment-analysis/scripts/plot.jl|this script]]
+
+## Summary
+Key findings from the analysis...
+```
+
 ## Components
 
 ### 1. QMD - Fast Search
@@ -119,7 +160,37 @@ qmd index                                 # Rebuild index
 
 Install: `npm install -g @tobilu/qmd`
 
-### 2. Syncthing - Cross-Device Sync
+### 2. Julia - Data Analysis
+
+When user asks for data management/analysis:
+- Create Julia project in `code/project-name/`
+- Use `julia-mcp` MCP server for persistent sessions (avoids TTFX)
+- Generate plots to `raw/plots/`
+- Create wiki note linking to both plot and script
+
+Example:
+```bash
+# Create Julia project
+cd ~/Knowledge/code
+mkdir experiment-analysis
+cd experiment-analysis
+julia --project=. -e 'using Pkg; Pkg.add(["Makie", "CairoMakie", "DataFrames", "CSV"])'
+
+# Create script
+cat > scripts/plot_results.jl << 'EOF'
+using CairoMakie, DataFrames, CSV
+
+data = CSV.read("../../raw/data/experiment.csv", DataFrame)
+
+fig = Figure()
+ax = Axis(fig[1, 1], title="Results")
+scatter!(ax, data.x, data.y)
+
+save("../../raw/plots/experiment-results.png", fig)
+EOF
+```
+
+### 3. Syncthing - Cross-Device Sync
 
 - Work laptop
 - Personal laptop
@@ -127,10 +198,11 @@ Install: `npm install -g @tobilu/qmd`
 
 Configure: http://localhost:8384
 
-### 3. OpenClaw Skills
+### 4. OpenClaw Skills
 
 - **knowledge-base** - Search wiki, read notes, create new notes
 - **knowledge-base-ingest** - Process inbox → raw + wiki
+- **knowledge-base-analysis** - Create Julia projects for data analysis
 
 ## Ingest Skill Workflow
 
@@ -143,6 +215,27 @@ Configure: http://localhost:8384
     ↓ [Creates wiki note with link]
 ~/Knowledge/wiki/papers/paper-summary.md
     (contains: raw: "[[../../raw/papers/author-year-title.pdf]]")
+```
+
+## Data Analysis Workflow
+
+```
+User: "Analyze my experiment data and plot results"
+
+→ Agent creates code/experiment-analysis/
+   → Project.toml with dependencies
+   → scripts/analyze.jl
+   
+→ Script runs (via julia-mcp or direct)
+   → Reads data from raw/data/
+   → Generates plots to raw/plots/
+   
+→ Agent creates wiki/data-analysis/experiment.md
+   → Links to plot: [[../../raw/plots/result.png]]
+   → Links to script: [[../../code/experiment-analysis/scripts/analyze.jl]]
+   → Summary of findings
+
+Result: Reproducible analysis with full provenance
 ```
 
 ## Templates
@@ -171,6 +264,39 @@ raw: "[[../../raw/papers/FILENAME]]"
 
 ## Related
 - [[concept-a]]
+```
+
+**Data analysis template** (`~/Knowledge/.templates/data-analysis.md`):
+
+```markdown
+---
+date: {{date:YYYY-MM-DD}}
+tags: [analysis, julia]
+status: completed
+---
+
+# Analysis Name
+
+## Objective
+What we analyzed and why
+
+## Data Source
+[[../../raw/data/FILENAME|Raw data]]
+
+## Method
+Analysis performed by [[../../code/PROJECT/scripts/SCRIPT.jl|this script]]
+
+## Results
+![Plot 1](../../raw/plots/plot1.png)
+![Plot 2](../../raw/plots/plot2.png)
+
+## Key Findings
+- Finding 1
+- Finding 2
+
+## Related
+- [[paper-reference]]
+- [[concept-reference]]
 ```
 
 ## References

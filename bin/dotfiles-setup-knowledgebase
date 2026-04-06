@@ -146,6 +146,9 @@ create_dirs() {
     ensure_dir "$VAULT_PATH/Attachments"
     ensure_dir "$VAULT_PATH/.templates"
     
+    # Code - Julia projects for analysis
+    ensure_dir "$VAULT_PATH/code"
+    
     # .stignore for Syncthing
     if [[ ! -f "$VAULT_PATH/.stignore" ]]; then
         cat > "$VAULT_PATH/.stignore" << 'EOF'
@@ -159,6 +162,9 @@ Thumbs.db
 node_modules/
 __pycache__/
 .git/
+Manifest.toml
+*.jl.cov
+*.jl.mem
 EOF
         log_success ".stignore created"
     fi
@@ -174,7 +180,8 @@ Welcome to your personal knowledge base.
 
 - **inbox/** - New items waiting to be processed (you put stuff here)
 - **raw/** - Processed/organized raw materials (agent moves from inbox)
-- **wiki/** - Compiled knowledge with links to raw/
+- **code/** - Julia projects for data analysis and plotting
+- **wiki/** - Compiled knowledge with links to raw/ and code/
 
 ## Maps of Content
 
@@ -243,12 +250,19 @@ print_summary() {
     echo "📁 Structure:"
     echo "   inbox/  - Drop new items here"
     echo "   raw/    - Agent moves organized items here"
-    echo "   wiki/   - Compiled knowledge (links to raw/)"
+    echo "   code/   - Julia projects for analysis/plots"
+    echo "   wiki/   - Compiled knowledge (links to raw/ and code/)"
     echo ""
     echo "🔄 Workflow:"
     echo "   1. You: Put new things in inbox/"
     echo "   2. Agent: Process inbox → raw/ + wiki/"
     echo "   3. Wiki notes link to raw/ materials"
+    echo "   4. Data analysis: code/ → generates plots in raw/plots/"
+    echo ""
+    echo "📊 For data analysis:"
+    echo "   - Create Julia project in code/project-name/"
+    echo "   - Scripts generate plots to raw/plots/"
+    echo "   - Wiki articles link to plots AND scripts"
     echo ""
     echo "🔧 Tools:"
     command_exists qmd && echo "   ✓ QMD" || echo "   ✗ QMD"
