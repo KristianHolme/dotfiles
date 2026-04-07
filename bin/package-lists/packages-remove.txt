@@ -1,0 +1,7 @@
+# One package name per line for yay removal. Empty lines and # full-line comments ignored.
+# Edited by dotfiles-setup-packages.sh — see bin/dotfiles-setup-packages.sh
+
+1password-beta
+1password-cli
+# chromium
+# typora

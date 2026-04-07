@@ -3,14 +3,32 @@ set -Eeuo pipefail
 
 # Omarchy prune/install script
 # - Removes selected default webapps and packages
-# - Installs requested packages
+# - Installs requested packages (lists under bin/package-lists/)
 # - Refreshes application launchers
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
 
+PACKAGE_LISTS_DIR="$SCRIPT_DIR/package-lists"
+
 OMARCHY_BIN="$HOME/.local/share/omarchy/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
+
+# Read a list file: one entry per line; skip empty lines and lines whose first non-whitespace char is #.
+# Second argument is the name of a function invoked once per line: fn "$line"
+read_list_file() {
+    local file="$1"
+    local fn="$2"
+    if [[ ! -f "$file" ]]; then
+        log_error "Missing package list: $file"
+        exit 1
+    fi
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "${line// }" ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        "$fn" "$line"
+    done <"$file"
+}
 
 remove_webapp() {
     local name="$1"
@@ -189,60 +207,19 @@ EOF
     ensure_cmd yay
 
     # 1) Remove webapps
-    remove_webapp "HEY"
-    remove_webapp "Basecamp"
-    remove_webapp "WhatsApp"
-    remove_webapp "Google Photos"
-    remove_webapp "ChatGPT"
-    remove_webapp "Figma"
+    read_list_file "$PACKAGE_LISTS_DIR/webapps-remove.txt" remove_webapp
 
     # 2) Remove packages
-    remove_pkg 1password-beta || true
-    remove_pkg 1password-cli || true
-    #remove_pkg chromium || true
-    #remove_pkg typora || true
+    read_list_file "$PACKAGE_LISTS_DIR/packages-remove.txt" remove_pkg
 
-    # 3) Install packages
-    install_pkg zotero-bin
-
-    # Setup Zotero extensions if Zotero was installed successfully
+    # 3) Install packages (Node dev env first, then list; Television + Zotero after packages)
+    omarchy-install-dev-env node
+    read_list_file "$PACKAGE_LISTS_DIR/packages-install.txt" install_pkg
+    setup_television
     if pkg_installed zotero-bin; then
         log_info "Setting up Zotero extensions..."
         "$HOME/dotfiles/bin/dotfiles-setup-zotero.sh" || log_info "Zotero setup failed (non-critical)"
     fi
-
-    install_pkg cursor-bin
-    install_pkg rsync
-    install_pkg discord
-    install_pkg starship
-    install_pkg stow
-    install_pkg git-lfs
-    install_pkg bitwarden
-    # install_pkg google-chrome
-    install_pkg tmux
-    install_pkg yazi
-    install_pkg shfmt
-    # Install LaTeX packages
-    install_pkg texlive-meta
-    # TODO: remove if not necessary
-    # install_pkg tex-fmt
-    install_pkg zathura
-    install_pkg zathura-pdf-mupdf
-    #node required for something vimtex related?
-    omarchy-install-dev-env node
-    install_pkg xdg-desktop-portal-hyprland
-    install_pkg mermaid-cli
-    install_pkg anki
-    install_pkg asciinema
-    install_pkg mini-text
-    install_pkg pandoc-cli
-    install_pkg slack-desktop-wayland
-    install_pkg syncthing
-    install_pkg parallel
-    setup_television
-    install_pkg trash-cli
-    install_pkg uv
-    install_pkg television
 
     # 4) Install LaTeX templates
     install_latex_template \

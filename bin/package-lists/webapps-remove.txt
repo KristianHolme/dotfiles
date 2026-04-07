@@ -1,0 +1,9 @@
+# One webapp name per line (Omarchy webapp id). Empty lines and # full-line comments ignored.
+# Edited by dotfiles-setup-packages.sh — see bin/dotfiles-setup-packages.sh
+
+HEY
+Basecamp
+WhatsApp
+Google Photos
+ChatGPT
+Figma

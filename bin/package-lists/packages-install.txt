@@ -1,0 +1,32 @@
+# One package per line for yay install. Empty lines and # full-line comments ignored.
+# Omarchy Node dev env, Television channel setup, and Zotero extensions are handled in the script after this list.
+# Edited by dotfiles-setup-packages.sh — see bin/dotfiles-setup-packages.sh
+
+zotero-bin
+cursor-bin
+rsync
+discord
+starship
+stow
+git-lfs
+bitwarden
+# google-chrome
+tmux
+yazi
+shfmt
+texlive-meta
+# tex-fmt
+zathura
+zathura-pdf-mupdf
+xdg-desktop-portal-hyprland
+mermaid-cli
+anki
+asciinema
+mini-text
+pandoc-cli
+slack-desktop-wayland
+syncthing
+parallel
+trash-cli
+uv
+television
