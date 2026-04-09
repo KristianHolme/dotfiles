@@ -1,15 +1,20 @@
 # Knowledge Base System
 
-Personal knowledge management system based on Andrej Karpathy's LLM Knowledge Base workflow.
+Personal knowledge management system based on Andrej Karpathy's [LLM Knowledge Base workflow](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
-## Overview
+## Core Idea
 
-Four-tier knowledge architecture (inside `~/Knowledge/` vault):
+Instead of just retrieving from raw documents at query time, the LLM **incrementally builds and maintains a persistent wiki** — a structured, interlinked collection of markdown files that sits between you and the raw sources.
 
-- **`inbox/`** - Unprocessed new items (you drop things here)
-- **`raw/`** - Processed/organized raw materials (agent moves from inbox)
-- **`code/`** - Julia projects for data analysis and plotting
-- **`wiki/`** - Compiled knowledge (links to raw/ and code/ via Obsidian `[[...]]` links)
+When you add a new source, the LLM doesn't just index it for later retrieval. It reads it, extracts the key information, and **integrates it into the existing wiki** — updating entity pages, revising topic summaries, noting where new data contradicts old claims, strengthening the evolving synthesis.
+
+**The key difference:** The wiki is a persistent, compounding artifact. The cross-references are already there. The contradictions have already been flagged. The synthesis already reflects everything you've read.
+
+## Three Layers
+
+1. **Raw sources** (`raw/`) — Your curated collection of source documents. Immutable. LLM reads from them but never modifies them.
+2. **The wiki** (`wiki/`) — LLM-generated markdown files. Summaries, entity pages, concept pages, comparisons, synthesis.
+3. **The schema** (`AGENTS.md`) — Tells the LLM how the wiki is structured, what the conventions are, and what workflows to follow.
 
 ## Quick Start
 
@@ -22,185 +27,231 @@ This will:
 1. Install QMD (`npm install -g @tobilu/qmd`)
 2. Install ripgrep (`pacman -S ripgrep`)
 3. Create the inbox/raw/code/wiki structure
-4. Configure Syncthing (install + enable service)
-5. Set up templates
-
-## Syncthing Setup (Manual Steps Required)
-
-The setup script installs and starts Syncthing, but **you must manually configure device pairing**:
-
-### Step 1: Open Syncthing UI
-On each device, open: http://localhost:8384
-
-### Step 2: Get Device ID
-On each device, go to **Actions → Show ID** and copy the long device ID.
-
-### Step 3: Add Devices
-1. On your primary device, click **Add Remote Device**
-2. Enter the Device ID from your other device
-3. Give it a name (e.g., "laptop", "phone")
-4. Click **Save**
-5. Repeat on the other device (add the primary device ID)
-
-### Step 4: Share the Knowledge Folder
-1. On your primary device, in the Folders section, click **Add Folder**
-2. **Folder ID**: `knowledge-base`
-3. **Folder Path**: `~/Knowledge`
-4. **Sharing**: Check the box for your other device(s)
-5. Click **Save**
-
-### Step 5: Accept on Other Devices
-On each other device:
-1. You'll see a prompt asking to add the "knowledge-base" folder
-2. Click **Add**
-3. Set **Folder Path** to `~/Knowledge`
-4. Click **Save**
-
-### Step 6: Verify Sync
-Drop a file in `~/Knowledge/inbox/` on one device. It should appear on the other device within seconds.
-
-**Troubleshooting:**
-- Devices must be on the same network (or have internet access for global discovery)
-- Check firewall settings if devices don't see each other
-- Use "local discovery only" for offline LAN sync
+4. Initialize `wiki/index.md` and `wiki/log.md`
+5. Configure Syncthing (install + enable service)
 
 ## Directory Structure
 
 ```
 ~/Knowledge/                    # Main vault (synced via Syncthing)
-├── 📥 inbox/                   # DROP NEW THINGS HERE (flat - any file type)
+├── 📥 inbox/                   # DROP NEW THINGS HERE (flat structure)
 │                               # Agent organizes when moving to raw/
 │
-├── 📁 raw/                     # PROCESSED/ORGANIZED (agent moves here)
-│   ├── papers/                 # Organized papers from inbox
-│   ├── books/                  # Organized books
-│   ├── web/                    # Organized web saves
-│   ├── images/                 # Organized images
-│   ├── audio/                  # Organized audio
+├── 📁 raw/                     # RAW SOURCES (immutable, organized by type)
+│   ├── papers/                 # Research papers (author-year-title.pdf)
+│   ├── books/                  # Books and long-form content
+│   ├── web/                    # Web articles and clippings
+│   ├── images/                 # Images and figures
+│   ├── audio/                  # Audio files
 │   ├── plots/                  # Generated plots from code/
 │   └── data/                   # Processed datasets
 │
-├── 💻 code/                    # JULIA PROJECTS (data analysis & plots)
-│   ├── analysis-a/             # Julia project for analysis A
-│   │   ├── Project.toml
-│   │   ├── src/AnalysisA.jl
-│   │   └── scripts/plot_results.jl
-│   └── experiment-b/           # Julia project for experiment B
+├── 💻 code/                    # JULIA PROJECTS (data analysis & plotting)
+│   └── project-name/           # Each is a full Julia project
+│       ├── Project.toml
+│       ├── src/
+│       └── scripts/
 │
-├── 📚 wiki/                    # COMPILED KNOWLEDGE
-│   ├── concepts/               # Core concepts
-│   ├── papers/                 # Paper summaries with links
-│   ├── people/                 # People profiles
-│   ├── projects/               # Project docs
-│   ├── topics/                 # Topic overviews
-│   ├── data-analysis/          # Data analysis summaries
-│   │   └── analysis-name.md    # Links to plots AND scripts
-│   └── index.md                # Main entry point
+├── 📚 wiki/                    # LLM-GENERATED WIKI
+│   ├── entities/               # People, organizations, tools
+│   ├── concepts/               # Core concepts and ideas
+│   ├── papers/                 # Paper summaries with links to raw/papers/
+│   ├── topics/                 # Topic overviews and syntheses
+│   ├── sources/                # Source summaries (books, articles)
+│   ├── comparisons/            # Comparison tables and analyses
+│   ├── index.md                # CONTENT CATALOG (read first when querying)
+│   └── log.md                  # CHRONOLOGICAL LOG (ingests, queries, lint)
 │
 ├── 📅 Daily/                   # Daily notes (YYYY-MM-DD.md)
-├── 🔗 MOCs/                    # Maps of Content (navigation)
+├── 🔗 MOCs/                    # Maps of Content (navigation hubs)
 ├── 📎 Attachments/             # Inline images for wiki
 └── .templates/                 # Note templates
 ```
 
-## Workflow
+## The Three Operations
 
-### 1. Capture (You)
-```
-# Drop anything in inbox (flat structure - no organizing needed)
-~/Knowledge/inbox/random-paper.pdf
-~/Knowledge/inbox/article-from-web.md
-~/Knowledge/inbox/screenshot.png
-~/Knowledge/inbox/voice-memo.m4a
+### 1. INGEST — Add a New Source
+
+You drop a new source into `inbox/`. The LLM:
+
+1. **Reads** the source (discusses key takeaways with you)
+2. **Moves** to organized location in `raw/` (author-year-title pattern)
+3. **Creates** summary page in `wiki/papers/` or `wiki/sources/`
+4. **Updates** relevant entity pages in `wiki/entities/`
+5. **Updates** relevant concept pages in `wiki/concepts/`
+6. **Updates** the index (`wiki/index.md`)
+7. **Appends** entry to log (`wiki/log.md`)
+
+**A single source might touch 10-15 wiki pages.**
+
+### 2. QUERY — Answer Questions
+
+You ask questions against the wiki. The LLM:
+
+1. **Reads** `wiki/index.md` to find relevant pages
+2. **Reads** the relevant wiki pages
+3. **Synthesizes** answer with citations
+4. **Files good answers back into the wiki** as new pages
+
+**The insight:** Good answers are valuable knowledge too. A comparison you asked for, an analysis, a connection you discovered — these shouldn't disappear into chat history.
+
+### 3. LINT — Health Check
+
+Periodically, the LLM checks the wiki for:
+
+- **Contradictions** between pages
+- **Stale claims** superseded by newer sources
+- **Orphan pages** with no inbound links
+- **Missing pages** for important concepts mentioned but not documented
+- **Missing cross-references**
+- **Data gaps** that could be filled with web search
+
+## Key Files
+
+### wiki/index.md — Content Catalog
+
+The LLM reads this first when answering queries. Organized by category (entities, concepts, papers, topics, comparisons, sources).
+
+Each entry has:
+- Link to the page
+- One-line summary
+- Optional metadata (date, source count)
+
+```markdown
+# Knowledge Base Index
+
+## Papers
+- [[papers/attention-is-all-you-need|Attention Is All You Need]] — Transformer architecture (Vaswani et al., 2017)
+
+## Concepts
+- [[concepts/self-attention|Self-Attention]] — Mechanism where each position attends to all positions
+
+## Topics
+- [[topics/transformers|Transformers]] — Overview of transformer architectures
 ```
 
-### 2. Process (Agent)
-```
-# Agent finds items in inbox
-# 1. Identifies file type and content
-# 2. Moves to organized location in raw/:
-#    - PDFs → raw/papers/author-year-title.pdf
-#    - Web articles → raw/web/site-date-title.md
-#    - Images → raw/images/date-description.png
-# 3. Creates wiki note with link to raw/
-# 4. Empty inbox for this item
+### wiki/log.md — Chronological Log
+
+Append-only record of what happened and when. Each entry starts with a consistent prefix:
+
+```markdown
+## [2024-01-15] ingest | Attention Is All You Need
+- Source: raw/papers/vaswani-2017-attention.pdf
+- Pages created: papers/attention.md, concepts/self-attention.md, entities/vaswani-ashish.md
+
+## [2024-01-14] query | self-attention vs RNNs comparison
+- Created: comparisons/rnn-vs-transformer.md
+
+## [2024-01-13] lint | Health check
+- Found 2 orphan pages, 1 contradiction
 ```
 
-### 3. Data Analysis (Agent + Julia)
-```
-# User asks for data analysis/plots
-# 1. Agent creates Julia project in code/project-name/
-# 2. Script generates plots to raw/plots/
-# 3. Agent creates wiki/data-analysis/project.md linking to:
-#    - Plots: [[../../raw/plots/figure.png]]
-#    - Script: [[../../code/project-name/scripts/plot.jl]]
-```
+**Parseable with Unix tools:**
+```bash
+# Last 5 entries
+grep "^## \[" wiki/log.md | tail -5
 
-### 4. Use (You + Agent)
-```
-# Search wiki for info
-qmd search "neural architecture search"
-
-# Follow link to raw paper
-# In wiki/papers/paper-summary.md:
-#   raw: "[[../../raw/papers/attention-is-all-you-need.pdf]]"
-# Click link to open original PDF
+# All ingests
+grep "ingest |" wiki/log.md
 ```
 
-## Key Principles
+## Workflow Examples
 
-**1. Wiki never duplicates raw content** — it links to it:
+### Process a New Paper
+
+```
+# 1. You drop paper in inbox
+~/Knowledge/inbox/random-download.pdf
+
+# 2. Agent identifies and moves to raw/
+~/Knowledge/raw/papers/vaswani-2017-attention-is-all-you-need.pdf
+
+# 3. Agent creates wiki summary
+~/Knowledge/wiki/papers/attention-is-all-you-need.md
+    (contains: raw: "[[../../raw/papers/vaswani-2017-attention.pdf]]")
+
+# 4. Agent updates related pages
+~/Knowledge/wiki/concepts/self-attention.md (adds link)
+~/Knowledge/wiki/entities/vaswani-ashish.md (creates if new)
+~/Knowledge/wiki/topics/transformers.md (adds link)
+
+# 5. Agent updates index and log
+~/Knowledge/wiki/index.md (adds entry)
+~/Knowledge/wiki/log.md (appends ingest entry)
+```
+
+### Ask a Question
+
+```
+You: "What do I know about neural architecture search?"
+
+Agent:
+1. Reads wiki/index.md → finds topics/neural-architecture.md
+2. Reads topics/neural-architecture.md
+3. Follows links to related papers and concepts
+4. Synthesizes answer with citations
+5. (If valuable) creates wiki/comparisons/nas-methods.md
+6. Updates wiki/log.md with query entry
+```
+
+### Data Analysis
+
+```
+You: "Analyze my experiment data and plot results"
+
+Agent:
+1. Creates ~/Knowledge/code/experiment-analysis/
+2. Installs dependencies (CairoMakie, DataFrames, CSV)
+3. Writes scripts/analyze.jl
+4. Runs script → generates plots to raw/plots/
+5. Creates ~/Knowledge/wiki/data-analysis/experiment.md
+   - Links to plots: [[../../raw/plots/results.png]]
+   - Links to script: [[../../code/experiment-analysis/scripts/analyze.jl]]
+6. Updates wiki/log.md
+```
+
+## Principles
+
+### 1. Wiki Never Duplicates Content
+
+Always link to raw/ via Obsidian `[[...]]` links:
 
 ```markdown
 ---
-title: Attention Is All You Need
-raw: "[[../../raw/papers/attention-is-all-you-need.pdf]]"
+title: Paper Title
+raw: "[[../../raw/papers/author-2024-title.pdf]]"
 ---
 
-# Attention Is All You Need
-
 ## Summary
-Brief summary here...
+Brief summary...
 
 ## Full Paper
-See [[../../raw/papers/attention-is-all-you-need.pdf|original paper]]
+See [[../../raw/papers/author-2024-title.pdf|original PDF]]
 ```
 
-**2. Data analysis lives in code/, outputs to raw/, documented in wiki/**:
+### 2. File Good Answers Back
+
+When the LLM answers a question, if the answer is valuable and reusable, it creates a new wiki page:
 
 ```markdown
----
-title: Experiment Results Analysis
-date: 2024-01-15
-tags: [analysis, julia]
----
+<!-- Created after user asked for comparison -->
+# RNN vs Transformer
 
-# Experiment Results
+## Comparison Table
+| Aspect | RNN | Transformer |
+|--------|-----|-------------|
+| Parallelism | Sequential | Fully parallel |
+| Long dependencies | Vanishing gradients | Attention handles well |
 
-## Plots
-![Results](../../raw/plots/experiment-results.png)
+## When to Use Each
+- RNNs: Small data, sequential logic required
+- Transformers: Large data, parallel hardware available
 
-## Script
-Analysis performed by [[../../code/experiment-analysis/scripts/plot.jl|this script]]
-
-## Summary
-Key findings from the analysis...
+## Sources
+- [[../../raw/papers/vaswani-2017-attention.pdf|Attention Is All You Need]]
 ```
 
-## Components
-
-### 1. QMD - Fast Search
-
-```bash
-qmd search "neural architecture search"  # Search wiki
-qmd search --path raw/papers "transformer"  # Search raw papers
-qmd search --tag papers                   # All paper notes
-qmd index                                 # Rebuild index
-```
-
-Install: `npm install -g @tobilu/qmd`
-
-### 2. Julia - Data Analysis
+### 3. Prefer Julia for Analysis
 
 When user asks for data management/analysis:
 - Create Julia project in `code/project-name/`
@@ -208,80 +259,102 @@ When user asks for data management/analysis:
 - Generate plots to `raw/plots/`
 - Create wiki note linking to both plot and script
 
-Example:
+## Tools
+
+### QMD — Search Engine
+
+[QMD](https://github.com/tobi/qmd) is a local search engine for markdown files with hybrid BM25/vector search and LLM re-ranking.
+
 ```bash
-# Create Julia project
+# Install
+npm install -g @tobilu/qmd
+
+# Search wiki
+qmd search "neural architecture search"
+
+# Search specific path
+qmd search --path wiki/papers "transformer"
+qmd search --path raw/papers "attention"
+
+# Search by tag
+qmd search --tag papers
+qmd search --tag concepts
+
+# Recent edits
+qmd recent --limit 10
+
+# Backlinks
+qmd backlinks "Self-Attention"
+
+# Rebuild index
+qmd index
+```
+
+### ripgrep — Fallback Search
+
+```bash
+rg -i "search term" ~/Knowledge/wiki
+rg -i "search term" ~/Knowledge/raw/papers
+```
+
+### pdftotext — PDF Extraction
+
+```bash
+pdftotext ~/Knowledge/raw/papers/paper.pdf - | head -500
+```
+
+### Julia — Data Analysis
+
+```bash
+# Create project
 cd ~/Knowledge/code
 mkdir experiment-analysis
 cd experiment-analysis
-julia --project=. -e 'using Pkg; Pkg.add(["Makie", "CairoMakie", "DataFrames", "CSV"])'
-
-# Create script
-cat > scripts/plot_results.jl << 'EOF'
-using CairoMakie, DataFrames, CSV
-
-data = CSV.read("../../raw/data/experiment.csv", DataFrame)
-
-fig = Figure()
-ax = Axis(fig[1, 1], title="Results")
-scatter!(ax, data.x, data.y)
-
-save("../../raw/plots/experiment-results.png", fig)
-EOF
+julia --project=. -e 'using Pkg; Pkg.add(["Makie", "CairoMakie", "DataFrames"])'
 ```
 
-### 3. Syncthing - Cross-Device Sync
+## Syncthing Setup
 
-- Work laptop
-- Personal laptop
-- Phone (Android)
+The setup script installs Syncthing, but you must manually configure device pairing:
 
-Configure: http://localhost:8384
+1. Open Syncthing UI: http://localhost:8384 on each device
+2. Get Device ID: Actions → Show ID
+3. Add devices on each end
+4. Share the `~/Knowledge` folder
+5. Accept on other devices
+6. Set folder path to `~/Knowledge`
 
-### 4. OpenClaw Skills
+**Troubleshooting:**
+- Devices must be on same network or have global discovery
+- Check firewall settings
+- Use "local discovery only" for offline LAN sync
 
-- **knowledge-base** - Search wiki, read notes, create new notes
-- **knowledge-base-ingest** - Process inbox → raw + wiki
-- **knowledge-base-analysis** - Create Julia projects for data analysis
+## Obsidian Tips
 
-## Ingest Skill Workflow
+### Web Clipper
+Obsidian Web Clipper browser extension converts web articles to markdown. Great for quickly adding sources.
 
-```
-~/Knowledge/inbox/papers/paper.pdf
-    ↓ [Agent detects new item]
-    ↓ [Reads and summarizes]
-    ↓ [Moves to organized location]
-~/Knowledge/raw/papers/author-year-title.pdf
-    ↓ [Creates wiki note with link]
-~/Knowledge/wiki/papers/paper-summary.md
-    (contains: raw: "[[../../raw/papers/author-year-title.pdf]]")
-```
+### Download Images Locally
+1. Settings → Files and links → Set "Attachment folder path" to `raw/assets/`
+2. Settings → Hotkeys → Bind "Download attachments for current file" (e.g., Ctrl+Shift+D)
+3. After clipping an article, hit the hotkey to download all images locally
 
-## Data Analysis Workflow
+This lets the LLM view and reference images directly instead of relying on URLs.
 
-```
-User: "Analyze my experiment data and plot results"
+### Graph View
+Obsidian's graph view shows the shape of your wiki — what's connected, which pages are hubs, which are orphans.
 
-→ Agent creates code/experiment-analysis/
-   → Project.toml with dependencies
-   → scripts/analyze.jl
-   
-→ Script runs (via julia-mcp or direct)
-   → Reads data from raw/data/
-   → Generates plots to raw/plots/
-   
-→ Agent creates wiki/data-analysis/experiment.md
-   → Links to plot: [[../../raw/plots/result.png]]
-   → Links to script: [[../../code/experiment-analysis/scripts/analyze.jl]]
-   → Summary of findings
+### Marp
+Marp is a markdown-based slide deck format. Useful for generating presentations directly from wiki content.
 
-Result: Reproducible analysis with full provenance
-```
+### Dataview
+Dataview plugin runs queries over page frontmatter. If your LLM adds YAML frontmatter to wiki pages (tags, dates, source counts), Dataview can generate dynamic tables and lists.
 
 ## Templates
 
-**Paper summary template** (`~/Knowledge/.templates/paper.md`):
+The setup script creates templates in `~/Knowledge/.templates/`:
 
+**Paper summary:**
 ```markdown
 ---
 date: {{date:YYYY-MM-DD}}
@@ -293,9 +366,9 @@ raw: "[[../../raw/papers/FILENAME]]"
 # Title
 
 ## Metadata
-- **Authors:** 
-- **Venue:** 
-- **Year:** 
+- **Authors:**
+- **Venue:**
+- **Year:**
 - **Raw:** See link above
 
 ## Summary
@@ -306,8 +379,7 @@ raw: "[[../../raw/papers/FILENAME]]"
 - [[concept-a]]
 ```
 
-**Data analysis template** (`~/Knowledge/.templates/data-analysis.md`):
-
+**Data analysis:**
 ```markdown
 ---
 date: {{date:YYYY-MM-DD}}
@@ -318,29 +390,39 @@ status: completed
 # Analysis Name
 
 ## Objective
-What we analyzed and why
 
 ## Data Source
 [[../../raw/data/FILENAME|Raw data]]
 
 ## Method
-Analysis performed by [[../../code/PROJECT/scripts/SCRIPT.jl|this script]]
+[[../../code/PROJECT/scripts/SCRIPT.jl|Source code]]
 
 ## Results
 ![Plot 1](../../raw/plots/plot1.png)
-![Plot 2](../../raw/plots/plot2.png)
 
 ## Key Findings
-- Finding 1
-- Finding 2
 
 ## Related
-- [[paper-reference]]
-- [[concept-reference]]
 ```
+
+## OpenClaw Skills
+
+- **knowledge-base** — Search wiki, read notes, create new notes, check inbox
+- **knowledge-base-ingest** — Process inbox → raw + wiki (full INGEST workflow)
+- **knowledge-base-analysis** — Create Julia projects for data analysis
+
+## Why This Works
+
+The tedious part of maintaining a knowledge base is not the reading or the thinking — it's the bookkeeping. Updating cross-references, keeping summaries current, noting when new data contradicts old claims, maintaining consistency across dozens of pages.
+
+Humans abandon wikis because the maintenance burden grows faster than the value. **LLMs don't get bored, don't forget to update a cross-reference, and can touch 15 files in one pass.** The wiki stays maintained because the cost of maintenance is near zero.
+
+The human's job is to curate sources, direct the analysis, ask good questions, and think about what it all means. The LLM's job is everything else.
 
 ## References
 
-- [Andrej Karpathy's LLM Knowledge Base thread](https://twitter.com/karpathy/status/1772925336763494570)
+- [Andrej Karpathy's LLM Wiki Guide](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
 - [QMD - Query Markdown Database](https://github.com/tobi/qmd)
 - [Syncthing](https://syncthing.net/)
+- [Obsidian](https://obsidian.md/)
+- [Marp](https://marp.app/)

@@ -132,11 +132,12 @@ create_dirs() {
     ensure_dir "$RAW_PATH/data"
     
     # Wiki - compiled knowledge (references raw/ via links)
+    ensure_dir "$VAULT_PATH/wiki/entities"
     ensure_dir "$VAULT_PATH/wiki/concepts"
     ensure_dir "$VAULT_PATH/wiki/papers"
-    ensure_dir "$VAULT_PATH/wiki/people"
-    ensure_dir "$VAULT_PATH/wiki/projects"
+    ensure_dir "$VAULT_PATH/wiki/sources"
     ensure_dir "$VAULT_PATH/wiki/topics"
+    ensure_dir "$VAULT_PATH/wiki/comparisons"
     ensure_dir "$VAULT_PATH/Daily"
     ensure_dir "$VAULT_PATH/MOCs"
     ensure_dir "$VAULT_PATH/Attachments"
@@ -165,37 +166,74 @@ EOF
         log_success ".stignore created"
     fi
     
-    # Index note
+    # Main index
     if [[ ! -f "$VAULT_PATH/wiki/index.md" ]]; then
         cat > "$VAULT_PATH/wiki/index.md" << 'EOF'
 # Knowledge Base Index
 
-Welcome to your personal knowledge base.
+Content catalog for the knowledge base. Read this first when querying.
 
-## Structure
+## Papers
 
-- **inbox/** - New items waiting to be processed (you put stuff here)
-- **raw/** - Processed/organized raw materials (agent moves from inbox)
-- **code/** - Julia projects for data analysis and plotting
-- **wiki/** - Compiled knowledge with links to raw/ and code/
+*No papers yet. Add to raw/papers/ and run ingest.*
 
-## Maps of Content
+## Concepts
 
-- [[concepts/index]] - Core concepts
-- [[papers/index]] - Paper summaries
-- [[people/index]] - People profiles
-- [[projects/index]] - Project docs
-- [[topics/index]] - Topic overviews
+*No concepts yet. Created during ingest.*
 
-## Quick Links
+## Entities
 
-- [[../Daily]] - Daily notes
+*No entities yet. Created during ingest.*
+
+## Topics
+
+*No topics yet. Create for areas of interest.*
+
+## Comparisons
+
+*No comparisons yet. Created from valuable queries.*
+
+## Sources
+
+*No sources yet. Created during ingest for non-paper materials.*
+
+## Daily Notes
+
+- See [[../Daily]] directory
 
 ---
 
-*Last updated: {{date}}*
+*This index is updated automatically during INGEST operations.*
+
+*Format: `## [YYYY-MM-DD] type | description`*
 EOF
         log_success "Wiki index created"
+    fi
+
+    # Log file
+    if [[ ! -f "$VAULT_PATH/wiki/log.md" ]]; then
+        cat > "$VAULT_PATH/wiki/log.md" << EOF
+# Knowledge Base Log
+
+Chronological record of ingests, queries, and lint operations.
+
+Format: \`## [YYYY-MM-DD] type | description\`
+
+Types:
+- \`ingest\` - New source added to knowledge base
+- \`query\` - Question answered using wiki
+- \`lint\` - Health check and maintenance
+
+---
+
+## [$(date +%Y-%m-%d)] setup | Knowledge base initialized
+- Created directory structure
+- Created wiki/index.md
+- Created wiki/log.md
+- Ready for first ingest
+
+EOF
+        log_success "Wiki log created"
     fi
 }
 
@@ -234,6 +272,45 @@ raw: "[[../../raw/papers/FILENAME]]"
 EOF
         log_success "Paper template created"
     fi
+
+    if [[ ! -f "$d/entity.md" ]]; then
+        cat > "$d/entity.md" << 'EOF'
+---
+date: {{date:YYYY-MM-DD}}
+tags: [entity]
+---
+
+# {{name}}
+
+## Role/Description
+
+## Related
+- 
+EOF
+        log_success "Entity template created"
+    fi
+
+    if [[ ! -f "$d/concept.md" ]]; then
+        cat > "$d/concept.md" << 'EOF'
+---
+date: {{date:YYYY-MM-DD}}
+tags: [concept]
+---
+
+# {{name}}
+
+## Definition
+
+## Explanation
+
+## Sources
+- 
+
+## Related
+- 
+EOF
+        log_success "Concept template created"
+    fi
 }
 
 # Summary
@@ -244,16 +321,25 @@ print_summary() {
     echo "=========================================="
     echo ""
     echo "📁 Structure:"
-    echo "   inbox/  - Drop new items here"
-    echo "   raw/    - Agent moves organized items here"
-    echo "   code/   - Julia projects for analysis/plots"
-    echo "   wiki/   - Compiled knowledge (links to raw/ and code/)"
+    echo "   inbox/     - Drop new items here (flat)"
+    echo "   raw/       - Organized raw sources (immutable)"
+    echo "   code/      - Julia projects for analysis"
+    echo "   wiki/      - LLM-generated knowledge base"
     echo ""
-    echo "🔄 Workflow:"
-    echo "   1. You: Put new things in inbox/"
-    echo "   2. Agent: Process inbox → raw/ + wiki/"
-    echo "   3. Wiki notes link to raw/ materials"
-    echo "   4. Data analysis: code/ → generates plots in raw/plots/"
+    echo "📚 Wiki structure:"
+    echo "   entities/    - People, organizations, tools"
+    echo "   concepts/    - Core concepts and ideas"
+    echo "   papers/      - Paper summaries"
+    echo "   topics/      - Topic overviews"
+    echo "   sources/     - Non-paper sources"
+    echo "   comparisons/ - Comparison analyses"
+    echo "   index.md     - Content catalog (critical!)"
+    echo "   log.md       - Chronological log (critical!)"
+    echo ""
+    echo "🔄 The Three Operations:"
+    echo "   1. INGEST  - inbox/ → raw/ + wiki/ + index.md + log.md"
+    echo "   2. QUERY   - Read index.md → answer → file back to wiki/"
+    echo "   3. LINT    - Health check for contradictions, orphans, gaps"
     echo ""
     echo "📊 For data analysis:"
     echo "   - Create Julia project in code/project-name/"
@@ -268,7 +354,7 @@ print_summary() {
     echo "   1. Syncthing: http://localhost:8384"
     echo "   2. Install Obsidian"
     echo "   3. Open $VAULT_PATH"
-    echo "   4. Start adding to inbox/"
+    echo "   4. Drop something in inbox/ and run ingest"
     echo ""
 }
 

@@ -1,6 +1,6 @@
 ---
 name: knowledge-base-ingest
-description: Process items from inbox/ to raw/ and create wiki notes with links
+description: Process items from inbox/ to raw/ and create wiki notes with links (Karpathy INGEST operation)
 metadata:
   {
     "openclaw":
@@ -23,14 +23,33 @@ metadata:
 
 # Knowledge Base Ingest Skill
 
-Process items from `~/Knowledge/inbox/` → organize into `~/Knowledge/raw/` → create wiki notes linking to raw materials.
+Process items from `~/Knowledge/inbox/` → organize into `~/Knowledge/raw/` → create/update wiki notes → update index and log.
 
-## Purpose (Karpathy Workflow)
+This implements the **INGEST** operation from Karpathy's LLM Knowledge Base workflow.
 
-1. **Scan inbox/** for unprocessed items
-2. **Move** item to organized location in raw/ (rename, categorize)
-3. **Create** wiki note with **link** to raw material (not copy)
-4. **Empty** inbox for this item
+## The INGEST Workflow
+
+When a new source arrives in `inbox/`:
+
+```
+User drops source in inbox/
+    ↓
+[1] LLM reads source, discusses key takeaways with user
+    ↓
+[2] LLM moves to organized location in raw/ (rename with author-year-title pattern)
+    ↓
+[3] LLM creates summary page in wiki/sources/ or wiki/papers/
+    ↓
+[4] LLM updates relevant entity pages in wiki/entities/
+    ↓
+[5] LLM updates relevant concept pages in wiki/concepts/
+    ↓
+[6] LLM updates wiki/index.md (adds entry)
+    ↓
+[7] LLM appends entry to wiki/log.md
+```
+
+**A single source might touch 10-15 wiki pages.**
 
 ## Key Principle
 
@@ -39,6 +58,9 @@ Process items from `~/Knowledge/inbox/` → organize into `~/Knowledge/raw/` →
 ```markdown
 ---
 title: Paper Title
+date: 2024-01-15
+tags: [paper, ml]
+status: unread
 raw: "[[../../raw/papers/author-2024-title.pdf]]"
 ---
 
@@ -47,64 +69,8 @@ raw: "[[../../raw/papers/author-2024-title.pdf]]"
 ## Summary
 Brief summary...
 
-## Full Source
+## Source
 See [[../../raw/papers/author-2024-title.pdf|original PDF]]
-```
-
-## Workflow
-
-### User
-```
-# User drops new paper in inbox
-~/Knowledge/inbox/papers/random-download.pdf
-```
-
-### Agent
-```
-# 1. Read PDF
-pdftotext "~/Knowledge/inbox/papers/random-download.pdf" - | head -500
-
-# 2. Identify metadata (title, authors, year, venue)
-
-# 3. Create organized filename
-#    FROM: random-download.pdf
-#    TO:   author-2024-paper-title.pdf
-
-# 4. Move to raw/
-mv "~/Knowledge/inbox/papers/random-download.pdf" \
-   "~/Knowledge/raw/papers/author-2024-paper-title.pdf"
-
-# 5. Create wiki note with LINK to raw
-#    (wiki contains summary, raw contains full PDF)
-cat > "~/Knowledge/wiki/papers/paper-title.md" << 'EOF'
----
-date: 2024-01-15
-tags: [paper, ml]
-status: unread
-raw: "[[../../raw/papers/author-2024-paper-title.pdf]]"
----
-
-# Paper Title
-
-## Metadata
-- **Authors:** Author Name
-- **Venue:** Venue Name
-- **Year:** 2024
-- **Source:** [[../../raw/papers/author-2024-paper-title.pdf|PDF]]
-
-## Summary
-LLM-generated summary...
-
-## Key Contributions
-- Point 1
-- Point 2
-
-## Related
-- [[concept-a]]
-- [[paper-b]]
-EOF
-
-# 6. Result: inbox empty for this item, raw has organized PDF, wiki has summary with link
 ```
 
 ## Tools
@@ -113,12 +79,12 @@ EOF
 
 ```bash
 # List all unprocessed items in inbox
-ls -la ~/Knowledge/inbox/*/
 find ~/Knowledge/inbox -type f -not -name ".DS_Store"
 
-# Check specific folder
-ls ~/Knowledge/inbox/papers/
-ls ~/Knowledge/inbox/web/
+# By type
+ls ~/Knowledge/inbox/papers/ 2>/dev/null || echo "No papers"
+ls ~/Knowledge/inbox/web/ 2>/dev/null || echo "No web articles"
+ls ~/Knowledge/inbox/images/ 2>/dev/null || echo "No images"
 ```
 
 ### Extract Content
@@ -130,7 +96,7 @@ pdftotext -layout "~/Knowledge/inbox/papers/file.pdf" - | head -500
 # Markdown files
 cat "~/Knowledge/inbox/web/article.md"
 
-# HTML conversion (if needed)
+# HTML conversion
 pandoc -f html -t markdown "file.html" -o "file.md"
 ```
 
@@ -146,7 +112,7 @@ mv "~/Knowledge/inbox/papers/confusing-name.pdf" \
 
 # Example: Web article
 mv "~/Knowledge/inbox/web/article-123.html" \
-   "~/Knowledge/raw/web/karpathy-llm-knowledge-base-guide.md"
+   "~/Knowledge/raw/web/karpathy-2024-llm-knowledge-base-guide.md"
 
 # Example: Image
 mv "~/Knowledge/inbox/images/screenshot.png" \
@@ -156,9 +122,9 @@ mv "~/Knowledge/inbox/images/screenshot.png" \
 ### Create Wiki Note (with Link)
 
 ```bash
-# Create wiki note that LINKS to raw (never copies)
 VAULT="$HOME/Knowledge"
 
+# Create wiki note that LINKS to raw (never copies)
 cat > "$VAULT/wiki/papers/paper-name.md" << 'EOF'
 ---
 date: 2024-01-15
@@ -169,23 +135,80 @@ raw: "[[../../raw/papers/filename.pdf]]"
 
 # Title
 
+## Metadata
+- **Authors:**
+- **Venue:**
+- **Year:**
+
 ## Summary
 Brief summary...
 
+## Key Contributions
+- Point 1
+- Point 2
+
+## Related Concepts
+- [[concept-a]]
+- [[concept-b]]
+
 ## Source
 [[../../raw/papers/filename.pdf|Original PDF]]
-
-## Related
-- [[concept-a]]
 EOF
 ```
 
-### Check for Duplicates
+### Update Entity Pages
 
 ```bash
-# Before moving to raw, check if similar file exists
-ls ~/Knowledge/raw/papers/ | grep -i "author-name"
-qmd search "paper title"
+# Create or update entity page
+cat >> "$VAULT/wiki/entities/vaswani-ashish.md" << 'EOF'
+---
+date: 2024-01-15
+tags: [person, researcher]
+---
+
+# Ashish Vaswani
+
+## Role
+Researcher, co-author of [[../../papers/attention-is-all-you-need|Attention Is All You Need]]
+
+## Papers
+- [[../../papers/attention-is-all-you-need|Attention Is All You Need]] (2017)
+EOF
+```
+
+### Update Concept Pages
+
+```bash
+# Add reference to new source
+cat >> "$VAULT/wiki/concepts/self-attention.md" << 'EOF'
+
+## Sources
+- Introduced in [[../../papers/attention-is-all-you-need|Attention Is All You Need]]
+EOF
+```
+
+### Update Index
+
+```bash
+# Read current index
+cat "$VAULT/wiki/index.md"
+
+# Add entry to appropriate section using edit tool
+# Add under "## Papers" section:
+# - [[papers/paper-name|Title]] — Description
+```
+
+### Update Log
+
+```bash
+# Append to log with consistent format
+cat >> "$VAULT/wiki/log.md" << 'EOF'
+
+## [$(date +%Y-%m-%d)] ingest | Paper Title
+- Source: raw/papers/author-year-title.pdf
+- Pages created: papers/paper.md, concepts/concept.md, entities/person.md
+- Pages updated: index.md, concepts/related.md
+EOF
 ```
 
 ## Usage Patterns
@@ -201,7 +224,7 @@ ls ~/Knowledge/inbox/papers/
 # 2. Read the PDF
 pdftotext "~/Knowledge/inbox/papers/file.pdf" - | head -500
 
-# 3. Identify metadata (LLM reads and extracts)
+# 3. Extract metadata (LLM reads and extracts)
 #    - Title: Attention Is All You Need
 #    - Authors: Vaswani et al.
 #    - Year: 2017
@@ -211,10 +234,10 @@ pdftotext "~/Knowledge/inbox/papers/file.pdf" - | head -500
 mv "~/Knowledge/inbox/papers/file.pdf" \
    "~/Knowledge/raw/papers/vaswani-2017-attention-is-all-you-need.pdf"
 
-# 5. Create wiki note with LINK
+# 5. Create wiki paper summary
 cat > "~/Knowledge/wiki/papers/attention-is-all-you-need.md" << 'EOF'
 ---
-date: 2024-01-15
+date: $(date +%Y-%m-%d)
 tags: [paper, transformers, nlp]
 authors: Vaswani et al.
 venue: NeurIPS
@@ -238,18 +261,30 @@ The Transformer architecture...
 1. Proposed self-attention mechanism
 2. More parallelizable than RNNs
 
-## Methods
-- Multi-head attention
-- Positional encoding
-
-## Related
-- [[RNN]]
-- [[LSTM]]
+## Related Concepts
 - [[Self-Attention]]
-- [[../../raw/papers/vaswani-2017-attention-is-all-you-need.pdf|Original PDF]]
+- [[Transformer]]
+- [[Multi-Head Attention]]
+
+## Source
+[[../../raw/papers/vaswani-2017-attention-is-all-you-need.pdf|Original PDF]]
 EOF
 
-# 6. Done - inbox empty, raw organized, wiki has summary with link
+# 6. Create/update entity pages
+# - wiki/entities/vaswani-ashish.md
+# - wiki/entities/shazeer-noam.md
+# - etc.
+
+# 7. Update concept pages
+# Add reference to this paper in:
+# - wiki/concepts/self-attention.md
+# - wiki/concepts/transformer.md
+
+# 8. Update index.md (add entry under "Papers")
+
+# 9. Append to log.md
+
+# 10. Report completion
 ```
 
 ### Process All Inbox Items
@@ -259,28 +294,21 @@ EOF
 ```bash
 # List all items in inbox
 find ~/Knowledge/inbox -type f | while read file; do
-    # Determine type
+    # Determine type and process accordingly
     case "$file" in
         *.pdf)
-            # Paper processing
-            pdftotext "$file" - | head -500
-            # Extract metadata
-            # Move to raw/papers/
-            # Create wiki/papers/note.md with link
+            # Paper processing workflow
             ;;
         *.md)
-            # Web article processing
-            cat "$file"
-            # Move to raw/web/
-            # Create wiki/topics/note.md with link
+            # Web article workflow
             ;;
         *.png|*.jpg)
-            # Image processing
-            # Move to raw/images/
-            # Create description in wiki if needed
+            # Image workflow
             ;;
     esac
 done
+
+# Update log.md with summary entry
 ```
 
 ### Check Inbox Status
@@ -289,7 +317,8 @@ done
 
 ```bash
 # Count items
-find ~/Knowledge/inbox -type f | wc -l
+count=$(find ~/Knowledge/inbox -type f | wc -l)
+echo "Inbox: $count items waiting"
 
 # List by type
 ls ~/Knowledge/inbox/papers/ 2>/dev/null || echo "No papers"
@@ -313,13 +342,13 @@ karpathy-2024-llm-knowledge-base-guide.md
 # Books
 author-year-book-title.pdf
 
-# Code repos
-date-project-name/
-2024-01-15-transformer-impl/
-
 # Images
 date-description.png
 2024-01-15-transformer-architecture.png
+
+# Data files
+experiment-name.csv
+analysis-name.parquet
 ```
 
 ## Link Formats
@@ -329,9 +358,6 @@ In wiki notes, link to raw materials:
 ```markdown
 # Relative link from wiki/papers/ to raw/papers/
 [[../../raw/papers/vaswani-2017-attention.pdf|Original PDF]]
-
-# Relative link from wiki/concepts/ to raw/papers/
-[[../../raw/papers/vaswani-2017-attention.pdf|Vaswani et al. 2017]]
 
 # In YAML frontmatter
 raw: "[[../../raw/papers/vaswani-2017-attention.pdf]]"
@@ -344,26 +370,68 @@ raw: "[[../../raw/papers/vaswani-2017-attention.pdf]]"
 3. **Check duplicates** — Before moving to raw, check if similar exists
 4. **Preserve originals** — Keep raw/ files untouched (reference only)
 5. **Summary in wiki** — Put synthesized knowledge in wiki/, full source in raw/
-6. **Clear inbox** — After processing, item should be out of inbox/
+6. **Update index** — Add entry to wiki/index.md after creating page
+7. **Log everything** — Append entry to wiki/log.md with consistent format
+8. **Touch multiple pages** — One source might update 10-15 wiki pages
+9. **Stay involved** — Discuss key takeaways with user during ingest
+
+## Log Entry Format
+
+Append to `wiki/log.md` with this format:
+
+```markdown
+## [YYYY-MM-DD] ingest | Source Title
+- Source: raw/path/to/file.ext
+- Type: paper | book | web | image | audio | data
+- Pages created:
+  - wiki/papers/title.md
+  - wiki/concepts/concept.md
+  - wiki/entities/person.md
+- Pages updated:
+  - wiki/concepts/related.md
+  - wiki/topics/overview.md
+  - wiki/index.md
+```
+
+## Index Entry Format
+
+Add to appropriate section in `wiki/index.md`:
+
+```markdown
+## Papers
+- [[papers/attention-is-all-you-need|Attention Is All You Need]] — Transformer architecture (Vaswani et al., 2017)
+- [[papers/gpt3|Language Models are Few-Shot Learners]] — GPT-3 (Brown et al., 2020)
+
+## Concepts
+- [[concepts/self-attention|Self-Attention]] — Mechanism where each position attends to all positions
+
+## Entities
+- [[entities/vaswani-ashish|Ashish Vaswani]] — Co-author of Attention Is All You Need
+```
 
 ## Reporting
 
-After processing:
+After processing, report:
 
 ```
-📥 Ingest Complete
+📥 INGEST Complete
 ==================
-Processed from inbox/:
-✓ 3 papers → raw/papers/ + wiki/papers/ (with links)
-✓ 5 web articles → raw/web/ + wiki/topics/ (with links)
-✓ 2 images → raw/images/
-⚠ 1 duplicate skipped
-⚠ 1 item needs manual review
+Source: raw/papers/vaswani-2017-attention.pdf
+Type: paper
 
-Current inbox status:
-📁 inbox/papers/ - 0 items
-📁 inbox/web/ - 0 items
-📁 inbox/images/ - 1 item (needs manual processing)
+Pages Created:
+✓ wiki/papers/attention-is-all-you-need.md
+✓ wiki/concepts/self-attention.md (new)
+✓ wiki/entities/vaswani-ashish.md (new)
+
+Pages Updated:
+✓ wiki/concepts/transformer.md (added reference)
+✓ wiki/index.md (added paper entry)
+
+Log:
+✓ wiki/log.md updated
+
+Total wiki pages touched: 6
 ```
 
 ## Error Handling
@@ -372,3 +440,4 @@ Current inbox status:
 - **Duplicate detected** → Log, skip, ask if update needed
 - **Unknown file type** → Move to inbox/unrecognized/, notify user
 - **Metadata extraction uncertain** → Create wiki note, flag for review
+- **Source already in raw/** → Check if different version, ask user

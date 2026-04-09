@@ -30,62 +30,101 @@ metadata:
 
 # Knowledge Base Skill
 
-Search and interact with your knowledge base (inbox/raw/wiki structure).
+Search and interact with your knowledge base based on Karpathy's LLM Knowledge Base workflow.
 
-## Structure
+## Core Architecture
 
 ```
 ~/Knowledge/
-├── inbox/     # Unprocessed new items (you add here)
-├── raw/       # Organized raw materials (agent moves here from inbox)
-└── wiki/      # Compiled knowledge with links to raw/
+├── inbox/        # Unprocessed new items (you add here)
+├── raw/          # Organized raw materials (immutable sources)
+└── wiki/         # LLM-generated knowledge base
+    ├── entities/ # People, organizations, tools
+    ├── concepts/ # Core concepts and ideas
+    ├── papers/   # Paper summaries with links
+    ├── topics/   # Topic overviews
+    ├── index.md  # CONTENT CATALOG (read this first when querying)
+    └── log.md    # CHRONOLOGICAL LOG (ingests, queries, lint)
 ```
 
-## Purpose
+## The Three Operations
 
-- **Search** wiki and raw materials via QMD
-- **Read** wiki notes and raw materials
-- **Create** new wiki notes with links to raw/
-- **Check** inbox status
-- **Answer** questions based on your knowledge
+### 1. QUERY — Answer Questions
+
+**When user asks a question:**
+1. Read `wiki/index.md` to find relevant pages
+2. Read the relevant wiki pages
+3. Synthesize answer with citations
+4. **File valuable answers back into wiki** as new pages
+
+**Key insight:** Read the index first, then drill into specific pages.
+
+### 2. LINT — Health Check
+
+**Periodically check for:**
+- Contradictions between pages
+- Stale claims superseded by newer sources
+- Orphan pages with no inbound links
+- Missing pages for important concepts
+- Missing cross-references
+
+### 3. INGEST — Add Sources
+
+**(Use knowledge-base-ingest skill for this)**
+
+When new sources arrive in inbox:
+1. Move to organized location in raw/
+2. Create/update wiki pages
+3. Update index.md
+4. Append to log.md
 
 ## Tools
 
-### 1. QMD - Search
+### QMD — Primary Search
 
 ```bash
-# Search wiki
+# Search entire wiki
 qmd search "neural architecture search"
-qmd search --path wiki "transformer"
 
-# Search raw materials
+# Search specific path
+qmd search --path wiki/papers "transformer"
 qmd search --path raw/papers "attention"
-qmd search --path raw "author name"
 
 # Search by tag
 qmd search --tag papers
 qmd search --tag concepts
 
-# Recently modified
+# Recent edits
 qmd recent --limit 10
 
-# Backlinks
-qmd backlinks "Attention Mechanism"
+# Backlinks (what links to this page)
+qmd backlinks "Self-Attention"
+
+# Rebuild index
+qmd index
 ```
 
-### 2. File Operations
+### Reading Wiki Pages
 
 ```bash
-# Read wiki note
+# Read the index first (when querying)
+cat ~/Knowledge/wiki/index.md
+
+# Read a specific page
+cat ~/Knowledge/wiki/concepts/self-attention.md
 cat ~/Knowledge/wiki/papers/attention-is-all-you-need.md
 
-# Read raw material (PDF text)
-pdftotext ~/Knowledge/raw/papers/vaswani-2017-attention.pdf - | head -100
+# Read the log
+cat ~/Knowledge/wiki/log.md | tail -50
+```
 
+### File Operations
+
+```bash
 # Create new wiki note
 cat > ~/Knowledge/wiki/concepts/new-concept.md << 'EOF'
 ---
-date: 2024-01-15
+date: $(date +%Y-%m-%d)
 tags: [concept, ml]
 ---
 
@@ -93,26 +132,20 @@ tags: [concept, ml]
 
 ## Definition
 
-## Explanation
-
 ## Related
-- [[../../raw/papers/vaswani-2017-attention.pdf|Source Paper]]
+- [[other-concept]]
+- [[../../raw/papers/paper.pdf|Source Paper]]
 EOF
 
 # Edit existing note
 edit ~/Knowledge/wiki/concepts/transformer.md
 
-# Check inbox
-ls ~/Knowledge/inbox/papers/
-ls ~/Knowledge/inbox/web/
+# Check inbox status
 find ~/Knowledge/inbox -type f | wc -l
-
-# List wiki directory
-ls ~/Knowledge/wiki/papers/
-ls ~/Knowledge/wiki/concepts/
+ls ~/Knowledge/inbox/*/
 ```
 
-### 3. ripgrep - Fallback Search
+### ripgrep — Fallback Search
 
 ```bash
 rg -i "search term" ~/Knowledge/wiki
@@ -122,25 +155,29 @@ rg -C 3 "term" ~/Knowledge/wiki/papers/
 
 ## Usage Patterns
 
-### Search for Information
+### Query: Search for Information
 
 **User:** "What do I know about neural architecture search?"
 
 ```bash
-# Search wiki
+# 1. Read the index first
+cat ~/Knowledge/wiki/index.md
+
+# 2. Search for specific mentions
 qmd search "neural architecture search"
 
-# If found, read the note
-cat ~/Knowledge/wiki/concepts/neural-architecture-search.md
+# 3. If found, read the note
+cat ~/Knowledge/wiki/topics/neural-architecture.md
 
-# Also check for related papers
-qmd search --path raw/papers "neural architecture"
+# 4. Check for related papers
+qmd search --path wiki/papers "neural architecture"
+qmd search --tag papers
 
-# Find connections
+# 5. Find connections
 qmd backlinks "Neural Architecture Search"
 ```
 
-### Read Raw Material
+### Query: Read Raw Material
 
 **User:** "Show me the paper on attention"
 
@@ -149,39 +186,39 @@ qmd backlinks "Neural Architecture Search"
 qmd search "attention is all you need"
 cat ~/Knowledge/wiki/papers/attention-is-all-you-need.md
 
-# Follow link to raw PDF
-cat ~/Knowledge/raw/papers/vaswani-2017-attention.pdf
-# (or extract text)
+# Follow link to raw PDF (extract text for LLM)
 pdftotext ~/Knowledge/raw/papers/vaswani-2017-attention.pdf - | head -500
 ```
 
-### Check Inbox
+### Query: Check Recent Work
 
-**User:** "What's in my inbox?"
+**User:** "What was I working on recently?"
 
 ```bash
-# List all items
-find ~/Knowledge/inbox -type f
+# Read log for recent activity
+cat ~/Knowledge/wiki/log.md | tail -30
 
-# By type
-ls ~/Knowledge/inbox/papers/ 2>/dev/null || echo "No papers"
-ls ~/Knowledge/inbox/web/ 2>/dev/null || echo "No web"
-ls ~/Knowledge/inbox/images/ 2>/dev/null || echo "No images"
+# Recent wiki edits via QMD
+qmd recent --limit 20
 
-# Count
-echo "Total in inbox: $(find ~/Knowledge/inbox -type f | wc -l)"
+# Today's daily note
+DAILY="$HOME/Knowledge/Daily/$(date +%Y-%m-%d).md"
+[[ -f "$DAILY" ]] && cat "$DAILY"
+
+# Inbox status
+echo "Inbox: $(find ~/Knowledge/inbox -type f | wc -l) items waiting"
 ```
 
-### Create Note
+### Create: Add New Note
 
 **User:** "Create a note for the concept of self-attention"
 
 ```bash
-# Check if exists
+# 1. Check if exists
 qmd search "self-attention"
 ls ~/Knowledge/wiki/concepts/ | grep -i attention
 
-# Create if not exists
+# 2. Create if not exists
 cat > ~/Knowledge/wiki/concepts/self-attention.md << 'EOF'
 ---
 date: $(date +%Y-%m-%d)
@@ -202,24 +239,33 @@ Introduced in [[../../raw/papers/vaswani-2017-attention.pdf|Attention Is All You
 ## Related
 - [[Multi-Head Attention]]
 - [[Transformer]]
-- [[../../raw/papers/vaswani-2017-attention.pdf|Original Paper]]
 EOF
+
+# 3. Update index.md
+# Add entry under "Concepts" section
+
+# 4. Append to log.md
+# ## [$(date +%Y-%m-%d)] query | Created self-attention concept page
 ```
 
-### Daily Check
+### Lint: Health Check
 
-**User:** "What was I working on recently?"
+**User:** "Lint the wiki"
 
 ```bash
-# Recent wiki edits
-qmd recent --limit 20
+# 1. List all wiki pages
+find ~/Knowledge/wiki -name "*.md" -type f
 
-# Today's daily note
-DAILY="$HOME/Knowledge/Daily/$(date +%Y-%m-%d).md"
-[[ -f "$DAILY" ]] && cat "$DAILY"
+# 2. Find orphan pages (no backlinks)
+qmd backlinks "Orphan Page Title"  # Check various pages
 
-# Inbox status
-echo "Inbox: $(find ~/Knowledge/inbox -type f | wc -l) items waiting"
+# 3. Search for contradictions
+# Scan pages for conflicting claims
+
+# 4. Check for missing concept pages
+# Look for [[Page Name]] links that don't exist
+
+# 5. Update log.md with findings
 ```
 
 ## Linking to Raw Materials
@@ -238,10 +284,93 @@ Summary here...
 Full paper: [[../../raw/papers/author-2024-title.pdf|click to open]]
 ```
 
+## Updating index.md
+
+When adding new wiki pages:
+
+```markdown
+# wiki/index.md structure:
+# Knowledge Base Index
+
+## Papers
+- [[papers/paper-name|Title]] — One-line description
+
+## Concepts
+- [[concepts/concept-name|Name]] — Brief description
+
+## Entities
+- [[entities/person-name|Name]] — Role/description
+
+## Topics
+- [[topics/topic-name|Name]] — Overview description
+
+## Comparisons
+- [[comparisons/x-vs-y|X vs Y]] — Comparison description
+```
+
+## Updating log.md
+
+Append entries with consistent prefix:
+
+```markdown
+## [2024-01-15] ingest | Paper Title
+- Source: raw/papers/author-year-title.pdf
+- Pages created/updated: papers/x.md, concepts/y.md
+
+## [2024-01-14] query | User question
+- Created: comparisons/x-vs-y.md (valuable answer)
+- Sources consulted: papers/a.md, concepts/b.md
+
+## [2024-01-13] lint | Health check
+- Issues found: 2 orphans, 1 contradiction
+- Actions: linked orphans, flagged contradiction
+```
+
 ## Best Practices
 
-1. **Search first** — Before creating, check if note exists
-2. **Use links** — Reference raw/ materials, don't duplicate
-3. **Consistent tags** — Use tag patterns across notes
-4. **Backlinks** — Add `qmd backlinks` to find connections
-5. **Check inbox** — Remind user if inbox is accumulating
+1. **Read index first** — When querying, start with wiki/index.md
+2. **File good answers** — Valuable answers become new wiki pages
+3. **Use links** — Reference raw/ materials, don't duplicate
+4. **Consistent tags** — Use tag patterns across notes
+5. **Check backlinks** — Use `qmd backlinks` to find connections
+6. **Log everything** — Append to wiki/log.md for tracking
+7. **Check inbox** — Remind user if inbox is accumulating
+
+## Response Templates
+
+### After QUERY:
+```
+📋 QUERY Answered
+=================
+Question: "..."
+
+Sources Consulted:
+- wiki/papers/paper.md
+- wiki/concepts/concept.md
+- raw/papers/source.pdf
+
+Answer:
+[Answer with citations to sources]
+
+Filing:
+✓ Created wiki/comparisons/comparison.md (valuable answer)
+✓ Updated wiki/index.md
+✓ Updated wiki/log.md
+```
+
+### After LINT:
+```
+🧹 LINT Complete
+================
+Issues Found: N
+
+⚠️ Orphan: wiki/concepts/x.md (no inbound links)
+⚠️ Contradiction: X in papers/a.md vs not-X in papers/b.md
+⚠️ Missing: papers/c.md references "concept" but no page exists
+
+Recommendations:
+[Actions to take]
+
+Log:
+✓ wiki/log.md updated
+```
