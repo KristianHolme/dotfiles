@@ -48,12 +48,10 @@ if [[ "$USER" == "kristian" ]]; then
     alias ca='agent'
     alias dac='$HOME/dotfiles/bin/dotfiles-apply-config.sh'
     alias dsp='$HOME/dotfiles/bin/dotfiles-setup-packages.sh'
-    alias dfb='$HOME/dotfiles/bin/dotfiles-firefly-backup.sh'
-    alias dfr='$HOME/dotfiles/bin/dotfiles-firefly-restore.sh'
-    alias dss='$HOME/dotfiles/bin/dotfiles-setup-ssh.sh'
     alias drs='$HOME/dotfiles/bin/dotfiles-rsync-ssh.sh'
     alias dst='$HOME/dotfiles/bin/dotfiles-ssh-tmux.sh'
     alias tb='tensorboard --logdir'
+    alias viewclaw='virt-viewer -c qemu+ssh://kristian@bengal/system claw'
 else
     alias dsr='dotfiles-setup-replica.sh'
     alias dar='dotfiles-apply-replica.sh'
