@@ -30,3 +30,5 @@ parallel
 trash-cli
 uv
 television
+virt-viewer
+openbsd-netcat
