@@ -33,7 +33,7 @@ This will:
 ## Directory Structure
 
 ```
-~/Vaults/                    # Main vault (synced via Syncthing)
+~/Vaults/Wiki/                    # Main vault (synced via Syncthing)
 ├── 📥 inbox/                   # DROP NEW THINGS HERE (flat structure)
 │                               # Agent organizes when moving to raw/
 │
@@ -161,23 +161,23 @@ grep "ingest |" wiki/log.md
 
 ```
 # 1. You drop paper in inbox
-~/Vaults/inbox/random-download.pdf
+~/Vaults/Wiki/inbox/random-download.pdf
 
 # 2. Agent identifies and moves to raw/
-~/Vaults/raw/papers/vaswani-2017-attention-is-all-you-need.pdf
+~/Vaults/Wiki/raw/papers/vaswani-2017-attention-is-all-you-need.pdf
 
 # 3. Agent creates wiki summary
-~/Vaults/wiki/papers/attention-is-all-you-need.md
+~/Vaults/Wiki/wiki/papers/attention-is-all-you-need.md
     (contains: raw: "[[../../raw/papers/vaswani-2017-attention.pdf]]")
 
 # 4. Agent updates related pages
-~/Vaults/wiki/concepts/self-attention.md (adds link)
-~/Vaults/wiki/entities/vaswani-ashish.md (creates if new)
-~/Vaults/wiki/topics/transformers.md (adds link)
+~/Vaults/Wiki/wiki/concepts/self-attention.md (adds link)
+~/Vaults/Wiki/wiki/entities/vaswani-ashish.md (creates if new)
+~/Vaults/Wiki/wiki/topics/transformers.md (adds link)
 
 # 5. Agent updates index and log
-~/Vaults/wiki/index.md (adds entry)
-~/Vaults/wiki/log.md (appends ingest entry)
+~/Vaults/Wiki/wiki/index.md (adds entry)
+~/Vaults/Wiki/wiki/log.md (appends ingest entry)
 ```
 
 ### Ask a Question
@@ -200,11 +200,11 @@ Agent:
 You: "Analyze my experiment data and plot results"
 
 Agent:
-1. Creates ~/Vaults/code/experiment-analysis/
+1. Creates ~/Vaults/Wiki/code/experiment-analysis/
 2. Installs dependencies (CairoMakie, DataFrames, CSV)
 3. Writes scripts/analyze.jl
 4. Runs script → generates plots to raw/plots/
-5. Creates ~/Vaults/wiki/data-analysis/experiment.md
+5. Creates ~/Vaults/Wiki/wiki/data-analysis/experiment.md
    - Links to plots: [[../../raw/plots/results.png]]
    - Links to script: [[../../code/experiment-analysis/scripts/analyze.jl]]
 6. Updates wiki/log.md
@@ -293,21 +293,21 @@ qmd index
 ### ripgrep — Fallback Search
 
 ```bash
-rg -i "search term" ~/Vaults/wiki
-rg -i "search term" ~/Vaults/raw/papers
+rg -i "search term" ~/Vaults/Wiki/wiki
+rg -i "search term" ~/Vaults/Wiki/raw/papers
 ```
 
 ### pdftotext — PDF Extraction
 
 ```bash
-pdftotext ~/Vaults/raw/papers/paper.pdf - | head -500
+pdftotext ~/Vaults/Wiki/raw/papers/paper.pdf - | head -500
 ```
 
 ### Julia — Data Analysis
 
 ```bash
 # Create project
-cd ~/Vaults/code
+cd ~/Vaults/Wiki/code
 mkdir experiment-analysis
 cd experiment-analysis
 julia --project=. -e 'using Pkg; Pkg.add(["Makie", "CairoMakie", "DataFrames"])'
@@ -320,9 +320,9 @@ The setup script installs Syncthing, but you must manually configure device pair
 1. Open Syncthing UI: http://localhost:8384 on each device
 2. Get Device ID: Actions → Show ID
 3. Add devices on each end
-4. Share the `~/Vaults` folder
+4. Share the `~/Vaults/Wiki` folder
 5. Accept on other devices
-6. Set folder path to `~/Vaults`
+6. Set folder path to `~/Vaults/Wiki`
 
 **Troubleshooting:**
 - Devices must be on same network or have global discovery
@@ -352,7 +352,7 @@ Dataview plugin runs queries over page frontmatter. If your LLM adds YAML frontm
 
 ## Templates
 
-The setup script creates templates in `~/Vaults/.templates/`:
+The setup script creates templates in `~/Vaults/Wiki/.templates/`:
 
 **Paper summary:**
 ```markdown

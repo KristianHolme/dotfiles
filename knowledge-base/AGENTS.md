@@ -11,7 +11,7 @@ Personal knowledge management system based on Andrej Karpathy's LLM Knowledge Ba
 ## Directory Structure
 
 ```
-~/Vaults/
+~/Vaults/Wiki/
 ├── 📥 inbox/        # DROP NEW ITEMS HERE (you add, flat structure)
 ├── 📁 raw/          # ORGANIZED RAW SOURCES (LLM moves here from inbox)
 │   ├── papers/      # Research papers
@@ -337,9 +337,9 @@ DAILY="$HOME/Knowledge/Daily/$(date +%Y-%m-%d).md"
 
 If QMD is unavailable:
 ```bash
-rg -i "search term" ~/Vaults/wiki
-rg -i "search term" ~/Vaults/raw/papers
-rg -C 3 "term" ~/Vaults/wiki/papers/
+rg -i "search term" ~/Vaults/Wiki/wiki
+rg -i "search term" ~/Vaults/Wiki/raw/papers
+rg -C 3 "term" ~/Vaults/Wiki/wiki/papers/
 ```
 
 ## File Naming Conventions
@@ -372,7 +372,7 @@ When doing data analysis:
 Example workflow:
 ```bash
 # Agent creates project
-cd ~/Vaults/code
+cd ~/Vaults/Wiki/code
 mkdir experiment-analysis
 cd experiment-analysis
 julia --project=. -e 'using Pkg; Pkg.add(["Makie", "CairoMakie", "DataFrames", "CSV"])'
@@ -385,7 +385,7 @@ julia --project=. -e 'using Pkg; Pkg.add(["Makie", "CairoMakie", "DataFrames", "
 
 ## Syncthing
 
-The entire `~/Vaults` folder syncs across devices:
+The entire `~/Vaults/Wiki` folder syncs across devices:
 - Work laptop
 - Personal laptop
 - Phone (Android)
@@ -394,7 +394,7 @@ Web UI: http://localhost:8384
 
 ## When User Asks
 
-- **"What's in my inbox?"** → `find ~/Vaults/inbox -type f`
+- **"What's in my inbox?"** → `find ~/Vaults/Wiki/inbox -type f`
 - **"Process my inbox"** → INGEST operation
 - **"Search for..."** → `qmd search "query"`
 - **"Create note for..."** → Create in wiki/, update index.md, log it
