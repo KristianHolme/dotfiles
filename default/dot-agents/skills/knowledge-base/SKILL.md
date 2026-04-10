@@ -35,7 +35,7 @@ Search and interact with your knowledge base based on Karpathy's LLM Knowledge B
 ## Core Architecture
 
 ```
-~/Knowledge/
+~/Vaults/
 ├── inbox/        # Unprocessed new items (you add here)
 ├── raw/          # Organized raw materials (immutable sources)
 └── wiki/         # LLM-generated knowledge base
@@ -108,21 +108,21 @@ qmd index
 
 ```bash
 # Read the index first (when querying)
-cat ~/Knowledge/wiki/index.md
+cat ~/Vaults/wiki/index.md
 
 # Read a specific page
-cat ~/Knowledge/wiki/concepts/self-attention.md
-cat ~/Knowledge/wiki/papers/attention-is-all-you-need.md
+cat ~/Vaults/wiki/concepts/self-attention.md
+cat ~/Vaults/wiki/papers/attention-is-all-you-need.md
 
 # Read the log
-cat ~/Knowledge/wiki/log.md | tail -50
+cat ~/Vaults/wiki/log.md | tail -50
 ```
 
 ### File Operations
 
 ```bash
 # Create new wiki note
-cat > ~/Knowledge/wiki/concepts/new-concept.md << 'EOF'
+cat > ~/Vaults/wiki/concepts/new-concept.md << 'EOF'
 ---
 date: $(date +%Y-%m-%d)
 tags: [concept, ml]
@@ -138,19 +138,19 @@ tags: [concept, ml]
 EOF
 
 # Edit existing note
-edit ~/Knowledge/wiki/concepts/transformer.md
+edit ~/Vaults/wiki/concepts/transformer.md
 
 # Check inbox status
-find ~/Knowledge/inbox -type f | wc -l
-ls ~/Knowledge/inbox/*/
+find ~/Vaults/inbox -type f | wc -l
+ls ~/Vaults/inbox/*/
 ```
 
 ### ripgrep — Fallback Search
 
 ```bash
-rg -i "search term" ~/Knowledge/wiki
-rg -i "search term" ~/Knowledge/raw/papers
-rg -C 3 "term" ~/Knowledge/wiki/papers/
+rg -i "search term" ~/Vaults/wiki
+rg -i "search term" ~/Vaults/raw/papers
+rg -C 3 "term" ~/Vaults/wiki/papers/
 ```
 
 ## Usage Patterns
@@ -161,13 +161,13 @@ rg -C 3 "term" ~/Knowledge/wiki/papers/
 
 ```bash
 # 1. Read the index first
-cat ~/Knowledge/wiki/index.md
+cat ~/Vaults/wiki/index.md
 
 # 2. Search for specific mentions
 qmd search "neural architecture search"
 
 # 3. If found, read the note
-cat ~/Knowledge/wiki/topics/neural-architecture.md
+cat ~/Vaults/wiki/topics/neural-architecture.md
 
 # 4. Check for related papers
 qmd search --path wiki/papers "neural architecture"
@@ -184,10 +184,10 @@ qmd backlinks "Neural Architecture Search"
 ```bash
 # Find in wiki first
 qmd search "attention is all you need"
-cat ~/Knowledge/wiki/papers/attention-is-all-you-need.md
+cat ~/Vaults/wiki/papers/attention-is-all-you-need.md
 
 # Follow link to raw PDF (extract text for LLM)
-pdftotext ~/Knowledge/raw/papers/vaswani-2017-attention.pdf - | head -500
+pdftotext ~/Vaults/raw/papers/vaswani-2017-attention.pdf - | head -500
 ```
 
 ### Query: Check Recent Work
@@ -196,7 +196,7 @@ pdftotext ~/Knowledge/raw/papers/vaswani-2017-attention.pdf - | head -500
 
 ```bash
 # Read log for recent activity
-cat ~/Knowledge/wiki/log.md | tail -30
+cat ~/Vaults/wiki/log.md | tail -30
 
 # Recent wiki edits via QMD
 qmd recent --limit 20
@@ -206,7 +206,7 @@ DAILY="$HOME/Knowledge/Daily/$(date +%Y-%m-%d).md"
 [[ -f "$DAILY" ]] && cat "$DAILY"
 
 # Inbox status
-echo "Inbox: $(find ~/Knowledge/inbox -type f | wc -l) items waiting"
+echo "Inbox: $(find ~/Vaults/inbox -type f | wc -l) items waiting"
 ```
 
 ### Create: Add New Note
@@ -216,10 +216,10 @@ echo "Inbox: $(find ~/Knowledge/inbox -type f | wc -l) items waiting"
 ```bash
 # 1. Check if exists
 qmd search "self-attention"
-ls ~/Knowledge/wiki/concepts/ | grep -i attention
+ls ~/Vaults/wiki/concepts/ | grep -i attention
 
 # 2. Create if not exists
-cat > ~/Knowledge/wiki/concepts/self-attention.md << 'EOF'
+cat > ~/Vaults/wiki/concepts/self-attention.md << 'EOF'
 ---
 date: $(date +%Y-%m-%d)
 tags: [concept, transformers, attention]
@@ -254,7 +254,7 @@ EOF
 
 ```bash
 # 1. List all wiki pages
-find ~/Knowledge/wiki -name "*.md" -type f
+find ~/Vaults/wiki -name "*.md" -type f
 
 # 2. Find orphan pages (no backlinks)
 qmd backlinks "Orphan Page Title"  # Check various pages

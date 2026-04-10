@@ -23,7 +23,7 @@ metadata:
 
 # Knowledge Base Ingest Skill
 
-Process items from `~/Knowledge/inbox/` → organize into `~/Knowledge/raw/` → create/update wiki notes → update index and log.
+Process items from `~/Vaults/inbox/` → organize into `~/Vaults/raw/` → create/update wiki notes → update index and log.
 
 This implements the **INGEST** operation from Karpathy's LLM Knowledge Base workflow.
 
@@ -79,22 +79,22 @@ See [[../../raw/papers/author-2024-title.pdf|original PDF]]
 
 ```bash
 # List all unprocessed items in inbox
-find ~/Knowledge/inbox -type f -not -name ".DS_Store"
+find ~/Vaults/inbox -type f -not -name ".DS_Store"
 
 # By type
-ls ~/Knowledge/inbox/papers/ 2>/dev/null || echo "No papers"
-ls ~/Knowledge/inbox/web/ 2>/dev/null || echo "No web articles"
-ls ~/Knowledge/inbox/images/ 2>/dev/null || echo "No images"
+ls ~/Vaults/inbox/papers/ 2>/dev/null || echo "No papers"
+ls ~/Vaults/inbox/web/ 2>/dev/null || echo "No web articles"
+ls ~/Vaults/inbox/images/ 2>/dev/null || echo "No images"
 ```
 
 ### Extract Content
 
 ```bash
 # PDF text extraction
-pdftotext -layout "~/Knowledge/inbox/papers/file.pdf" - | head -500
+pdftotext -layout "~/Vaults/inbox/papers/file.pdf" - | head -500
 
 # Markdown files
-cat "~/Knowledge/inbox/web/article.md"
+cat "~/Vaults/inbox/web/article.md"
 
 # HTML conversion
 pandoc -f html -t markdown "file.html" -o "file.md"
@@ -107,16 +107,16 @@ pandoc -f html -t markdown "file.html" -o "file.md"
 # Pattern: author-year-descriptive-name.ext
 
 # Example: Paper
-mv "~/Knowledge/inbox/papers/confusing-name.pdf" \
-   "~/Knowledge/raw/papers/vaswani-2017-attention-is-all-you-need.pdf"
+mv "~/Vaults/inbox/papers/confusing-name.pdf" \
+   "~/Vaults/raw/papers/vaswani-2017-attention-is-all-you-need.pdf"
 
 # Example: Web article
-mv "~/Knowledge/inbox/web/article-123.html" \
-   "~/Knowledge/raw/web/karpathy-2024-llm-knowledge-base-guide.md"
+mv "~/Vaults/inbox/web/article-123.html" \
+   "~/Vaults/raw/web/karpathy-2024-llm-knowledge-base-guide.md"
 
 # Example: Image
-mv "~/Knowledge/inbox/images/screenshot.png" \
-   "~/Knowledge/raw/images/diagram-architecture-2024.png"
+mv "~/Vaults/inbox/images/screenshot.png" \
+   "~/Vaults/raw/images/diagram-architecture-2024.png"
 ```
 
 ### Create Wiki Note (with Link)
@@ -219,10 +219,10 @@ EOF
 
 ```bash
 # 1. Check what's in inbox/papers
-ls ~/Knowledge/inbox/papers/
+ls ~/Vaults/inbox/papers/
 
 # 2. Read the PDF
-pdftotext "~/Knowledge/inbox/papers/file.pdf" - | head -500
+pdftotext "~/Vaults/inbox/papers/file.pdf" - | head -500
 
 # 3. Extract metadata (LLM reads and extracts)
 #    - Title: Attention Is All You Need
@@ -231,11 +231,11 @@ pdftotext "~/Knowledge/inbox/papers/file.pdf" - | head -500
 #    - Venue: NeurIPS
 
 # 4. Move to organized raw/ location
-mv "~/Knowledge/inbox/papers/file.pdf" \
-   "~/Knowledge/raw/papers/vaswani-2017-attention-is-all-you-need.pdf"
+mv "~/Vaults/inbox/papers/file.pdf" \
+   "~/Vaults/raw/papers/vaswani-2017-attention-is-all-you-need.pdf"
 
 # 5. Create wiki paper summary
-cat > "~/Knowledge/wiki/papers/attention-is-all-you-need.md" << 'EOF'
+cat > "~/Vaults/wiki/papers/attention-is-all-you-need.md" << 'EOF'
 ---
 date: $(date +%Y-%m-%d)
 tags: [paper, transformers, nlp]
@@ -293,7 +293,7 @@ EOF
 
 ```bash
 # List all items in inbox
-find ~/Knowledge/inbox -type f | while read file; do
+find ~/Vaults/inbox -type f | while read file; do
     # Determine type and process accordingly
     case "$file" in
         *.pdf)
@@ -317,13 +317,13 @@ done
 
 ```bash
 # Count items
-count=$(find ~/Knowledge/inbox -type f | wc -l)
+count=$(find ~/Vaults/inbox -type f | wc -l)
 echo "Inbox: $count items waiting"
 
 # List by type
-ls ~/Knowledge/inbox/papers/ 2>/dev/null || echo "No papers"
-ls ~/Knowledge/inbox/web/ 2>/dev/null || echo "No web articles"
-ls ~/Knowledge/inbox/images/ 2>/dev/null || echo "No images"
+ls ~/Vaults/inbox/papers/ 2>/dev/null || echo "No papers"
+ls ~/Vaults/inbox/web/ 2>/dev/null || echo "No web articles"
+ls ~/Vaults/inbox/images/ 2>/dev/null || echo "No images"
 ```
 
 ## File Naming Convention
