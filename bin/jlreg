@@ -2,7 +2,9 @@
 set -euo pipefail
 
 julia --startup-file=no -e '
+using Pkg
 using LocalRegistry
+Pkg.Registry.update()
 register()
 '
 
