@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec julia --startup-file=no -e '
+julia --startup-file=no -e '
 using LocalRegistry
 register()
 '
+
+VERSION=$(julia --startup-file=no -e 'using TOML; println(TOML.parsefile("Project.toml")["version"])')
+TAG="v${VERSION}"
+
+git tag "${TAG}"
+git push origin "${TAG}"
+gh release create "${TAG}" --generate-notes
