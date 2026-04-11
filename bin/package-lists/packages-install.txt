@@ -4,6 +4,7 @@
 
 zotero-bin
 cursor-bin
+diffnav
 rsync
 discord
 starship
@@ -32,3 +33,4 @@ uv
 television
 virt-viewer
 openbsd-netcat
+serpl

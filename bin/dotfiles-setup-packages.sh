@@ -193,6 +193,27 @@ setup_television() {
     tv update-channels || log_warning "tv update-channels failed (non-critical)"
 }
 
+setup_github_cli_extensions() {
+    if ! command -v gh >/dev/null 2>&1; then
+        log_warning "gh not on PATH; skipping GitHub CLI extensions"
+        return 0
+    fi
+
+    if ! gh auth status -h github.com >/dev/null 2>&1; then
+        log_info "gh not authenticated for github.com; run 'gh auth login' for full API access (extensions can still be installed)"
+    fi
+
+    local ext
+    for ext in dlvhdr/gh-dash dlvhdr/gh-enhance; do
+        if gh extension list 2>/dev/null | grep -qF "$ext"; then
+            log_info "gh extension already installed: $ext"
+        else
+            log_info "Installing gh extension: $ext"
+            gh extension install "$ext" || log_warning "Failed to install gh extension: $ext (non-critical)"
+        fi
+    done
+}
+
 main() {
     if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
         cat <<EOF
@@ -215,6 +236,7 @@ EOF
     # 3) Install packages (Node dev env first, then list; Television + Zotero after packages)
     omarchy-install-dev-env node
     read_list_file "$PACKAGE_LISTS_DIR/packages-install.txt" install_pkg
+    setup_github_cli_extensions
     setup_television
     if pkg_installed zotero-bin; then
         log_info "Setting up Zotero extensions..."

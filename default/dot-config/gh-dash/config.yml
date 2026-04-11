@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://gh-dash.dev/schema.json
+# Optional: gh enhance reads ENHANCE_THEME (BubbleTint id) for its UI palette.
+pager:
+  diff: diffnav
+keybindings:
+  prs:
+    - key: T
+      command: gh enhance -R {{.RepoName}} {{.PrNumber}}
