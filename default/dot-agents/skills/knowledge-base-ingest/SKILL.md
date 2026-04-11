@@ -81,20 +81,20 @@ See [[../../raw/papers/author-2024-title.pdf|original PDF]]
 # List all unprocessed items in inbox
 find ~/Vaults/Wiki/inbox -type f -not -name ".DS_Store"
 
-# By type
-ls ~/Vaults/Wiki/inbox/papers/ 2>/dev/null || echo "No papers"
-ls ~/Vaults/Wiki/inbox/web/ 2>/dev/null || echo "No web articles"
-ls ~/Vaults/Wiki/inbox/images/ 2>/dev/null || echo "No images"
+# By type (flat inbox - use file extensions)
+ls ~/Vaults/Wiki/inbox/*.pdf 2>/dev/null || echo "No PDFs"
+ls ~/Vaults/Wiki/inbox/*.md 2>/dev/null || echo "No markdown files"
+ls ~/Vaults/Wiki/inbox/*.{png,jpg,jpeg} 2>/dev/null || echo "No images"
 ```
 
 ### Extract Content
 
 ```bash
 # PDF text extraction
-pdftotext -layout "~/Vaults/Wiki/inbox/papers/file.pdf" - | head -500
+pdftotext -layout "~/Vaults/Wiki/inbox/file.pdf" - | head -500
 
 # Markdown files
-cat "~/Vaults/Wiki/inbox/web/article.md"
+cat "~/Vaults/Wiki/inbox/article.md"
 
 # HTML conversion
 pandoc -f html -t markdown "file.html" -o "file.md"
@@ -107,15 +107,15 @@ pandoc -f html -t markdown "file.html" -o "file.md"
 # Pattern: author-year-descriptive-name.ext
 
 # Example: Paper
-mv "~/Vaults/Wiki/inbox/papers/confusing-name.pdf" \
+mv "~/Vaults/Wiki/inbox/confusing-name.pdf" \
    "~/Vaults/Wiki/raw/papers/vaswani-2017-attention-is-all-you-need.pdf"
 
 # Example: Web article
-mv "~/Vaults/Wiki/inbox/web/article-123.html" \
+mv "~/Vaults/Wiki/inbox/article-123.html" \
    "~/Vaults/Wiki/raw/web/karpathy-2024-llm-knowledge-base-guide.md"
 
 # Example: Image
-mv "~/Vaults/Wiki/inbox/images/screenshot.png" \
+mv "~/Vaults/Wiki/inbox/screenshot.png" \
    "~/Vaults/Wiki/raw/images/diagram-architecture-2024.png"
 ```
 
@@ -218,11 +218,11 @@ EOF
 **User:** "Process this paper in my inbox"
 
 ```bash
-# 1. Check what's in inbox/papers
-ls ~/Vaults/Wiki/inbox/papers/
+# 1. Check what's in inbox
+ls ~/Vaults/Wiki/inbox/
 
 # 2. Read the PDF
-pdftotext "~/Vaults/Wiki/inbox/papers/file.pdf" - | head -500
+pdftotext "~/Vaults/Wiki/inbox/file.pdf" - | head -500
 
 # 3. Extract metadata (LLM reads and extracts)
 #    - Title: Attention Is All You Need
@@ -231,7 +231,7 @@ pdftotext "~/Vaults/Wiki/inbox/papers/file.pdf" - | head -500
 #    - Venue: NeurIPS
 
 # 4. Move to organized raw/ location
-mv "~/Vaults/Wiki/inbox/papers/file.pdf" \
+mv "~/Vaults/Wiki/inbox/file.pdf" \
    "~/Vaults/Wiki/raw/papers/vaswani-2017-attention-is-all-you-need.pdf"
 
 # 5. Create wiki paper summary
@@ -320,10 +320,10 @@ done
 count=$(find ~/Vaults/Wiki/inbox -type f | wc -l)
 echo "Inbox: $count items waiting"
 
-# List by type
-ls ~/Vaults/Wiki/inbox/papers/ 2>/dev/null || echo "No papers"
-ls ~/Vaults/Wiki/inbox/web/ 2>/dev/null || echo "No web articles"
-ls ~/Vaults/Wiki/inbox/images/ 2>/dev/null || echo "No images"
+# List by type (flat inbox)
+ls ~/Vaults/Wiki/inbox/*.pdf 2>/dev/null || echo "No PDFs"
+ls ~/Vaults/Wiki/inbox/*.md 2>/dev/null || echo "No markdown files"
+ls ~/Vaults/Wiki/inbox/*.{png,jpg,jpeg} 2>/dev/null || echo "No images"
 ```
 
 ## File Naming Convention

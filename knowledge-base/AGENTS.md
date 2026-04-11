@@ -55,7 +55,7 @@ When a new source arrives in `inbox/`:
 
 **Example:**
 ```
-User drops: inbox/papers/confusing-name.pdf
+User drops: inbox/confusing-name.pdf
     ↓
 LLM reads PDF, extracts: Vaswani et al., 2017, "Attention Is All You Need"
     ↓
