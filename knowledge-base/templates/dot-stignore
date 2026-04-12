@@ -1,0 +1,13 @@
+.obsidian/
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+*.mp4
+*.mov
+node_modules/
+__pycache__/
+.git/
+Manifest.toml
+*.jl.cov
+*.jl.mem
