@@ -35,3 +35,5 @@ openbsd-netcat
 serpl
 superfile
 exiftool
+tesseract
+tesseract-data-eng
