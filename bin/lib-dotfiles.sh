@@ -283,13 +283,13 @@ install_tree_sitter() {
 }
 
 install_from_tarball() {
-    # Downloads and installs a binary from a GitHub release tarball
+    # Downloads and installs a binary from a GitHub release asset: tarball/zip or a single raw executable.
     # Performs version checking to avoid unnecessary downloads
     #
     # Arguments:
     # $1 name               - Human readable name for logging
     # $2 owner/repo         - GitHub repository in format "owner/repo"
-    # $3 asset_name_regex   - Extended regex to match tarball filename
+    # $3 asset_name_regex   - Extended regex to match release asset filename (path tail of browser_download_url)
     # $4 binary_name        - Name the binary should have in INSTALL_DIR
     # $5 version_cmd        - Command to get current version (quoted string)
     # $6 INSTALL_DIR        - Target directory (optional, defaults to ~/.local/bin)
@@ -350,49 +350,57 @@ install_from_tarball() {
     trap 't="${tmp:-}"; [[ -n "$t" ]] && rm -rf "$t"' RETURN
     log_info "Downloading $name from $asset_url"
 
-    # Detect compression format from URL
-    local archive_name extract_opts
-    if [[ "$asset_url" =~ \.zip$ ]]; then
-        archive_name="archive.zip"
-        extract_opts=""
-    elif [[ "$asset_url" =~ \.tbz$ ]] || [[ "$asset_url" =~ \.tar\.bz2$ ]]; then
-        archive_name="archive.tar.bz2"
-        extract_opts="-xjf"
-    elif [[ "$asset_url" =~ \.tar\.xz$ ]] || [[ "$asset_url" =~ \.txz$ ]]; then
-        archive_name="archive.tar.xz"
-        extract_opts="-xJf"
-    else
-        # Default to gzip (covers .tar.gz, .tgz, etc.)
-        archive_name="archive.tar.gz"
-        extract_opts="-xzf"
-    fi
-
     local timeout="${CURL_TIMEOUT:-120}"
     [[ "${DEBUG:-}" == "1" ]] && log_info "DEBUG: Downloading with timeout ${timeout}s"
-    curl --max-time "$timeout" -fsSL "$asset_url" -o "$tmp/$archive_name" || {
-        log_error "Failed to download $name from $asset_url"
-        return 1
-    }
-
-    mkdir -p "$tmp/extract"
-    if [[ "$archive_name" == "archive.zip" ]]; then
-        unzip -q "$tmp/$archive_name" -d "$tmp/extract"
-    else
-        tar $extract_opts "$tmp/$archive_name" -C "$tmp/extract"
-    fi
-
-    # locate binary in extracted contents
-    bin_path=$(find "$tmp/extract" -type f -name "$bin_name" -perm -u+x | head -n1 || true)
-    if [[ -z "$bin_path" ]]; then
-        # some archives name binary with different path; try just by name regardless of exec bit
-        bin_path=$(find "$tmp/extract" -type f -name "$bin_name" | head -n1 || true)
-    fi
-    if [[ -z "$bin_path" ]]; then
-        log_error "Binary $bin_name not found in archive for $name"
-        return 1
-    fi
 
     mkdir -p "$INSTALL_DIR"
-    install -m 0755 "$bin_path" "$INSTALL_DIR/$bin_name"
+
+    if [[ "$asset_url" =~ \.(zip|tar\.gz|tgz|tar\.bz2|tbz|tar\.xz|txz)$ ]]; then
+        local archive_name extract_opts
+        if [[ "$asset_url" =~ \.zip$ ]]; then
+            archive_name="archive.zip"
+            extract_opts=""
+        elif [[ "$asset_url" =~ \.tbz$ ]] || [[ "$asset_url" =~ \.tar\.bz2$ ]]; then
+            archive_name="archive.tar.bz2"
+            extract_opts="-xjf"
+        elif [[ "$asset_url" =~ \.tar\.xz$ ]] || [[ "$asset_url" =~ \.txz$ ]]; then
+            archive_name="archive.tar.xz"
+            extract_opts="-xJf"
+        else
+            archive_name="archive.tar.gz"
+            extract_opts="-xzf"
+        fi
+
+        curl --max-time "$timeout" -fsSL "$asset_url" -o "$tmp/$archive_name" || {
+            log_error "Failed to download $name from $asset_url"
+            return 1
+        }
+
+        mkdir -p "$tmp/extract"
+        if [[ "$archive_name" == "archive.zip" ]]; then
+            unzip -q "$tmp/$archive_name" -d "$tmp/extract"
+        else
+            tar $extract_opts "$tmp/$archive_name" -C "$tmp/extract"
+        fi
+
+        bin_path=$(find "$tmp/extract" -type f -name "$bin_name" -perm -u+x | head -n1 || true)
+        if [[ -z "$bin_path" ]]; then
+            bin_path=$(find "$tmp/extract" -type f -name "$bin_name" | head -n1 || true)
+        fi
+        if [[ -z "$bin_path" ]]; then
+            log_error "Binary $bin_name not found in archive for $name"
+            return 1
+        fi
+
+        install -m 0755 "$bin_path" "$INSTALL_DIR/$bin_name"
+    else
+        local bin_dl="$tmp/release-asset.bin"
+        curl --max-time "$timeout" -fsSL "$asset_url" -o "$bin_dl" || {
+            log_error "Failed to download $name from $asset_url"
+            return 1
+        }
+        install -m 0755 "$bin_dl" "$INSTALL_DIR/$bin_name"
+    fi
+
     log_success "Installed/updated $name -> $INSTALL_DIR/$bin_name"
 }
