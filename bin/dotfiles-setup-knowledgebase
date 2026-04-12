@@ -18,6 +18,7 @@ VAULT_PATH="${WIKI_PATH:-$HOME/Vaults/Wiki}"
 INBOX_PATH="$VAULT_PATH/inbox"
 RAW_PATH="$VAULT_PATH/raw"
 QMD_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/qmd"
+TEMPLATE_DIR="${DOTFILES_PATH:-$HOME/dotfiles}/knowledge-base/templates"
 
 # Logging
 log_info() { echo -e "${BLUE}ℹ${NC}  $1"; }
@@ -33,6 +34,21 @@ ensure_dir() {
     else
         log_info "Exists: $1"
     fi
+}
+
+copy_template() {
+    local src="$1"
+    local dst="$2"
+    if [[ -f "$dst" ]]; then
+        log_info "Exists: $dst"
+        return 0
+    fi
+    if [[ ! -f "$src" ]]; then
+        log_error "Template not found: $src"
+        return 1
+    fi
+    cp "$src" "$dst"
+    log_success "Created: $dst"
 }
 
 # Install QMD via npm (recommended)
@@ -145,172 +161,38 @@ create_dirs() {
     
     # Code - Julia projects for analysis
     ensure_dir "$VAULT_PATH/code"
+}
+
+# Copy template files
+copy_templates() {
+    log_info "Copying template files..."
     
     # .stignore for Syncthing
     if [[ ! -f "$VAULT_PATH/.stignore" ]]; then
-        cat > "$VAULT_PATH/.stignore" << 'EOF'
-.obsidian/
-*.tmp
-*.swp
-.DS_Store
-Thumbs.db
-*.mp4
-*.mov
-node_modules/
-__pycache__/
-.git/
-Manifest.toml
-*.jl.cov
-*.jl.mem
-EOF
-        log_success ".stignore created"
+        copy_template "$TEMPLATE_DIR/dot-stignore" "$VAULT_PATH/.stignore"
     fi
     
     # Main index
     if [[ ! -f "$VAULT_PATH/wiki/index.md" ]]; then
-        cat > "$VAULT_PATH/wiki/index.md" << 'EOF'
-# Knowledge Base Index
-
-Content catalog for the knowledge base. Read this first when querying.
-
-## Papers
-
-*No papers yet. Add to raw/papers/ and run ingest.*
-
-## Concepts
-
-*No concepts yet. Created during ingest.*
-
-## Entities
-
-*No entities yet. Created during ingest.*
-
-## Topics
-
-*No topics yet. Create for areas of interest.*
-
-## Comparisons
-
-*No comparisons yet. Created from valuable queries.*
-
-## Sources
-
-*No sources yet. Created during ingest for non-paper materials.*
-
-## Daily Notes
-
-- See [[../Daily]] directory
-
----
-
-*This index is updated automatically during INGEST operations.*
-
-*Format: `## [YYYY-MM-DD] type | description`*
-EOF
-        log_success "Wiki index created"
+        copy_template "$TEMPLATE_DIR/wiki-index.md" "$VAULT_PATH/wiki/index.md"
     fi
-
-    # Log file
+    
+    # Log file (with date substitution)
     if [[ ! -f "$VAULT_PATH/wiki/log.md" ]]; then
-        cat > "$VAULT_PATH/wiki/log.md" << EOF
-# Knowledge Base Log
-
-Chronological record of ingests, queries, and lint operations.
-
-Format: \`## [YYYY-MM-DD] type | description\`
-
-Types:
-- \`ingest\` - New source added to knowledge base
-- \`query\` - Question answered using wiki
-- \`lint\` - Health check and maintenance
-
----
-
-## [$(date +%Y-%m-%d)] setup | Knowledge base initialized
-- Created directory structure
-- Created wiki/index.md
-- Created wiki/log.md
-- Ready for first ingest
-
-EOF
-        log_success "Wiki log created"
+        local today=$(date +%Y-%m-%d)
+        sed "s/{{DATE}}/$today/g" "$TEMPLATE_DIR/wiki-log.md" > "$VAULT_PATH/wiki/log.md"
+        log_success "Created: $VAULT_PATH/wiki/log.md"
     fi
 }
 
-# Create templates
-create_templates() {
+# Create note templates
+create_note_templates() {
+    log_info "Creating note templates..."
     local d="$VAULT_PATH/.templates"
-    ensure_dir "$d"
     
-    if [[ ! -f "$d/paper.md" ]]; then
-        cat > "$d/paper.md" << 'EOF'
----
-date: {{date:YYYY-MM-DD}}
-tags: [paper]
-status: unread
-raw: "[[../../raw/papers/FILENAME]]"
----
-
-# {{title}}
-
-## Metadata
-- **Authors:** {{authors}}
-- **Venue:** {{venue}}
-- **Year:** {{year}}
-- **Raw:** See raw note above
-
-## Summary
-
-## Key Contributions
-
-## Methods
-
-## Results
-
-## Related
-- 
-EOF
-        log_success "Paper template created"
-    fi
-
-    if [[ ! -f "$d/entity.md" ]]; then
-        cat > "$d/entity.md" << 'EOF'
----
-date: {{date:YYYY-MM-DD}}
-tags: [entity]
----
-
-# {{name}}
-
-## Role/Description
-
-## Related
-- 
-EOF
-        log_success "Entity template created"
-    fi
-
-    if [[ ! -f "$d/concept.md" ]]; then
-        cat > "$d/concept.md" << 'EOF'
----
-date: {{date:YYYY-MM-DD}}
-tags: [concept]
----
-
-# {{name}}
-
-## Definition
-
-## Explanation
-
-## Sources
-- 
-
-## Related
-- 
-EOF
-        log_success "Concept template created"
-    fi
+    copy_template "$TEMPLATE_DIR/paper.md" "$d/paper.md"
+    copy_template "$TEMPLATE_DIR/entity.md" "$d/entity.md"
+    copy_template "$TEMPLATE_DIR/concept.md" "$d/concept.md"
 }
 
 # Summary
@@ -370,7 +252,8 @@ main() {
     setup_qmd_config
     create_dirs
     setup_syncthing
-    create_templates
+    copy_templates
+    create_note_templates
     print_summary
 }
 
