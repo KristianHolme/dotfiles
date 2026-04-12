@@ -214,6 +214,37 @@ setup_github_cli_extensions() {
     done
 }
 
+# https://github.com/marcosnils/bin — bootstrap via AUR bin-bin, self-install, then drop the package.
+setup_marcosnils_bin() {
+    if command -v bin >/dev/null 2>&1 && ! pkg_installed bin-bin; then
+        log_info "marcosnils/bin already on PATH; skipping AUR bootstrap"
+        return 0
+    fi
+
+    if ! pkg_installed bin-bin; then
+        log_info "Installing bin-bin (AUR) to bootstrap marcosnils/bin"
+        install_pkg bin-bin
+    fi
+
+    if ! command -v bin >/dev/null 2>&1; then
+        log_error "bin not on PATH after installing bin-bin"
+        return 1
+    fi
+
+    log_info "Installing marcosnils/bin via bin (self-manage)"
+    bin install github.com/marcosnils/bin || {
+        log_error "marcosnils/bin self-install failed"
+        return 1
+    }
+
+    if pkg_installed bin-bin; then
+        log_info "Removing AUR bootstrap package bin-bin"
+        remove_pkg bin-bin
+    fi
+
+    log_success "marcosnils/bin ready"
+}
+
 main() {
     if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
         cat <<EOF
@@ -237,6 +268,7 @@ EOF
     omarchy-install-dev-env node
     read_list_file "$PACKAGE_LISTS_DIR/packages-install.txt" install_pkg
     setup_github_cli_extensions
+    setup_marcosnils_bin || log_warning "marcosnils/bin setup failed; continuing"
     setup_television
     if pkg_installed zotero-bin; then
         log_info "Setting up Zotero extensions..."
