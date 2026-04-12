@@ -38,6 +38,7 @@ unalias lsa
 alias l='eza -lh --group-directories-first --icons=auto'
 alias la='l -a'
 alias f='spf'
+alias q='qmd query'
 
 export PATH="$HOME/dotfiles/bin:$PATH"
 export PATH="$HOME/.julia/bin:$PATH"
