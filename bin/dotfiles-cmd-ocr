@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# OCR a user-selected screen region on Wayland (rectangle via slurp + grim).
+# Saves text under ~/textcapture by default, copies it to the clipboard, and shows
+# a notification with an action to open the file in an editor (default nvim) in
+# a floating terminal (org.omarchy.terminal, same Hyprland rules as other Omarchy TUIs).
+#
+# Dependencies: grim, slurp, hyprpicker, tesseract, wl-copy (wl-clipboard)
+#
+# Environment:
+#   DOTFILES_OCR_DIR           Output directory, default ~/textcapture
+#   DOTFILES_OCR_LANG          Tesseract language(s), default eng
+#   DOTFILES_OCR_TESSERACT_ARGS Extra tesseract args (whitespace-separated), e.g. --psm 6
+#   DOTFILES_OCR_EDITOR        Editor command; overrides EDITOR; default nvim
+
+[[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
+
+OUTPUT_DIR="${DOTFILES_OCR_DIR:-$HOME/textcapture}"
+
+missing_deps=()
+for cmd in grim slurp hyprpicker tesseract wl-copy; do
+  command -v "$cmd" >/dev/null 2>&1 || missing_deps+=("$cmd")
+done
+if ((${#missing_deps[@]} > 0)); then
+  notify-send "OCR failed" "Missing: ${missing_deps[*]}" -u critical -t 5000
+  exit 1
+fi
+
+pkill slurp && exit 0
+
+hyprpicker -r -z >/dev/null 2>&1 &
+picker_pid=$!
+sleep .1
+SELECTION=$(slurp 2>/dev/null)
+kill "$picker_pid" 2>/dev/null
+
+[[ -z $SELECTION ]] && exit 0
+
+if ! mkdir -p "$OUTPUT_DIR"; then
+  notify-send "OCR failed" "Could not create directory: $OUTPUT_DIR" -u critical -t 5000
+  exit 1
+fi
+
+FILENAME="ocr-$(date +'%Y-%m-%d_%H-%M-%S').txt"
+FILEPATH="$OUTPUT_DIR/$FILENAME"
+
+LANG_ARG="${DOTFILES_OCR_LANG:-eng}"
+TESS_EXTRA=()
+if [[ -n ${DOTFILES_OCR_TESSERACT_ARGS:-} ]]; then
+  read -r -a TESS_EXTRA <<< "$DOTFILES_OCR_TESSERACT_ARGS"
+fi
+
+set -o pipefail
+if ! grim -g "$SELECTION" - | tesseract stdin stdout -l "$LANG_ARG" "${TESS_EXTRA[@]}" 2>/dev/null | tr -d '\r' >"$FILEPATH"; then
+  notify-send "OCR failed" "grim or tesseract returned an error." -u critical -t 5000
+  rm -f "$FILEPATH"
+  exit 1
+fi
+set +o pipefail
+
+body=$(<"$FILEPATH")
+if [[ -z ${body//[$' \t\n\r']/} ]]; then
+  notify-send "OCR" "No text recognized (clipboard unchanged)." -u normal -t 5000
+  rm -f "$FILEPATH"
+  exit 0
+fi
+
+wl-copy <"$FILEPATH"
+
+open_in_editor() {
+  local path=$1
+  local ed=${DOTFILES_OCR_EDITOR:-${EDITOR:-nvim}}
+  # Use org.omarchy.terminal so Hyprland applies the floating-window rule (see omarchy default/hypr/apps/system.conf).
+  if command -v uwsm-app >/dev/null 2>&1; then
+    setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal -e "$ed" "$path" >/dev/null 2>&1 &
+  else
+    setsid xdg-terminal-exec --app-id=org.omarchy.terminal -e "$ed" "$path" >/dev/null 2>&1 &
+  fi
+}
+
+(
+  ACTION=$(
+    notify-send "OCR text saved to clipboard and file" "Saved to $FILEPATH. Edit with Super + Alt + , (or click this)." -t 10000 -i "$FILEPATH" -A "default=edit"
+  )
+  [[ $ACTION == "default" ]] && open_in_editor "$FILEPATH"
+) &
+
+exit 0
