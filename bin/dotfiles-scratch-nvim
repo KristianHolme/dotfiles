@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Open Neovim in the default terminal on a new timestamped note under ~/quicknotes.
+#
+# Environment:
+#   DOTFILES_SCRATCH_NVIM_DIR  Notes directory (default: $HOME/quicknotes)
+
+scratch_root="${DOTFILES_SCRATCH_NVIM_DIR:-$HOME/quicknotes}"
+mkdir -p "$scratch_root"
+path="$scratch_root/$(date +%Y-%m-%dT%H-%M-%S).md"
+touch "$path"
+# --app-id: stable Hyprland match:class org.dotfiles.quicknotes (see window-rules.conf)
+# --dir: cwd = ~/quicknotes (xdg maps to Ghostty --working-directory=)
+exec setsid uwsm-app -- xdg-terminal-exec \
+  --app-id=org.dotfiles.quicknotes \
+  --title=QuickNotepad \
+  --dir="$scratch_root" \
+  -e nvim "$path"

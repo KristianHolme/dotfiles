@@ -22,7 +22,6 @@ xdg-desktop-portal-hyprland
 mermaid-cli
 anki
 asciinema
-mini-text
 pandoc-cli
 slack-desktop-wayland
 syncthing
