@@ -81,6 +81,7 @@ You drop a new source into `inbox/`. The LLM:
 5. **Updates** relevant concept pages in `wiki/concepts/`
 6. **Updates** the index (`wiki/index.md`)
 7. **Appends** entry to log (`wiki/log.md`)
+8. **Updates** QMD index (`qmd update && qmd embed`)
 
 **A single source might touch 10-15 wiki pages.**
 

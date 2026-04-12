@@ -211,6 +211,26 @@ cat >> "$VAULT/wiki/log.md" << 'EOF'
 EOF
 ```
 
+### Update QMD Index (Final Step)
+
+After all wiki pages are updated, refresh the search index:
+
+```bash
+# 1. Re-index to pick up new/updated files
+qmd update
+
+# 2. Generate embeddings for semantic search
+qmd embed
+
+# Alternative: Force re-embed everything (if embedding model changed)
+# qmd embed -f
+```
+
+**Why this matters:**
+- `qmd update` - Scans filesystem, adds new documents to index
+- `qmd embed` - Creates vector embeddings for semantic/vector search
+- Without embeddings, `qmd vsearch` and hybrid `qmd query` won't find new content
+
 ## Usage Patterns
 
 ### Process Single Item
@@ -281,6 +301,11 @@ EOF
 # - wiki/concepts/transformer.md
 
 # 8. Update index.md (add entry under "Papers")
+
+# 9. Update QMD index (for search)
+qmd update && qmd embed
+
+# 10. Done - content is now searchable via qmd
 
 # 9. Append to log.md
 
@@ -430,6 +455,9 @@ Pages Updated:
 
 Log:
 ✓ wiki/log.md updated
+
+Search Index:
+✓ qmd update && qmd embed (content now searchable)
 
 Total wiki pages touched: 6
 ```

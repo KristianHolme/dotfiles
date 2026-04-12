@@ -52,6 +52,7 @@ When a new source arrives in `inbox/`:
 5. **Update** relevant concept pages in `wiki/concepts/`
 6. **Update** the index (`wiki/index.md`)
 7. **Append** entry to log (`wiki/log.md`)
+8. **Update** QMD index (`qmd update && qmd embed`) - makes content searchable
 
 **Example:**
 ```
@@ -78,6 +79,10 @@ Append to: wiki/log.md
     ## [2024-01-15] ingest | Attention Is All You Need
     - Source: raw/papers/vaswani-2017-attention-is-all-you-need.pdf
     - Wiki pages created/updated: papers/attention-is-all-you-need.md, concepts/self-attention.md, entities/vaswani-ashish.md
+    ↓
+Update QMD index:
+    qmd update && qmd embed
+    (makes content searchable via qmd query/vsearch)
 ```
 
 ### 2. QUERY — Answer Questions Using the Wiki
