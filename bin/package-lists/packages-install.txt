@@ -13,7 +13,6 @@ git-lfs
 bitwarden
 # google-chrome
 tmux
-yazi
 shfmt
 texlive-meta
 # tex-fmt
@@ -34,3 +33,5 @@ television
 virt-viewer
 openbsd-netcat
 serpl
+superfile
+exiftool
