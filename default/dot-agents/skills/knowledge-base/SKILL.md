@@ -83,26 +83,36 @@ When new sources arrive in inbox:
 ### QMD — Primary Search
 
 ```bash
-# Search entire wiki
-qmd search "neural architecture search"
+# Search with JSON output (best for agents - structured, token-efficient)
+qmd search "neural architecture search" --json -n 10
+qmd query "transformer architecture" --json -n 10 --min-score 0.3
+
+# Get just file paths (most token-efficient for finding files)
+qmd search "transformer" --files --min-score 0.4
+qmd query "attention mechanism" --files -n 20
 
 # Search specific path
-qmd search --path wiki/papers "transformer"
-qmd search --path raw/papers "attention"
+qmd search --path wiki/papers "transformer" --json -n 5
 
 # Search by tag
-qmd search --tag papers
-qmd search --tag concepts
+qmd search --tag papers --json
+qmd search --tag concepts --json
 
 # Recent edits
-qmd recent --limit 10
+qmd recent --limit 10 --json
 
 # Backlinks (what links to this page)
-qmd backlinks "Self-Attention"
+qmd backlinks "Self-Attention" --json
 
 # Rebuild index
 qmd index
 ```
+
+**Output format recommendations:**
+- `--json` - Structured output, easy to parse, includes snippets and scores
+- `--files` - Just file paths, most token-efficient when you only need locations
+- `--min-score 0.3` - Filter out low-relevance results (saves tokens)
+- `-n 10` - Limit results (default is 5, increase for broader queries)
 
 ### Reading Wiki Pages
 
@@ -163,18 +173,18 @@ rg -C 3 "term" ~/Vaults/Wiki/wiki/papers/
 # 1. Read the index first
 cat ~/Vaults/Wiki/wiki/index.md
 
-# 2. Search for specific mentions
-qmd search "neural architecture search"
+# 2. Search with JSON for structured results (includes snippet + score)
+qmd search "neural architecture search" --json -n 10
 
 # 3. If found, read the note
 cat ~/Vaults/Wiki/wiki/topics/neural-architecture.md
 
-# 4. Check for related papers
-qmd search --path wiki/papers "neural architecture"
-qmd search --tag papers
+# 4. Check for related papers (use --files for just paths, token-efficient)
+qmd search --path wiki/papers "neural architecture" --files
+qmd search --tag papers --files
 
-# 5. Find connections
-qmd backlinks "Neural Architecture Search"
+# 5. Find connections (JSON to get context of each link)
+qmd backlinks "Neural Architecture Search" --json
 ```
 
 ### Query: Read Raw Material
@@ -182,8 +192,8 @@ qmd backlinks "Neural Architecture Search"
 **User:** "Show me the paper on attention"
 
 ```bash
-# Find in wiki first
-qmd search "attention is all you need"
+# Find in wiki first (use --files for just paths, most efficient)
+qmd search "attention is all you need" --files
 cat ~/Vaults/Wiki/wiki/papers/attention-is-all-you-need.md
 
 # Follow link to raw PDF (extract text for LLM)
@@ -198,11 +208,11 @@ pdftotext ~/Vaults/Wiki/raw/papers/vaswani-2017-attention.pdf - | head -500
 # Read log for recent activity
 cat ~/Vaults/Wiki/wiki/log.md | tail -30
 
-# Recent wiki edits via QMD
-qmd recent --limit 20
+# Recent wiki edits via QMD (JSON for structured output)
+qmd recent --limit 20 --json
 
 # Today's daily note
-DAILY="$HOME/Knowledge/Daily/$(date +%Y-%m-%d).md"
+DAILY="$HOME/Vaults/Wiki/Daily/$(date +%Y-%m-%d).md"
 [[ -f "$DAILY" ]] && cat "$DAILY"
 
 # Inbox status

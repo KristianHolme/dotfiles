@@ -270,22 +270,27 @@ When user asks for data management/analysis:
 # Install
 npm install -g @tobilu/qmd
 
-# Search wiki
-qmd search "neural architecture search"
+# Search with JSON output (best for agents - structured, includes snippets + scores)
+qmd search "neural architecture search" --json -n 10
+qmd query "transformer architecture" --json -n 10 --min-score 0.3
+
+# Get just file paths (most token-efficient - use when you only need locations)
+qmd search "attention mechanism" --files
+qmd query "neural networks" --files -n 20 --min-score 0.4
 
 # Search specific path
-qmd search --path wiki/papers "transformer"
-qmd search --path raw/papers "attention"
+qmd search --path wiki/papers "transformer" --json -n 5
+qmd search --path raw/papers "attention" --files
 
 # Search by tag
-qmd search --tag papers
-qmd search --tag concepts
+qmd search --tag papers --json
+qmd search --tag concepts --files
 
 # Recent edits
-qmd recent --limit 10
+qmd recent --limit 10 --json
 
 # Backlinks
-qmd backlinks "Self-Attention"
+qmd backlinks "Self-Attention" --json
 
 # Rebuild index
 qmd index

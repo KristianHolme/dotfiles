@@ -276,59 +276,72 @@ npm install -g @tobilu/qmd
 
 ### Basic Usage
 
+**For agents: Always prefer `--json` or `--files` for structured, token-efficient output.**
+
 ```bash
-# Search entire wiki
-qmd search "neural architecture search"
+# Search with JSON output (best for agents - structured, includes snippets + scores)
+qmd search "neural architecture search" --json -n 10
+qmd query "transformer architecture" --json -n 10 --min-score 0.3
+
+# Get just file paths (most token-efficient - use when you only need locations)
+qmd search "attention mechanism" --files
+qmd query "neural networks" --files -n 20 --min-score 0.4
 
 # Search specific path
-qmd search --path wiki/papers "transformer"
-qmd search --path raw/papers "attention mechanism"
+qmd search --path wiki/papers "transformer" --json -n 5
+qmd search --path raw/papers "attention" --files
 
 # Search by tag
-qmd search --tag papers
-qmd search --tag concepts
+qmd search --tag papers --json
+qmd search --tag concepts --files
 
 # Recent edits
-qmd recent --limit 10
+qmd recent --limit 10 --json
 
 # Backlinks (what links to this page)
-qmd backlinks "Self-Attention"
+qmd backlinks "Self-Attention" --json
 
 # Rebuild index (after major changes)
 qmd index
 ```
 
+**Output format guide:**
+- `--json` - Structured JSON with docid, score, snippet, context. Best for agents.
+- `--files` - Just file paths (docid,score,filepath). Most token-efficient.
+- `--min-score 0.3` - Filter low-relevance results (saves context window).
+- `-n 10` - Limit number of results (default 5, increase for broader queries).
+
 ### Search Strategies
 
 **Finding a specific paper:**
 ```bash
-# Search wiki summaries
-qmd search "attention is all you need"
+# Search wiki summaries (JSON for structured results with snippets)
+qmd search "attention is all you need" --json -n 10
 
-# If not found, search raw papers
-qmd search --path raw/papers "vaswani"
+# If not found, search raw papers (--files for just paths, efficient)
+qmd search --path raw/papers "vaswani" --files
 
-# List all papers by tag
-qmd search --tag papers
+# List all papers by tag (--files for path list)
+qmd search --tag papers --files
 ```
 
 **Exploring a concept:**
 ```bash
-# Find the concept page
-qmd search "self-attention"
+# Find the concept page (use --files to get path, then read)
+qmd search "self-attention" --files
 cat wiki/concepts/self-attention.md
 
-# Find what links to it (related concepts/papers)
-qmd backlinks "Self-Attention"
+# Find what links to it (JSON to get context of each link)
+qmd backlinks "Self-Attention" --json
 
-# Search for mentions in papers
-qmd search --path wiki/papers "self-attention"
+# Search for mentions in papers (--files for efficient path listing)
+qmd search --path wiki/papers "self-attention" --files
 ```
 
 **Checking recent activity:**
 ```bash
-# Recent wiki edits
-qmd recent --limit 20
+# Recent wiki edits (JSON for structured output)
+qmd recent --limit 20 --json
 
 # Parse log for recent ingests
 grep "ingest |" wiki/log.md | tail -5

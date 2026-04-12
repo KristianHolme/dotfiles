@@ -392,7 +392,12 @@ raw: "[[../../raw/papers/vaswani-2017-attention.pdf]]"
 
 1. **Always link, never copy** — Wiki references raw/, doesn't duplicate
 2. **Organized filenames** — Use author-year-title pattern in raw/
-3. **Check duplicates** — Before moving to raw, check if similar exists
+3. **Check duplicates** — Before moving to raw, check if similar exists via QMD:
+   ```bash
+   # Search for existing papers with similar title/author
+   qmd search "author name or paper title" --files
+   qmd search --path raw/papers "keyword" --files
+   ```
 4. **Preserve originals** — Keep raw/ files untouched (reference only)
 5. **Summary in wiki** — Put synthesized knowledge in wiki/, full source in raw/
 6. **Update index** — Add entry to wiki/index.md after creating page
