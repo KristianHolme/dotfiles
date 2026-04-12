@@ -1,5 +1,5 @@
 ---
-name: Omarchy
+name: omarchy
 description: >
   REQUIRED for ANY changes to Linux desktop, window manager, or system config.
   Use when editing ~/.config/hypr/, ~/.config/waybar/, ~/.config/walker/,
@@ -35,6 +35,7 @@ Manage [Omarchy](https://omarchy.org/) Linux systems - a beautiful, modern, opin
 **NEVER modify anything in `~/.local/share/omarchy/`** - but READING is safe and encouraged.
 
 This directory contains Omarchy's source files managed by git. Any changes will be:
+
 - Lost on next `omarchy-update`
 - Cause conflicts with upstream
 - Break the system's update mechanism
@@ -50,12 +51,14 @@ This directory contains Omarchy's source files managed by git. Any changes will 
 ```
 
 **Reading `~/.local/share/omarchy/` is SAFE and useful** - do it freely to:
+
 - Understand how omarchy commands work: `cat $(which omarchy-theme-set)`
 - See default configs before customizing: `cat ~/.local/share/omarchy/config/waybar/config.jsonc`
 - Check stock theme files to copy for customization
 - Reference default hyprland settings: `cat ~/.local/share/omarchy/default/hypr/*`
 
 **Always use these safe locations instead:**
+
 - `~/.config/` - User configuration (safe to edit)
 - `~/.config/omarchy/themes/<custom-name>/` - Custom themes (must be real directories)
 - `~/.config/omarchy/hooks/` - Custom automation hooks
@@ -64,15 +67,15 @@ This directory contains Omarchy's source files managed by git. Any changes will 
 
 Omarchy is built on:
 
-| Component | Purpose | Config Location |
-|-----------|---------|-----------------|
-| **Arch Linux** | Base OS | `/etc/`, `~/.config/` |
-| **Hyprland** | Wayland compositor/WM | `~/.config/hypr/` |
-| **Waybar** | Status bar | `~/.config/waybar/` |
-| **Walker** | App launcher | `~/.config/walker/` |
-| **Alacritty/Kitty/Ghostty** | Terminals | `~/.config/<terminal>/` |
-| **Mako** | Notifications | `~/.config/mako/` |
-| **SwayOSD** | On-screen display | `~/.config/swayosd/` |
+| Component                   | Purpose               | Config Location         |
+| --------------------------- | --------------------- | ----------------------- |
+| **Arch Linux**              | Base OS               | `/etc/`, `~/.config/`   |
+| **Hyprland**                | Wayland compositor/WM | `~/.config/hypr/`       |
+| **Waybar**                  | Status bar            | `~/.config/waybar/`     |
+| **Walker**                  | App launcher          | `~/.config/walker/`     |
+| **Alacritty/Kitty/Ghostty** | Terminals             | `~/.config/<terminal>/` |
+| **Mako**                    | Notifications         | `~/.config/mako/`       |
+| **SwayOSD**                 | On-screen display     | `~/.config/swayosd/`    |
 
 ## Command Discovery
 
@@ -92,18 +95,18 @@ cat $(which omarchy-theme-set)
 
 ### Command Categories
 
-| Prefix | Purpose | Example |
-|--------|---------|---------|
-| `omarchy-refresh-*` | Reset config to defaults (backs up first) | `omarchy-refresh-waybar` |
-| `omarchy-restart-*` | Restart a service/app | `omarchy-restart-waybar` |
-| `omarchy-toggle-*` | Toggle feature on/off | `omarchy-toggle-nightlight` |
-| `omarchy-theme-*` | Theme management | `omarchy-theme-set <name>` |
-| `omarchy-install-*` | Install optional software | `omarchy-install-docker-dbs` |
-| `omarchy-launch-*` | Launch apps | `omarchy-launch-browser` |
-| `omarchy-cmd-*` | System commands | `omarchy-cmd-screenshot` |
-| `omarchy-pkg-*` | Package management | `omarchy-pkg-install <pkg>` |
-| `omarchy-setup-*` | Initial setup tasks | `omarchy-setup-fingerprint` |
-| `omarchy-update-*` | System updates | `omarchy-update` |
+| Prefix              | Purpose                                   | Example                      |
+| ------------------- | ----------------------------------------- | ---------------------------- |
+| `omarchy-refresh-*` | Reset config to defaults (backs up first) | `omarchy-refresh-waybar`     |
+| `omarchy-restart-*` | Restart a service/app                     | `omarchy-restart-waybar`     |
+| `omarchy-toggle-*`  | Toggle feature on/off                     | `omarchy-toggle-nightlight`  |
+| `omarchy-theme-*`   | Theme management                          | `omarchy-theme-set <name>`   |
+| `omarchy-install-*` | Install optional software                 | `omarchy-install-docker-dbs` |
+| `omarchy-launch-*`  | Launch apps                               | `omarchy-launch-browser`     |
+| `omarchy-cmd-*`     | System commands                           | `omarchy-cmd-screenshot`     |
+| `omarchy-pkg-*`     | Package management                        | `omarchy-pkg-install <pkg>`  |
+| `omarchy-setup-*`   | Initial setup tasks                       | `omarchy-setup-fingerprint`  |
+| `omarchy-update-*`  | System updates                            | `omarchy-update`             |
 
 ## Configuration Locations
 
@@ -124,6 +127,7 @@ cat $(which omarchy-theme-set)
 ```
 
 **Key behaviors:**
+
 - Hyprland auto-reloads on config save (no restart needed for most changes)
 - Use `hyprctl reload` to force reload
 - Use `omarchy-refresh-hyprland` to reset to defaults
@@ -152,14 +156,14 @@ cat $(which omarchy-theme-set)
 
 ### Other Configs
 
-| App | Location |
-|-----|----------|
-| btop | `~/.config/btop/btop.conf` |
+| App       | Location                           |
+| --------- | ---------------------------------- |
+| btop      | `~/.config/btop/btop.conf`         |
 | fastfetch | `~/.config/fastfetch/config.jsonc` |
-| lazygit | `~/.config/lazygit/config.yml` |
-| starship | `~/.config/starship.toml` |
-| git | `~/.config/git/config` |
-| walker | `~/.config/walker/config.toml` |
+| lazygit   | `~/.config/lazygit/config.yml`     |
+| starship  | `~/.config/starship.toml`          |
+| git       | `~/.config/git/config`             |
+| walker    | `~/.config/walker/config.toml`     |
 
 ## Safe Customization Patterns
 
@@ -203,6 +207,7 @@ Create scripts in `~/.config/omarchy/hooks/` to run automatically on events:
 ```
 
 Example hook (`~/.config/omarchy/hooks/theme-set`):
+
 ```bash
 #!/bin/bash
 THEME_NAME=$1
@@ -241,6 +246,7 @@ omarchy-theme-install <url>     # Install from git repo
 ### Keybindings
 
 Edit `~/.config/hypr/bindings.conf`. Format:
+
 ```
 bind = SUPER, Return, exec, xdg-terminal-exec
 bind = SUPER, Q, killactive
@@ -256,6 +262,7 @@ View current bindings: `omarchy-menu-keybindings --print`
 3. Inform the user what the key was previously bound to
 
 Example - rebinding SUPER+F (which is bound to fullscreen by default):
+
 ```
 # Unbind existing SUPER+F (was: fullscreen)
 unbind = SUPER, F
@@ -268,6 +275,7 @@ Always tell the user: "Note: SUPER+F was previously bound to fullscreen. I've ad
 ### Display/Monitors
 
 Edit `~/.config/hypr/monitors.conf`. Format:
+
 ```
 monitor = eDP-1, 1920x1080@60, 0x0, 1
 monitor = HDMI-A-1, 2560x1440@144, 1920x0, 1
@@ -280,7 +288,8 @@ List monitors: `hyprctl monitors`
 **CRITICAL: Hyprland window rules syntax changes frequently between versions.**
 
 Before writing ANY window rules, you MUST fetch the current documentation from the official Hyprland wiki:
-- https://github.com/hyprwm/hyprland-wiki/blob/main/content/Configuring/Window-Rules.md
+
+- <https://github.com/hyprwm/hyprland-wiki/blob/main/content/Configuring/Window-Rules.md>
 
 DO NOT rely on cached or memorized window rule syntax. The format has changed multiple times and using outdated syntax will cause errors or unexpected behavior.
 
@@ -353,6 +362,7 @@ omarchy-dev-add-migration --no-edit
 This creates a new migration file and outputs its path without opening an editor. The migration filename is based on the git commit timestamp.
 
 **Migration files** are shell scripts in `~/.local/share/omarchy/migrations/` that run once per system during `omarchy-update`. Use them for:
+
 - Updating user configs with new defaults
 - Installing new dependencies
 - Running one-time setup tasks
