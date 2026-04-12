@@ -65,15 +65,17 @@ For RHEL systems without sudo access:
 **1. Install tools and dependencies:**
 
 ```bash
-# Set GitHub token for API rate limits (optional but recommended)
-export GITHUB_TOKEN="your_token_here"
+# Optional but recommended: PAT with no scopes (same env var marcosnils/bin uses)
+export GITHUB_AUTH_TOKEN="your_token_here"
+# Legacy alias still accepted:
+# export GITHUB_TOKEN="your_token_here"
 ~/dotfiles/bin/dotfiles-setup-replica.sh
 ```
 
-Installs to `~/.local/bin`:
+Bootstraps [marcosnils/bin](https://github.com/marcosnils/bin) into `~/.local/bin`, then uses `bin install` for GitHub release binaries. Installs to `~/.local/bin`:
 
-- CLI tools: `eza`, `zoxide`, `starship`, `fzf`, `ripgrep`, `lazygit`, `fd`, `tree-sitter`, `git-lfs`, `btop`
-- Development: `neovim` (with LazyVim), `stow`, `gum`
+- CLI tools: `eza`, `zoxide`, `starship`, `fzf`, `ripgrep`, `lazygit`, `fd`, `tree-sitter`, `git-lfs`, `btop`, `dust`, `yazi`, `gum`, `gh`
+- Development: `neovim` (AppImage; glibc-aware source repo), GNU `stow` (built from source), LazyVim starter, `juliaup`
 - Repositories: clones [Omarchy](https://github.com/basecamp/omarchy) to `~/.local/share/omarchy`
 
 **2. Apply configurations:**

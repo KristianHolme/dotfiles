@@ -27,15 +27,49 @@ gh_is_authed() {
     command -v gh >/dev/null 2>&1 && gh auth status -h github.com >/dev/null 2>&1
 }
 
-check_github_rate_limit() {
-    local remaining reset now wait mins
-    if ! gh_is_authed; then
-        log_error "gh is not authenticated; cannot check GitHub rate limits"
-        return 1
-    fi
+# Populate GITHUB_AUTH_TOKEN from gh when possible (marcosnils/bin and curl GitHub API use this).
+export_github_token_from_gh_if_needed() {
+    [[ -n "${GITHUB_AUTH_TOKEN:-}" ]] && return 0
+    command -v gh >/dev/null 2>&1 || return 0
+    gh auth status -h github.com >/dev/null 2>&1 || return 0
+    GITHUB_AUTH_TOKEN="$(gh auth token -h github.com 2>/dev/null || true)"
+    [[ -n "${GITHUB_AUTH_TOKEN:-}" ]] && export GITHUB_AUTH_TOKEN
+    return 0
+}
 
-    remaining=$(gh api /rate_limit --jq '.resources.core.remaining' 2>/dev/null || true)
-    reset=$(gh api /rate_limit --jq '.resources.core.reset' 2>/dev/null || true)
+check_github_rate_limit() {
+    local remaining reset now wait mins hours
+    export_github_token_from_gh_if_needed
+
+    if [[ -n "${GITHUB_AUTH_TOKEN:-}" ]]; then
+        if ! command -v python3 >/dev/null 2>&1; then
+            log_warning "python3 not found; skipping GitHub rate limit check (token auth)"
+            return 0
+        fi
+        remaining=$(
+            curl -fsSL --max-time "${CURL_TIMEOUT:-30}" \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer $GITHUB_AUTH_TOKEN" \
+                https://api.github.com/rate_limit |
+                python3 -c "import json,sys; print(json.load(sys.stdin)['resources']['core']['remaining'])"
+        ) || {
+            log_warning "Could not read GitHub rate limit (token auth)"
+            return 0
+        }
+        reset=$(
+            curl -fsSL --max-time "${CURL_TIMEOUT:-30}" \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer $GITHUB_AUTH_TOKEN" \
+                https://api.github.com/rate_limit |
+                python3 -c "import json,sys; print(json.load(sys.stdin)['resources']['core']['reset'])"
+        ) || reset=""
+    elif gh_is_authed; then
+        remaining=$(gh api /rate_limit --jq '.resources.core.remaining' 2>/dev/null || true)
+        reset=$(gh api /rate_limit --jq '.resources.core.reset' 2>/dev/null || true)
+    else
+        log_warning "No GitHub token or authenticated gh; skipping rate limit check"
+        return 0
+    fi
 
     if [[ -z "${remaining:-}" || -z "${reset:-}" ]]; then
         log_warning "Could not read GitHub rate limit info"
@@ -155,20 +189,37 @@ clone_or_update_omarchy() {
 
 github_api() {
     # $1: path like repos/owner/repo/releases/latest
-    # Requires gh and authentication
+    # Uses GITHUB_AUTH_TOKEN (curl) when set; otherwise authenticated gh.
     local path="$1"
+    local url="https://api.github.com/$path"
+
+    export_github_token_from_gh_if_needed
+
+    if [[ -n "${GITHUB_AUTH_TOKEN:-}" ]]; then
+        sleep 0.2
+        [[ "${DEBUG:-}" == "1" ]] && log_info "DEBUG: GitHub API GET $url (token)"
+        curl -fsSL --max-time "${CURL_TIMEOUT:-30}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_AUTH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$url" || {
+            log_error "GitHub API request failed for $path"
+            check_github_rate_limit || true
+            return 1
+        }
+        return 0
+    fi
 
     if ! command -v gh >/dev/null 2>&1; then
-        log_error "gh not installed; cannot access GitHub API"
+        log_error "gh not installed and GITHUB_AUTH_TOKEN not set; cannot access GitHub API"
         return 1
     fi
 
     if ! gh_is_authed; then
-        log_error "gh is not authenticated; cannot access GitHub API"
+        log_error "gh is not authenticated and GITHUB_AUTH_TOKEN not set; cannot access GitHub API"
         return 1
     fi
 
-    # Add small delay to be nice to GitHub API
     sleep 0.2
 
     [[ "${DEBUG:-}" == "1" ]] && log_info "DEBUG: gh api $path"
@@ -226,6 +277,19 @@ ver_ge() {
     # $1 >= $2 ?  return 0 if true
     # relies on sort -V
     [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+}
+
+# Prints host glibc version (e.g. 2.28) or empty if unknown.
+detect_glibc_version() {
+    local v=""
+    if command -v ldd >/dev/null 2>&1; then
+        v=$(ldd --version 2>/dev/null | head -n1 | grep -Eo '[0-9]+\.[0-9]+' | head -n1 || true)
+    fi
+    if [[ -z "$v" ]] && command -v getconf >/dev/null 2>&1; then
+        v=$(getconf GNU_LIBC_VERSION 2>/dev/null | grep -Eo '[0-9]+\.[0-9]+' | head -n1 || true)
+    fi
+    [[ -n "$v" ]] && echo "$v"
+    return 0
 }
 
 install_tree_sitter() {
