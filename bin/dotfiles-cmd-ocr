@@ -69,20 +69,23 @@ wl-copy <"$FILEPATH"
 
 open_in_editor() {
   local path=$1
+  local dir=$2
   local ed=${DOTFILES_OCR_EDITOR:-${EDITOR:-nvim}}
+  local cmd
+  cmd=$(printf 'cd %q && exec %q %q' "$dir" "$ed" "$path")
   # Use org.omarchy.terminal so Hyprland applies the floating-window rule (see omarchy default/hypr/apps/system.conf).
   if command -v uwsm-app >/dev/null 2>&1; then
-    setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal -e "$ed" "$path" >/dev/null 2>&1 &
+    setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal -e bash -c "$cmd" >/dev/null 2>&1 &
   else
-    setsid xdg-terminal-exec --app-id=org.omarchy.terminal -e "$ed" "$path" >/dev/null 2>&1 &
+    setsid xdg-terminal-exec --app-id=org.omarchy.terminal -e bash -c "$cmd" >/dev/null 2>&1 &
   fi
 }
 
 (
   ACTION=$(
-    notify-send "OCR text saved to clipboard and file" "Saved to $FILEPATH. Edit with Super + Alt + , (or click this)." -t 10000 -i "$FILEPATH" -A "default=edit"
+    notify-send "OCR saved to clipboard and file" "Edit with Super + Alt + , (or click this)" -t 10000 -i "$FILEPATH" -A "default=edit"
   )
-  [[ $ACTION == "default" ]] && open_in_editor "$FILEPATH"
+  [[ $ACTION == "default" ]] && open_in_editor "$FILEPATH" "$OUTPUT_DIR"
 ) &
 
 exit 0
