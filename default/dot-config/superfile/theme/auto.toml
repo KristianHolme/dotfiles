@@ -22,6 +22,9 @@
 
 code_syntax_highlight = "base16-snazzy"
 
+# It's recommended to use the option `code_previewer = "bat"` in the superfile
+# config to get code preview with terminal-defined colors.
+
 ###############################################################################
 #                                 Base Colors                                 #
 ###############################################################################
