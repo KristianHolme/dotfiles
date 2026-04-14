@@ -8,12 +8,12 @@ set -euo pipefail
 
 scratch_root="${DOTFILES_SCRATCH_NVIM_DIR:-$HOME/quicknotes}"
 mkdir -p "$scratch_root"
-path="$scratch_root/$(date +%Y-%m-%dT%H-%M-%S).md"
+path="$scratch_root/$(date +%Y-%m-%dT%H-%M-%S).txt"
 touch "$path"
 # --app-id: stable Hyprland match:class org.dotfiles.quicknotes (see window-rules.conf)
 # --dir: cwd = ~/quicknotes (xdg maps to Ghostty --working-directory=)
 exec setsid uwsm-app -- xdg-terminal-exec \
-  --app-id=org.dotfiles.quicknotes \
-  --title=QuickNotepad \
-  --dir="$scratch_root" \
-  -e nvim "$path"
+    --app-id=org.dotfiles.quicknotes \
+    --title=QuickNotepad \
+    --dir="$scratch_root" \
+    -e nvim "$path"
