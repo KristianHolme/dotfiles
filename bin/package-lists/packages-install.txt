@@ -36,3 +36,4 @@ superfile
 exiftool
 tesseract
 tesseract-data-eng
+glow
