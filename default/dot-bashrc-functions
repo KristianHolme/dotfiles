@@ -99,3 +99,33 @@ function jprecall() {
     cd "$original_dir" 2>/dev/null || true
     echo "Finished precompiling all Julia projects."
 }
+
+# Mount folder selector and superfile opener
+# Lists folders in /mnt/, uses gum for multi-select, opens spf with selected + ~
+# Usage: fmnt
+function fmnt() {
+    local mnt_dirs
+    mnt_dirs=$(find /mnt -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+    
+    if [ -z "$mnt_dirs" ]; then
+        echo "No folders found in /mnt/" >&2
+        return 1
+    fi
+    
+    local selected
+    selected=$(echo "$mnt_dirs" | gum choose --no-limit --header="Select folders to open in superfile:")
+    
+    if [ -z "$selected" ]; then
+        echo "No folders selected" >&2
+        return 0
+    fi
+    
+    # Build args: selected folders + home directory
+    local args=()
+    while IFS= read -r dir; do
+        [ -n "$dir" ] && args+=("$dir")
+    done <<< "$selected"
+    args+=("~")
+    
+    spf "${args[@]}"
+}
