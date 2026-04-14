@@ -37,3 +37,4 @@ exiftool
 tesseract
 tesseract-data-eng
 glow
+sshfs
