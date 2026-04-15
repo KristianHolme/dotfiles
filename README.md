@@ -186,6 +186,32 @@ Features:
 - **Progress tracking:** Real-time sync progress with numbered operations
 - **Safe syncing:** Uses `rsync` with delete protection and incremental transfers
 
+### SSHFS Remote Mounts
+
+Systemd user units for auto-mounting remote directories via SSHFS (Tailscale SSH):
+
+| Profile | Mount | Remote → Local |
+|---------|-------|----------------|
+| `bengal` | sibir | `sibir:/home/kristian` → `/mnt/sibir` |
+| `bengal` | claw | `claw:/home/claw` → `/mnt/claw` |
+| `sibir` | bengal | `bengal:/home/kristian` → `/mnt/bengal` |
+| `kaspi` | bengal | `bengal:/home/kristian` → `/mnt/bengal` |
+
+**Setup:**
+```bash
+# After applying profile config, enable and start mounts
+systemctl --user daemon-reload
+systemctl --user enable mnt-<host>.mount
+systemctl --user start mnt-<host>.mount
+```
+
+**Features:**
+- `delay_connect` - Mounts on-demand when you first access `/mnt/<host>`
+- `reconnect` - Auto-reconnects after sleep or network drops
+- `compression=yes` - Bandwidth-efficient transfers
+
+**Access:** Simply `ls /mnt/<host>` to auto-mount (no manual `sshfs` needed).
+
 ### SSH Key Management
 
 ```bash
