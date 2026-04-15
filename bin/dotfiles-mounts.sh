@@ -219,8 +219,9 @@ EXAMPLES:
     $(basename "$0") -d claw sibir   # Disable multiple mounts
 
 NOTES:
-    - Cannot use --enable and --disable together (error)
+    - Can combine --enable and --disable for different mounts
     - Must specify mount name(s) with --enable/--disable
+    - Same mount in both --enable and --disable is an error
     - Available mounts are read from templates/systemd/user/
 EOF
 }
@@ -228,7 +229,9 @@ EOF
 # Main
 main() {
 	local mode=""
-	local mounts=()
+	local enable_mounts=()
+	local disable_mounts=()
+	local current_mode=""
 	
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -238,30 +241,34 @@ main() {
 					exit 1
 				fi
 				mode="interactive"
+				current_mode=""
 				shift
 				;;
 			-l|--list)
 				if [[ -n "$mode" && "$mode" != "list" ]]; then
-					log_error "Cannot use multiple modes"
+					log_error "Cannot use --list with other modes"
 					exit 1
 				fi
 				mode="list"
+				current_mode=""
 				shift
 				;;
 			-e|--enable)
-				if [[ -n "$mode" && "$mode" != "enable" ]]; then
-					log_error "Cannot use --enable with --disable or other modes"
+				if [[ -n "$mode" && "$mode" != "cli" ]]; then
+					log_error "Cannot use --enable with --interactive, --list, or --help"
 					exit 1
 				fi
-				mode="enable"
+				mode="cli"
+				current_mode="enable"
 				shift
 				;;
 			-d|--disable)
-				if [[ -n "$mode" && "$mode" != "disable" ]]; then
-					log_error "Cannot use --disable with --enable or other modes"
+				if [[ -n "$mode" && "$mode" != "cli" ]]; then
+					log_error "Cannot use --disable with --interactive, --list, or --help"
 					exit 1
 				fi
-				mode="disable"
+				mode="cli"
+				current_mode="disable"
 				shift
 				;;
 			-h|--help)
@@ -274,22 +281,34 @@ main() {
 				exit 1
 				;;
 			*)
-				# Collect mount names
-				mounts+=("$1")
+				# Collect mount names for current mode
+				if [[ "$current_mode" == "enable" ]]; then
+					enable_mounts+=("$1")
+				elif [[ "$current_mode" == "disable" ]]; then
+					disable_mounts+=("$1")
+				else
+					log_error "Mount name '$1' without --enable or --disable"
+					show_help
+					exit 1
+				fi
 				shift
 				;;
 		esac
 	done
 	
+	# Check for conflicts: same mount in both enable and disable
+	for m in "${enable_mounts[@]}"; do
+		for d in "${disable_mounts[@]}"; do
+			if [[ "$m" == "$d" ]]; then
+				log_error "Cannot enable and disable the same mount: $m"
+				exit 1
+			fi
+		done
+	done
+	
 	# Default to interactive if no mode specified
 	if [[ -z "$mode" ]]; then
-		if [[ ${#mounts[@]} -eq 0 ]]; then
-			mode="interactive"
-		else
-			log_error "Unknown command: ${mounts[0]}"
-			show_help
-			exit 1
-		fi
+		mode="interactive"
 	fi
 	
 	# Execute based on mode
@@ -300,21 +319,18 @@ main() {
 		list)
 			list_status
 			;;
-		enable)
-			if [[ ${#mounts[@]} -eq 0 ]]; then
-				log_error "Mount name(s) required for --enable"
+		cli)
+			# Validate we have mounts to process
+			if [[ ${#enable_mounts[@]} -eq 0 && ${#disable_mounts[@]} -eq 0 ]]; then
+				log_error "Mount name(s) required. Use --enable or --disable"
 				exit 1
 			fi
-			for m in "${mounts[@]}"; do
+			# Process enables first
+			for m in "${enable_mounts[@]}"; do
 				do_enable "$m"
 			done
-			;;
-		disable)
-			if [[ ${#mounts[@]} -eq 0 ]]; then
-				log_error "Mount name(s) required for --disable"
-				exit 1
-			fi
-			for m in "${mounts[@]}"; do
+			# Then disables
+			for m in "${disable_mounts[@]}"; do
 				do_disable "$m"
 			done
 			;;
