@@ -374,7 +374,10 @@ EXAMPLES:
     $(basename "$0") -e sibir claw    # Enable multiple mounts
     $(basename "$0") -d claw           # Disable claw mount
     $(basename "$0") -d claw sibir    # Disable multiple mounts
+    $(basename "$0") -e sibir -d claw # Enable sibir, disable claw
     $(basename "$0") -p bengal        # Use bengal profile
+
+NOTE: Mounts specified in both --enable and --disable will be skipped with a warning.
 EOF
 }
 
@@ -382,7 +385,8 @@ EOF
 main() {
 	local mode="interactive"
 	local profile_override=""
-	local target_mounts=()
+	local enable_mounts=()
+	local disable_mounts=()
 	
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -399,20 +403,18 @@ main() {
 				shift
 				;;
 			-e|--enable)
-				mode="enable"
 				shift
 				# Collect all mount names until next option or end
 				while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^- ]]; do
-					target_mounts+=("$1")
+					enable_mounts+=("$1")
 					shift
 				done
 				;;
 			-d|--disable)
-				mode="disable"
 				shift
 				# Collect all mount names until next option or end
 				while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^- ]]; do
-					target_mounts+=("$1")
+					disable_mounts+=("$1")
 					shift
 				done
 				;;
@@ -437,12 +439,70 @@ main() {
 		export DOTFILES_PROFILE="$profile_override"
 	fi
 	
+	# Determine mode from which arrays have content
+	if [[ ${#enable_mounts[@]} -gt 0 && ${#disable_mounts[@]} -gt 0 ]]; then
+		mode="mixed"
+	elif [[ ${#enable_mounts[@]} -gt 0 ]]; then
+		mode="enable"
+	elif [[ ${#disable_mounts[@]} -gt 0 ]]; then
+		mode="disable"
+	fi
+	
+	# Check for conflicts (same mount in both enable and disable)
+	local conflicting=()
+	for m in "${enable_mounts[@]}"; do
+		for d in "${disable_mounts[@]}"; do
+			if [[ "$m" == "$d" ]]; then
+				conflicting+=("$m")
+			fi
+		done
+	done
+	
+	if [[ ${#conflicting[@]} -gt 0 ]]; then
+		log_warning "Conflicting mounts specified (both --enable and --disable): ${conflicting[*]}"
+		log_warning "These mounts will be skipped. Use one operation at a time."
+	fi
+	
+	# Filter out conflicting mounts from both lists
+	local filtered_enable=()
+	local filtered_disable=()
+	for m in "${enable_mounts[@]}"; do
+		local is_conflict=false
+		for c in "${conflicting[@]}"; do
+			if [[ "$m" == "$c" ]]; then
+				is_conflict=true
+				break
+			fi
+		done
+		if [[ "$is_conflict" == "false" ]]; then
+			filtered_enable+=("$m")
+		fi
+	done
+	for m in "${disable_mounts[@]}"; do
+		local is_conflict=false
+		for c in "${conflicting[@]}"; do
+			if [[ "$m" == "$c" ]]; then
+				is_conflict=true
+				break
+			fi
+		done
+		if [[ "$is_conflict" == "false" ]]; then
+			filtered_disable+=("$m")
+		fi
+	done
+	
 	# Validate mount names for enable/disable modes
-	if [[ "$mode" == "enable" || "$mode" == "disable" ]]; then
-		if [[ ${#target_mounts[@]} -eq 0 ]]; then
+	if [[ "$mode" == "enable" || "$mode" == "disable" || "$mode" == "mixed" ]]; then
+		# Check if there were any mounts specified at all (before filtering)
+		if [[ ${#enable_mounts[@]} -eq 0 && ${#disable_mounts[@]} -eq 0 ]]; then
 			log_error "Mount name(s) required for --enable/--disable"
 			show_help
 			exit 1
+		fi
+		# If all mounts were filtered due to conflicts, just warn and exit cleanly
+		if [[ ${#filtered_enable[@]} -eq 0 && ${#filtered_disable[@]} -eq 0 ]]; then
+			log_warning "No valid mounts to process (all were conflicting)"
+			exit 0
 		fi
 	fi
 	
@@ -460,12 +520,20 @@ main() {
 			apply_mounts "$profile" $enabled
 			;;
 		enable)
-			for mount in "${target_mounts[@]}"; do
+			for mount in "${filtered_enable[@]}"; do
 				enable_mount "$mount"
 			done
 			;;
 		disable)
-			for mount in "${target_mounts[@]}"; do
+			for mount in "${filtered_disable[@]}"; do
+				disable_mount "$mount"
+			done
+			;;
+		mixed)
+			for mount in "${filtered_enable[@]}"; do
+				enable_mount "$mount"
+			done
+			for mount in "${filtered_disable[@]}"; do
 				disable_mount "$mount"
 			done
 			;;
