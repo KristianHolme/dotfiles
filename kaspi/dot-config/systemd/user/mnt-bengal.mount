@@ -1,0 +1,13 @@
+[Unit]
+Description=SSHFS mount for bengal
+After=network-online.target
+Wants=network-online.target
+
+[Mount]
+What=bengal:/home/kristian
+Where=/mnt/bengal
+Type=fuse.sshfs
+Options=_netdev,user,delay_connect,reconnect,ServerAliveInterval=15,dir_cache=yes,idmap=user,follow_symlinks,transform_symlinks,compression=yes
+
+[Install]
+WantedBy=default.target
