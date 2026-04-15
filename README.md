@@ -188,29 +188,28 @@ Features:
 
 ### SSHFS Remote Mounts
 
-Systemd user units for auto-mounting remote directories via SSHFS (Tailscale SSH):
+Interactive TUI for managing SSHFS mounts via systemd user units (Tailscale SSH).
 
-| Profile | Mount | Remote → Local |
-|---------|-------|----------------|
-| `bengal` | sibir | `sibir:/home/kristian` → `/mnt/sibir` |
-| `bengal` | claw | `claw:/home/claw` → `/mnt/claw` |
-| `sibir` | bengal | `bengal:/home/kristian` → `/mnt/bengal` |
-| `kaspi` | bengal | `bengal:/home/kristian` → `/mnt/bengal` |
-
-**Setup:**
+**Interactive management:**
 ```bash
-# After applying profile config, enable and start mounts
-systemctl --user daemon-reload
-systemctl --user enable mnt-<host>.mount
-systemctl --user start mnt-<host>.mount
+~/dotfiles/bin/dotfiles-mounts.sh    # Toggle mounts with gum TUI
+dotfiles-mounts -l                     # List current status
+dotfiles-mounts -a                     # Apply saved configuration
+dotfiles-mounts -p <profile>           # Use different profile
 ```
 
-**Features:**
-- `delay_connect` - Mounts on-demand when you first access `/mnt/<host>`
-- `reconnect` - Auto-reconnects after sleep or network drops
-- `compression=yes` - Bandwidth-efficient transfers
+**Mount templates** are stored in `templates/systemd/user/`:
+- `mnt-bengal.mount` - bengal:/home/kristian → /mnt/bengal
+- `mnt-sibir.mount` - sibir:/home/kristian → /mnt/sibir
+- `mnt-claw.mount` - claw:/home/claw → /mnt/claw
 
-**Access:** Simply `ls /mnt/<host>` to auto-mount (no manual `sshfs` needed).
+**Features:**
+- **On-demand mounting:** `delay_connect` - mounts when you first `ls /mnt/<host>`
+- **Auto-reconnect:** `reconnect` - reconnects after sleep/network drops
+- **Bandwidth-efficient:** `compression=yes`
+- **Network-friendly:** Only enabled mounts consume resources
+
+**Configuration:** Enabled mounts are stored per-profile in `~/.config/dotfiles/mounts.conf`
 
 ### SSH Key Management
 
