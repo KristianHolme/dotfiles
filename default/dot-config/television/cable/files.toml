@@ -12,7 +12,6 @@ env = { BAT_THEME = "ansi" }
 
 [keybindings]
 shortcut = "f1"
-enter = "actions:edit"
 ctrl-e = "actions:edit"
 f12 = "actions:edit"
 alt-d = ["actions:delete", "reload_source"]
