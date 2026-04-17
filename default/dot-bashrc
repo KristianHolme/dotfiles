@@ -98,6 +98,9 @@ fi
 eval "$(starship init bash)"
 
 [[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
+
+eval "$(tv init bash)"
+
 # zoxide - must be initialized last
 if command -v zoxide &>/dev/null; then
     eval "$(zoxide init bash)"
