@@ -30,6 +30,27 @@ read_list_file() {
     done <"$file"
 }
 
+# Print one installable package name per line (same skip rules as read_list_file).
+list_packages_from_file() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        log_error "Missing package list: $file"
+        exit 1
+    fi
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "${line// /}" ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        printf '%s\n' "$line"
+    done <"$file"
+}
+
+# Return 0 if $1 is a line in newline-separated list $2.
+line_in_list() {
+    local needle="$1"
+    local haystack="$2"
+    grep -qxF "$needle" <<< "$haystack"
+}
+
 remove_webapp() {
     local name="$1"
     if [[ -f "$DESKTOP_DIR/$name.desktop" ]]; then
@@ -131,8 +152,11 @@ setup_tailscale() {
         log_info "Starting Tailscale connection..."
         sudo tailscale up
 
-        # Ask if user wants to enable SSH using gum
-        if command -v gum >/dev/null 2>&1; then
+        # Ask if user wants to enable SSH using gum (skipped in unattended --all runs)
+        if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]]; then
+            log_info "Unattended mode; skipping Tailscale SSH prompt"
+            log_info "To enable SSH later, run: tailscale set --ssh"
+        elif command -v gum >/dev/null 2>&1; then
             if gum confirm "Enable Tailscale SSH access to this machine?"; then
                 log_info "Enabling Tailscale SSH..."
                 tailscale set --ssh
@@ -245,58 +269,199 @@ setup_marcosnils_bin() {
     log_success "marcosnils/bin ready"
 }
 
-main() {
-    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-        cat <<EOF
-Usage: $0
+# Single source of truth: menu label and bash function name gum returns (label:function).
+# Order here is the safe execution order; gum selection order is ignored.
+SETUP_STEPS=(
+    'Remove webapps:step_remove_webapps'
+    'Remove packages:step_remove_packages'
+    'Install Node dev env:step_install_node'
+    'Install packages:step_install_packages'
+    'Install GitHub CLI extensions:step_install_gh_extensions'
+    'Setup marcosnils/bin:step_setup_marcosnils_bin'
+    'Setup Television:step_setup_television'
+    'Zotero setup:step_setup_zotero'
+    'LaTeX templates:step_latex_templates'
+    'Setup tmux TPM:step_setup_tmux_tpm'
+    'Setup Tailscale:step_setup_tailscale'
+    'Setup Syncthing:step_setup_syncthing'
+    'Install tree-sitter:step_install_tree_sitter'
+    'Setup Julia (juliaup):step_setup_julia'
+)
 
-Prune selected Omarchy webapps/packages and install the package set used on this machine
-(yay, interactive where needed). No arguments.
-EOF
-        exit 0
+install_packages_from_gum() {
+    local list_file="$PACKAGE_LISTS_DIR/packages-install.txt"
+    local -a pkg_lines=()
+    local selected
+
+    mapfile -t pkg_lines < <(list_packages_from_file "$list_file")
+    if [[ ${#pkg_lines[@]} -eq 0 ]]; then
+        log_warning "No packages listed in $list_file; skipping installs."
+        return 0
     fi
 
-    ensure_cmd yay
+    if ! selected=$(
+        printf '%s\n' "${pkg_lines[@]}" | gum choose --no-limit --selected='*' \
+            --header="Select packages to install (tab toggles, enter confirms)"
+    ); then
+        return 1
+    fi
+    if [[ -z "${selected//[$'\t\r\n ']/}" ]]; then
+        log_info "No packages selected; skipping package installs."
+        return 0
+    fi
 
-    # 1) Remove webapps
+    while IFS= read -r pkg || [[ -n "$pkg" ]]; do
+        [[ -z "${pkg// /}" ]] && continue
+        install_pkg "$pkg"
+    done <<< "$selected"
+}
+
+step_remove_webapps() {
     read_list_file "$PACKAGE_LISTS_DIR/webapps-remove.txt" remove_webapp
+}
 
-    # 2) Remove packages
+step_remove_packages() {
     read_list_file "$PACKAGE_LISTS_DIR/packages-remove.txt" remove_pkg
+}
 
-    # 3) Install packages (Node dev env first, then list; Television + Zotero after packages)
+step_install_node() {
     omarchy-install-dev-env node
-    read_list_file "$PACKAGE_LISTS_DIR/packages-install.txt" install_pkg
+}
+
+step_install_packages() {
+    if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]]; then
+        read_list_file "$PACKAGE_LISTS_DIR/packages-install.txt" install_pkg
+    else
+        install_packages_from_gum || return 1
+    fi
+}
+
+step_install_gh_extensions() {
     setup_github_cli_extensions
+}
+
+step_setup_marcosnils_bin() {
     setup_marcosnils_bin || log_warning "marcosnils/bin setup failed; continuing"
+}
+
+step_setup_television() {
     setup_television
+}
+
+step_setup_zotero() {
     if pkg_installed zotero-bin; then
         log_info "Setting up Zotero extensions..."
         "$HOME/dotfiles/bin/dotfiles-setup-zotero.sh" || log_info "Zotero setup failed (non-critical)"
     fi
+}
 
-    # 4) Install LaTeX templates
+step_latex_templates() {
     install_latex_template \
         "UiO Beamer Theme" \
         "https://www.mn.uio.no/ifi/tjenester/it/hjelp/latex/uiobeamer.zip" \
         "$HOME/texmf/tex/latex/beamer/uiobeamer" \
         "$HOME/texmf/tex/latex/beamer/uiobeamer/beamerthemeUiO.sty"
-
-    # Setup development environment tools
     refresh_latex_database
+}
+
+step_setup_tmux_tpm() {
     setup_tmux_tpm
+}
 
-    # Network and connectivity setup
+step_setup_tailscale() {
     setup_tailscale
+}
+
+step_setup_syncthing() {
     setup_syncthing
+}
 
-    # Install tree-sitter from GitHub releases (Arch package is outdated)
+step_install_tree_sitter() {
     install_tree_sitter "$HOME/.local/bin" || log_warning "tree-sitter installation failed; continuing"
+}
 
-    # Install tools via curl installers
+step_setup_julia() {
     install_via_curl "Julia (juliaup)" "juliaup" "https://install.julialang.org" "source ~/.bashrc && ~/dotfiles/bin/julia-setup.jl"
+}
 
-    # 5) Refresh desktop database (user apps)
+all_main_step_keys() {
+    local entry
+    for entry in "${SETUP_STEPS[@]}"; do
+        printf '%s\n' "${entry#*:}"
+    done
+}
+
+pick_main_steps() {
+    local selected=""
+    if ! selected=$(
+        printf '%s\n' "${SETUP_STEPS[@]}" | gum choose --no-limit --selected='*' --label-delimiter=':' \
+            --header="Select setup steps (tab toggles, enter confirms)"
+    ); then
+        return 1
+    fi
+    if [[ -z "${selected//[$'\t\r\n ']/}" ]]; then
+        log_error "No setup steps selected; aborting."
+        return 1
+    fi
+    printf '%s' "$selected"
+}
+
+run_selected_steps() {
+    local steps="$1" entry fn
+    for entry in "${SETUP_STEPS[@]}"; do
+        fn="${entry#*:}"
+        line_in_list "$fn" "$steps" || continue
+        if ! declare -F "$fn" >/dev/null; then
+            log_error "Missing step function: $fn"
+            return 1
+        fi
+        "$fn"
+    done
+}
+
+main() {
+    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+        cat <<EOF
+Usage: $0 [--all]
+
+Prune selected Omarchy webapps/packages and install the package set used on this machine
+(yay). By default, uses gum to select which steps (and which packages) to run.
+
+  --all   Run every step and install all packages from the list; no menus (non-interactive).
+EOF
+        exit 0
+    fi
+
+    DOTFILES_SETUP_UNATTENDED=0
+    if [[ "${1:-}" == "--all" ]]; then
+        DOTFILES_SETUP_UNATTENDED=1
+        shift
+    fi
+
+    if [[ -n "${1:-}" ]]; then
+        log_error "Unknown argument: $1"
+        exit 1
+    fi
+
+    ensure_cmd yay
+
+    local steps=""
+
+    if [[ "$DOTFILES_SETUP_UNATTENDED" == "1" ]]; then
+        steps=$(all_main_step_keys) || {
+            log_error "Failed to build step list"
+            exit 1
+        }
+    else
+        ensure_cmd gum
+        if ! steps=$(pick_main_steps); then
+            log_error "Setup step selection cancelled or failed."
+            exit 1
+        fi
+    fi
+
+    run_selected_steps "$steps"
+
     update-desktop-database ~/.local/share/applications/ || true
 
     log_info "Done."
