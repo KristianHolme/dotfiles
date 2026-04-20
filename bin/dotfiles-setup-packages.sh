@@ -24,7 +24,7 @@ read_list_file() {
         exit 1
     fi
     while IFS= read -r line || [[ -n "$line" ]]; do
-        [[ -z "${line// }" ]] && continue
+        [[ -z "${line// /}" ]] && continue
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
         "$fn" "$line"
     done <"$file"
@@ -295,7 +295,6 @@ EOF
 
     # Install tools via curl installers
     install_via_curl "Julia (juliaup)" "juliaup" "https://install.julialang.org" "source ~/.bashrc && ~/dotfiles/bin/julia-setup.jl"
-    install_via_curl "cursor-cli" "cursor-agent" "https://cursor.com/install"
 
     # 5) Refresh desktop database (user apps)
     update-desktop-database ~/.local/share/applications/ || true
