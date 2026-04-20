@@ -38,3 +38,4 @@ tesseract
 tesseract-data-eng
 glow
 sshfs
+cursor-cli
