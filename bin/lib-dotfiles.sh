@@ -178,6 +178,154 @@ clone_or_update_omarchy() {
 }
 
 #######################################
+# Marcosnils/bin (https://github.com/marcosnils/bin)
+# Shared by dotfiles-setup-replica.sh, dotfiles-setup-packages.sh, etc.
+# Uses INSTALL_DIR (default ~/.local/bin), BIN_CONFIG, CURL_TIMEOUT, GITHUB_AUTH_TOKEN.
+#######################################
+
+marcos_bin_prepend_path() {
+    local d="${INSTALL_DIR:-$HOME/.local/bin}"
+    case ":${PATH:-}:" in
+    *":$d:"*) ;;
+    *) export PATH="$d${PATH:+:${PATH}}" ;;
+    esac
+}
+
+# Resolve bin config.json path (mirrors marcosnils/bin getConfigPath).
+marcos_bin_config_path() {
+    if [[ -n "${BIN_CONFIG:-}" ]]; then
+        echo "$BIN_CONFIG"
+        return 0
+    fi
+    if [[ -f "$HOME/.bin/config.json" ]]; then
+        echo "$HOME/.bin/config.json"
+        return 0
+    fi
+    if [[ -n "${XDG_CONFIG_HOME:-}" && -d "$XDG_CONFIG_HOME" ]]; then
+        echo "$XDG_CONFIG_HOME/bin/config.json"
+        return 0
+    fi
+    if [[ -d "$HOME/.config" ]]; then
+        echo "$HOME/.config/bin/config.json"
+        return 0
+    fi
+    echo "$HOME/.bin/config.json"
+}
+
+# True when marcosnils/bin already tracks this provider URL in config.json (idempotent re-runs).
+marcos_bin_is_registered() {
+    local spec="$1" conf=""
+    conf=$(marcos_bin_config_path)
+    [[ -f "$conf" ]] || return 1
+    jq -e --arg u "$spec" 'any(.bins[]?; .url == $u)' "$conf" >/dev/null 2>&1
+}
+
+# Create a minimal bin config so first run does not prompt for a download directory.
+ensure_marcos_bin_config_default_path() {
+    local conf="" dir="" install_base="${INSTALL_DIR:-$HOME/.local/bin}"
+    conf=$(marcos_bin_config_path)
+    dir=$(dirname "$conf")
+    mkdir -p "$dir"
+    if [[ -f "$conf" ]]; then
+        return 0
+    fi
+    local expanded_dir="${install_base/#\~/$HOME}"
+    jq -n --arg p "$expanded_dir" '{default_path: $p, bins: {}}' >"$conf" || {
+        log_error "Failed to write bin config at $conf"
+        return 1
+    }
+    log_info "Initialized bin config default_path -> $expanded_dir ($conf)"
+}
+
+# Bootstrap marcosnils/bin from GitHub releases (no prior bin required).
+# Matches upstream README: download a release binary, then run
+# `./bin install github.com/marcosnils/bin` so the install is tracked by bin.
+# Call after ensure_marcos_bin_config_default_path. Uses public GitHub API for the release
+# curl (optional GITHUB_AUTH_TOKEN improves rate limits); self-install needs no prior gh.
+install_marcos_bin_bootstrap() {
+    local arch="" api_url="https://api.github.com/repos/marcosnils/bin/releases/latest"
+    local asset_url="" tmpdir="" bootstrap_bin="" hdr=()
+    local install_base="${INSTALL_DIR:-$HOME/.local/bin}"
+
+    if [[ -x "$install_base/bin" ]]; then
+        log_info "bin already present at $install_base/bin"
+        return 0
+    fi
+
+    case "$(uname -m)" in
+    x86_64 | amd64) arch="linux_amd64" ;;
+    aarch64 | arm64) arch="linux_arm64" ;;
+    *)
+        log_error "Unsupported architecture for bin bootstrap: $(uname -m)"
+        return 1
+        ;;
+    esac
+
+    [[ -n "${GITHUB_AUTH_TOKEN:-}" ]] && hdr=(-H "Authorization: Bearer $GITHUB_AUTH_TOKEN")
+
+    log_info "Bootstrapping marcosnils/bin ($arch): temp download, then bin install github.com/marcosnils/bin -> $install_base"
+    asset_url=$(
+        curl -fsSL "${hdr[@]}" --max-time "${CURL_TIMEOUT:-30}" "$api_url" |
+            grep -o '"browser_download_url"[[:space:]]*:[[:space:]]*"https://github.com/marcosnils/bin/releases/download/[^"]*bin_[^"]*_'$arch'"' |
+            head -n1 |
+            sed 's/.*"\(https[^"]*\)"/\1/'
+    ) || true
+
+    if [[ -z "$asset_url" ]]; then
+        log_error "Could not resolve bin release asset for $arch"
+        return 1
+    fi
+
+    mkdir -p "$install_base"
+    tmpdir=$(mktemp -d)
+    bootstrap_bin="$tmpdir/marcos-bin-bootstrap"
+    trap 'd="${tmpdir:-}"; [[ -n "$d" ]] && rm -rf "$d"' RETURN
+    curl -fsSL --max-time "${CURL_TIMEOUT:-120}" -o "$bootstrap_bin" "$asset_url" || {
+        log_error "Failed to download bin from $asset_url"
+        return 1
+    }
+    chmod +x "$bootstrap_bin"
+    if ! "$bootstrap_bin" install github.com/marcosnils/bin; then
+        log_error "Bootstrap bin failed: install github.com/marcosnils/bin"
+        return 1
+    fi
+    rm -rf "$tmpdir"
+    tmpdir=""
+    trap - RETURN
+
+    if [[ ! -x "$install_base/bin" ]]; then
+        log_error "Self-install did not produce an executable at $install_base/bin"
+        return 1
+    fi
+    log_success "Installed bin (self-managed) -> $install_base/bin"
+}
+
+# Skip install if spec URL is already in bin config (cheap idempotent re-runs).
+marcos_bin_install_if_missing() {
+    local spec="$1"
+    if marcos_bin_is_registered "$spec"; then
+        log_info "bin already manages $spec; skipping install"
+        return 0
+    fi
+    log_info "bin install $spec"
+    bin install "$spec" || return 1
+}
+
+# If spec is registered, run bin update; otherwise bin install (e.g. prefer bin over a distro binary).
+marcos_bin_install_or_update_github() {
+    local spec="$1"
+    local binary_name="$2"
+    export_github_token_from_gh_if_needed
+    if marcos_bin_is_registered "$spec"; then
+        log_info "bin update $binary_name"
+        bin update "$binary_name" || return 1
+        return 0
+    fi
+    log_info "bin install $spec"
+    bin install "$spec" || return 1
+}
+
+#######################################
 # GitHub Release Installation Helpers
 # From dotfiles-setup-replica.sh
 #######################################

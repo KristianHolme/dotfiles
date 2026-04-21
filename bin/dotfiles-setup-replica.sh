@@ -44,121 +44,6 @@ arch_is_supported() {
     esac
 }
 
-replica_prepend_path() {
-    case ":${PATH:-}:" in
-    *":$INSTALL_DIR:"*) ;;
-    *) export PATH="$INSTALL_DIR${PATH:+:${PATH}}" ;;
-    esac
-}
-
-# Resolve bin config.json path (mirrors marcosnils/bin getConfigPath).
-replica_bin_config_path() {
-    if [[ -n "${BIN_CONFIG:-}" ]]; then
-        echo "$BIN_CONFIG"
-        return 0
-    fi
-    if [[ -f "$HOME/.bin/config.json" ]]; then
-        echo "$HOME/.bin/config.json"
-        return 0
-    fi
-    if [[ -n "${XDG_CONFIG_HOME:-}" && -d "$XDG_CONFIG_HOME" ]]; then
-        echo "$XDG_CONFIG_HOME/bin/config.json"
-        return 0
-    fi
-    if [[ -d "$HOME/.config" ]]; then
-        echo "$HOME/.config/bin/config.json"
-        return 0
-    fi
-    echo "$HOME/.bin/config.json"
-}
-
-# True when marcosnils/bin already tracks this provider URL in config.json (idempotent re-runs).
-replica_bin_is_registered() {
-    local spec="$1" conf=""
-    conf=$(replica_bin_config_path)
-    [[ -f "$conf" ]] || return 1
-    jq -e --arg u "$spec" 'any(.bins[]?; .url == $u)' "$conf" >/dev/null 2>&1
-}
-
-# Create a minimal bin config so first run does not prompt for a download directory.
-ensure_bin_config_default_path() {
-    local conf="" dir=""
-    conf=$(replica_bin_config_path)
-    dir=$(dirname "$conf")
-    mkdir -p "$dir"
-    if [[ -f "$conf" ]]; then
-        return 0
-    fi
-    local expanded_dir="${INSTALL_DIR/#\~/$HOME}"
-    jq -n --arg p "$expanded_dir" '{default_path: $p, bins: {}}' >"$conf" || {
-        log_error "Failed to write bin config at $conf"
-        return 1
-    }
-    log_info "Initialized bin config default_path -> $expanded_dir ($conf)"
-}
-
-# Bootstrap marcosnils/bin from GitHub releases (no prior bin required).
-# Matches upstream README: download a release binary, then run
-# `./bin install github.com/marcosnils/bin` so the install is tracked by bin.
-# Call after ensure_bin_config_default_path. Uses public GitHub API for the release
-# curl (optional GITHUB_AUTH_TOKEN improves rate limits); self-install needs no prior gh.
-install_marcos_bin_bootstrap() {
-    local arch="" api_url="https://api.github.com/repos/marcosnils/bin/releases/latest"
-    local asset_url="" tmpdir="" bootstrap_bin="" hdr=()
-
-    if [[ -x "$INSTALL_DIR/bin" ]]; then
-        log_info "bin already present at $INSTALL_DIR/bin"
-        return 0
-    fi
-
-    case "$(uname -m)" in
-    x86_64 | amd64) arch="linux_amd64" ;;
-    aarch64 | arm64) arch="linux_arm64" ;;
-    *)
-        log_error "Unsupported architecture for bin bootstrap: $(uname -m)"
-        return 1
-        ;;
-    esac
-
-    [[ -n "${GITHUB_AUTH_TOKEN:-}" ]] && hdr=(-H "Authorization: Bearer $GITHUB_AUTH_TOKEN")
-
-    log_info "Bootstrapping marcosnils/bin ($arch): temp download, then bin install github.com/marcosnils/bin -> $INSTALL_DIR"
-    asset_url=$(
-        curl -fsSL "${hdr[@]}" --max-time "${CURL_TIMEOUT:-30}" "$api_url" |
-            grep -o '"browser_download_url"[[:space:]]*:[[:space:]]*"https://github.com/marcosnils/bin/releases/download/[^"]*bin_[^"]*_'$arch'"' |
-            head -n1 |
-            sed 's/.*"\(https[^"]*\)"/\1/'
-    ) || true
-
-    if [[ -z "$asset_url" ]]; then
-        log_error "Could not resolve bin release asset for $arch"
-        return 1
-    fi
-
-    mkdir -p "$INSTALL_DIR"
-    tmpdir=$(mktemp -d)
-    bootstrap_bin="$tmpdir/marcos-bin-bootstrap"
-    trap 'd="${tmpdir:-}"; [[ -n "$d" ]] && rm -rf "$d"' RETURN
-    curl -fsSL --max-time "${CURL_TIMEOUT:-120}" -o "$bootstrap_bin" "$asset_url" || {
-        log_error "Failed to download bin from $asset_url"
-        return 1
-    }
-    chmod +x "$bootstrap_bin"
-    if ! "$bootstrap_bin" install github.com/marcosnils/bin; then
-        log_error "Bootstrap bin failed: install github.com/marcosnils/bin"
-        return 1
-    fi
-    rm -rf "$tmpdir"
-    tmpdir=""
-    trap - RETURN
-
-    if [[ ! -x "$INSTALL_DIR/bin" ]]; then
-        log_error "Self-install did not produce an executable at $INSTALL_DIR/bin"
-        return 1
-    fi
-    log_success "Installed bin (self-managed) -> $INSTALL_DIR/bin"
-}
-
 ensure_github_api_access() {
     export_github_token_from_gh_if_needed
     if [[ -n "${GITHUB_AUTH_TOKEN:-}" ]]; then
@@ -338,16 +223,6 @@ install_stow() {
     fi
 }
 
-replica_bin_install() {
-    local spec="$1"
-    if replica_bin_is_registered "$spec"; then
-        log_info "bin already manages $spec; skipping install"
-        return 0
-    fi
-    log_info "bin install $spec"
-    bin install "$spec" || return 1
-}
-
 configure_git_lfs_hooks() {
     if command -v git-lfs >/dev/null 2>&1; then
         git lfs install --skip-smudge 2>/dev/null || log_warning "Failed to install git-lfs hooks"
@@ -375,7 +250,7 @@ replica_install_tools_with_bin() {
     )
     local s
     for s in "${specs[@]}"; do
-        replica_bin_install "$s" || log_warning "bin install failed: $s; continuing"
+        marcos_bin_install_if_missing "$s" || log_warning "bin install failed: $s; continuing"
     done
 }
 
@@ -403,9 +278,9 @@ EOF
     fi
 
     mkdir -p "$INSTALL_DIR"
-    replica_prepend_path
+    marcos_bin_prepend_path
 
-    if ! ensure_bin_config_default_path; then
+    if ! ensure_marcos_bin_config_default_path; then
         exit 1
     fi
 
@@ -413,7 +288,7 @@ EOF
         log_error "bin bootstrap failed; cannot continue"
         exit 1
     fi
-    replica_prepend_path
+    marcos_bin_prepend_path
 
     if ! command -v bin >/dev/null 2>&1; then
         log_error "'bin' not on PATH after bootstrap (expected $INSTALL_DIR/bin). Check INSTALL_DIR and PATH."
@@ -421,11 +296,11 @@ EOF
     fi
 
     log_info "Installing GitHub CLI (gh) via bin"
-    if ! replica_bin_install "github.com/cli/cli"; then
+    if ! marcos_bin_install_if_missing "github.com/cli/cli"; then
         log_error "bin install github.com/cli/cli failed; cannot continue"
         exit 1
     fi
-    replica_prepend_path
+    marcos_bin_prepend_path
 
     if ! ensure_github_api_access; then
         exit 1

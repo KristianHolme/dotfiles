@@ -240,8 +240,11 @@ setup_github_cli_extensions() {
 
 # https://github.com/marcosnils/bin — bootstrap via AUR bin-bin, self-install, then drop the package.
 setup_marcosnils_bin() {
+    INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
+
     if command -v bin >/dev/null 2>&1 && ! pkg_installed bin-bin; then
         log_info "marcosnils/bin already on PATH; skipping AUR bootstrap"
+        ensure_marcos_bin_config_default_path || true
         return 0
     fi
 
@@ -254,6 +257,8 @@ setup_marcosnils_bin() {
         log_error "bin not on PATH after installing bin-bin"
         return 1
     fi
+
+    ensure_marcos_bin_config_default_path || true
 
     log_info "Installing marcosnils/bin via bin (self-manage)"
     bin install github.com/marcosnils/bin || {
@@ -377,7 +382,12 @@ step_setup_syncthing() {
 }
 
 step_install_tree_sitter() {
-    ensure_cmd bin && bin install github.com/tree-sitter/tree-sitter
+    if ! command -v bin >/dev/null 2>&1; then
+        log_error "marcosnils/bin ('bin') not on PATH. Run the 'Setup marcosnils/bin' step first, or install https://github.com/marcosnils/bin manually."
+        return 1
+    fi
+    ensure_cmd jq
+    marcos_bin_install_or_update_github "github.com/tree-sitter/tree-sitter" "tree-sitter"
 }
 
 step_setup_julia() {
