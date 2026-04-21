@@ -48,7 +48,7 @@ list_packages_from_file() {
 line_in_list() {
     local needle="$1"
     local haystack="$2"
-    grep -qxF "$needle" <<< "$haystack"
+    grep -qxF "$needle" <<<"$haystack"
 }
 
 remove_webapp() {
@@ -313,7 +313,7 @@ install_packages_from_gum() {
     while IFS= read -r pkg || [[ -n "$pkg" ]]; do
         [[ -z "${pkg// /}" ]] && continue
         install_pkg "$pkg"
-    done <<< "$selected"
+    done <<<"$selected"
 }
 
 step_remove_webapps() {
@@ -377,7 +377,7 @@ step_setup_syncthing() {
 }
 
 step_install_tree_sitter() {
-    install_tree_sitter "$HOME/.local/bin" || log_warning "tree-sitter installation failed; continuing"
+    ensure_cmd bin && bin install github.com/tree-sitter/tree-sitter
 }
 
 step_setup_julia() {
