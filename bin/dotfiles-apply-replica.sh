@@ -153,6 +153,7 @@ pick_tasks_interactive() {
 	fi
 
 	if ! selection=$(gum choose --no-limit \
+		--selected='*' \
 		--header "Select tasks to run (Space toggles, Enter confirms)" \
 		"${MENU_OPTIONS[@]}"); then
 		log_info "Task selection cancelled; exiting"
