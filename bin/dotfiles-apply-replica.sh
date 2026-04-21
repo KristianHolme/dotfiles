@@ -58,7 +58,7 @@ setup_nvim_config() {
         log_info "Successfully stowed nvim config"
     else
         log_warning "Stow failed, trying without --adopt"
-        if stow -d default -t "$HOME" --dotfiles -S dot-config 2>/dev/null; then
+        if stow -d default -t "$HOME/.config" --dotfiles -S dot-config 2>/dev/null; then
             log_info "Successfully stowed nvim config"
         else
             log_error "Failed to stow nvim config"
