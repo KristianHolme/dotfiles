@@ -2,8 +2,8 @@
 set -Eeuo pipefail
 
 # Applies omarchy-tweaks configs for university servers:
-# - Creates symlinks for: julia config, starship.toml
-# - Uses stow for ~/.config (nvim, starship, tmux at ~/.config/tmux/tmux.conf, etc.)
+# - Stows default/dot-config into ~/.config (nvim, tmux, starship, hypr, etc.)
+# - Creates symlink for Julia config (~/.julia/config)
 # - Adds source line to server's ~/.bashrc for our dot-bashrc (idempotent)
 # - Ensures omarchy repo is cloned/updated first
 #
@@ -31,43 +31,30 @@ setup_julia_config() {
     create_symlink_with_backup "$julia_config_source" "$julia_config_target" "Julia config"
 }
 
-setup_nvim_config() {
+# Stow the whole default/dot-config tree into ~/.config (--adopt helps merge existing plain files).
+stow_dot_config_into_xdg() {
     local dotfiles_dir="$HOME/dotfiles"
-
-    # Check if already stowed properly
-    local test_file="$HOME/.config/nvim/lua/config/options.lua"
-    if [[ -L "$test_file" ]]; then
-        local link_target="$(readlink "$test_file")"
-        if [[ "$link_target" == *"default/dot-config/nvim"* ]]; then
-            log_info "Neovim config already stowed correctly; skipping"
-            return 0
-        fi
-    fi
-
-    log_info "Setting up Neovim config with stow..."
-
-    # Change to dotfiles directory for stow
     local original_pwd="$PWD"
+
     cd "$dotfiles_dir" || {
-        log_error "Failed to cd to dotfiles directory"
+        log_error "Failed to cd to $dotfiles_dir"
         return 1
     }
 
-    # Stow dot-config into ~/.config (nvim + tmux + starship; coexists with LazyVim)
-    if stow -d default -t "$HOME/.config" --dotfiles -S dot-config --adopt -v 2>/dev/null; then
-        log_info "Successfully stowed nvim config"
+    log_info "Stowing default/dot-config into \$HOME/.config (first with --adopt if existing files conflict)..."
+    if stow -d default -t "$HOME/.config" --dotfiles -S dot-config --adopt -v; then
+        log_success "Stowed dot-config into ~/.config"
     else
-        log_warning "Stow failed, trying without --adopt"
-        if stow -d default -t "$HOME/.config" --dotfiles -S dot-config 2>/dev/null; then
-            log_info "Successfully stowed nvim config"
+        log_warning "Stow with --adopt failed; retrying without --adopt"
+        if stow -d default -t "$HOME/.config" --dotfiles -S dot-config -v; then
+            log_success "Stowed dot-config into ~/.config"
         else
-            log_error "Failed to stow nvim config"
+            log_error "Failed to stow dot-config"
             cd "$original_pwd" || true
             return 1
         fi
     fi
 
-    # Return to original directory
     cd "$original_pwd" || true
 }
 
@@ -103,8 +90,9 @@ main() {
         cat <<EOF
 Usage: $0
 
-Apply dotfiles on a restricted server: stow nvim/tmux/starship, Julia config,
-bashrc hook, omarchy clone. Uses env OMARCHY_DIR, OMARCHY_REPO_URL.
+Apply dotfiles on a restricted server: stow default/dot-config into ~/.config,
+Julia config symlink, bashrc hook, omarchy clone. Uses env OMARCHY_DIR,
+OMARCHY_REPO_URL.
 EOF
         exit 0
     fi
@@ -122,9 +110,11 @@ EOF
         log_warning "Julia not found; install it via dotfiles-setup-replica.sh first"
     fi
 
-    # Create symlinks for specific configs
     setup_julia_config
-    setup_nvim_config
+    stow_dot_config_into_xdg || {
+        log_error "dot-config stow failed; aborting"
+        exit 1
+    }
 
     remove_legacy_home_tmux_conf_symlink
 
