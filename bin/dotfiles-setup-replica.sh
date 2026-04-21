@@ -371,6 +371,7 @@ replica_install_tools_with_bin() {
         github.com/starship/starship
         github.com/charmbracelet/gum
         github.com/alexpasmantier/television
+        github.com/sharkdp/bat
     )
     local s
     for s in "${specs[@]}"; do
