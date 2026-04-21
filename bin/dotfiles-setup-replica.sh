@@ -79,17 +79,12 @@ ensure_bin_config_default_path() {
     if [[ -f "$conf" ]]; then
         return 0
     fi
-    export INSTALL_DIR
-    python3 -c 'import json, pathlib, os, sys
-install_dir = pathlib.Path(os.environ["INSTALL_DIR"]).expanduser()
-cfg_path = pathlib.Path(sys.argv[1])
-cfg_path.write_text(json.dumps({"default_path": str(install_dir), "bins": {}}) + "
-")
-' "$conf" || {
+    local expanded_dir="${INSTALL_DIR/#\~/$HOME}"
+    jq -n --arg p "$expanded_dir" '{default_path: $p, bins: {}}' >"$conf" || {
         log_error "Failed to write bin config at $conf"
         return 1
     }
-    log_info "Initialized bin config default_path -> $INSTALL_DIR ($conf)"
+    log_info "Initialized bin config default_path -> $expanded_dir ($conf)"
 }
 
 # Bootstrap marcosnils/bin from GitHub releases (no prior gh/bin required).
@@ -418,7 +413,7 @@ EOF
         exit 0
     fi
 
-    ensure_cmd curl tar unzip git install make perl
+    ensure_cmd curl tar unzip git install make perl jq
 
     if ! arch_is_supported; then
         log_error "Unsupported architecture $(uname -m). This script targets Linux x86_64 or arm64."

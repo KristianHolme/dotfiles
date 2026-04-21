@@ -42,27 +42,22 @@ check_github_rate_limit() {
     export_github_token_from_gh_if_needed
 
     if [[ -n "${GITHUB_AUTH_TOKEN:-}" ]]; then
-        if ! command -v python3 >/dev/null 2>&1; then
-            log_warning "python3 not found; skipping GitHub rate limit check (token auth)"
+        if ! command -v jq >/dev/null 2>&1; then
+            log_warning "jq not found; skipping GitHub rate limit check (token auth)"
             return 0
         fi
-        remaining=$(
+        local rate_json=""
+        rate_json=$(
             curl -fsSL --max-time "${CURL_TIMEOUT:-30}" \
                 -H "Accept: application/vnd.github+json" \
                 -H "Authorization: Bearer $GITHUB_AUTH_TOKEN" \
-                https://api.github.com/rate_limit |
-                python3 -c "import json,sys; print(json.load(sys.stdin)['resources']['core']['remaining'])"
+                https://api.github.com/rate_limit
         ) || {
             log_warning "Could not read GitHub rate limit (token auth)"
             return 0
         }
-        reset=$(
-            curl -fsSL --max-time "${CURL_TIMEOUT:-30}" \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer $GITHUB_AUTH_TOKEN" \
-                https://api.github.com/rate_limit |
-                python3 -c "import json,sys; print(json.load(sys.stdin)['resources']['core']['reset'])"
-        ) || reset=""
+        remaining=$(jq -r '.resources.core.remaining' <<<"$rate_json") || remaining=""
+        reset=$(jq -r '.resources.core.reset' <<<"$rate_json") || reset=""
     elif gh_is_authed; then
         remaining=$(gh api /rate_limit --jq '.resources.core.remaining' 2>/dev/null || true)
         reset=$(gh api /rate_limit --jq '.resources.core.reset' 2>/dev/null || true)
