@@ -97,6 +97,11 @@ Features:
 - GitHub rate limit handling with helpful error messages
 - Safe conflict resolution and backup creation
 
+Tree-sitter may not work correctly due to some glibc stuff. If there are many errors in nvim, we can build from source.
+
+1. install rust 'curl --proto '=https' --tlsv1.2 -sSf <https://sh.rustup.rs> | sh'
+2. 'cargo install tree-sitter-cli'
+
 #### Local Package Management
 
 ```bash
@@ -191,6 +196,7 @@ Features:
 Interactive TUI for managing SSHFS mounts via systemd user units (Tailscale SSH).
 
 **Interactive management:**
+
 ```bash
 ~/dotfiles/bin/dotfiles-mounts.sh    # Toggle mounts with gum TUI
 dotfiles-mounts -l                     # List current status
@@ -199,11 +205,13 @@ dotfiles-mounts -p <profile>           # Use different profile
 ```
 
 **Mount templates** are stored in `templates/systemd/user/`:
+
 - `mnt-bengal.mount` - bengal:/home/kristian → /mnt/bengal
 - `mnt-sibir.mount` - sibir:/home/kristian → /mnt/sibir
 - `mnt-claw.mount` - claw:/home/claw → /mnt/claw
 
 **Features:**
+
 - **On-demand mounting:** `delay_connect` - mounts when you first `ls /mnt/<host>`
 - **Auto-reconnect:** `reconnect` - reconnects after sleep/network drops
 - **Bandwidth-efficient:** `compression=yes`
