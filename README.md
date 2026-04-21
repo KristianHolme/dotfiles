@@ -74,7 +74,7 @@ export GITHUB_AUTH_TOKEN="your_token_here"
 
 Bootstraps [marcosnils/bin](https://github.com/marcosnils/bin) into `~/.local/bin`, then uses `bin install` for GitHub release binaries. Installs to `~/.local/bin`:
 
-- CLI tools: `eza`, `zoxide`, `starship`, `fzf`, `ripgrep`, `lazygit`, `fd`, `tree-sitter`, `git-lfs`, `btop`, `dust`, `yazi`, `gum`, `gh`
+- CLI tools: `eza`, `zoxide`, `starship`, `fzf`, `ripgrep`, `lazygit`, `fd`, `tree-sitter`, `git-lfs`, `btop`, `dust`, `superfile`, `gum`, `gh`
 - Development: `neovim` (AppImage; glibc-aware source repo), GNU `stow` (built from source), LazyVim starter, `juliaup`
 - Repositories: clones [Omarchy](https://github.com/basecamp/omarchy) to `~/.local/share/omarchy`
 

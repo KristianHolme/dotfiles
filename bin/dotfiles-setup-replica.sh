@@ -6,7 +6,7 @@ set -Eeuo pipefail
 #   temp path, run `bin install github.com/marcosnils/bin` (README flow), then
 #   use `bin install` for gh, then require PAT or `gh auth login`, export token, then
 #   `bin install` for the rest (eza, zoxide, rg, lazygit, fzf, fd, starship, tree-sitter,
-#   git-lfs, btop, gum, yazi, dust; bin and gh are re-run idempotently in the full list).
+#   git-lfs, btop, gum, superfile, dust; bin and gh are re-run idempotently in the full list).
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl), LazyVim starter, tpm, omarchy clone.
@@ -345,8 +345,6 @@ configure_git_lfs_hooks() {
 
 replica_install_tools_with_bin() {
     local specs=(
-        github.com/marcosnils/bin
-        github.com/cli/cli
         github.com/eza-community/eza
         github.com/ajeetdsouza/zoxide
         github.com/BurntSushi/ripgrep
@@ -357,7 +355,7 @@ replica_install_tools_with_bin() {
         github.com/tree-sitter/tree-sitter
         github.com/git-lfs/git-lfs
         github.com/aristocratos/btop
-        github.com/sxyazi/yazi
+        github.com/yorukot/superfile
         github.com/starship/starship
         github.com/charmbracelet/gum
     )
