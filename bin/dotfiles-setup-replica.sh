@@ -2,9 +2,11 @@
 set -Eeuo pipefail
 
 # Installs/updates user-local CLI tools without sudo (RHEL-compatible):
-# - Bootstraps https://github.com/marcosnils/bin into INSTALL_DIR, then uses
-#   `bin install` for GitHub-release CLIs (eza, zoxide, rg, lazygit, fzf, fd,
-#   starship, tree-sitter, git-lfs, btop, gum, yazi, dust, gh).
+# - Bootstraps https://github.com/marcosnils/bin: download release binary to a
+#   temp path, run `bin install github.com/marcosnils/bin` (README flow), then
+#   use `bin install` for gh, then require PAT or `gh auth login`, export token, then
+#   `bin install` for the rest (eza, zoxide, rg, lazygit, fzf, fd, starship, tree-sitter,
+#   git-lfs, btop, gum, yazi, dust; bin and gh are re-run idempotently in the full list).
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl), LazyVim starter, tpm, omarchy clone.
@@ -87,10 +89,14 @@ ensure_bin_config_default_path() {
     log_info "Initialized bin config default_path -> $expanded_dir ($conf)"
 }
 
-# Bootstrap marcosnils/bin from GitHub releases (no prior gh/bin required).
+# Bootstrap marcosnils/bin from GitHub releases (no prior bin required).
+# Matches upstream README: download a release binary, then run
+# `./bin install github.com/marcosnils/bin` so the install is tracked by bin.
+# Call after ensure_bin_config_default_path. Uses public GitHub API for the release
+# curl (optional GITHUB_AUTH_TOKEN improves rate limits); self-install needs no prior gh.
 install_marcos_bin_bootstrap() {
     local arch="" api_url="https://api.github.com/repos/marcosnils/bin/releases/latest"
-    local asset_url="" tmp_dl="" hdr=()
+    local asset_url="" tmpdir="" bootstrap_bin="" hdr=()
 
     if [[ -x "$INSTALL_DIR/bin" ]]; then
         log_info "bin already present at $INSTALL_DIR/bin"
@@ -108,7 +114,7 @@ install_marcos_bin_bootstrap() {
 
     [[ -n "${GITHUB_AUTH_TOKEN:-}" ]] && hdr=(-H "Authorization: Bearer $GITHUB_AUTH_TOKEN")
 
-    log_info "Bootstrapping marcosnils/bin ($arch) into $INSTALL_DIR/bin"
+    log_info "Bootstrapping marcosnils/bin ($arch): temp download, then bin install github.com/marcosnils/bin -> $INSTALL_DIR"
     asset_url=$(
         curl -fsSL "${hdr[@]}" --max-time "${CURL_TIMEOUT:-30}" "$api_url" |
             grep -o '"browser_download_url"[[:space:]]*:[[:space:]]*"https://github.com/marcosnils/bin/releases/download/[^"]*bin_[^"]*_'$arch'"' |
@@ -122,73 +128,27 @@ install_marcos_bin_bootstrap() {
     fi
 
     mkdir -p "$INSTALL_DIR"
-    tmp_dl=$(mktemp)
-    trap 'f="${tmp_dl:-}"; [[ -n "$f" ]] && rm -f "$f"' RETURN
-    curl -fsSL --max-time "${CURL_TIMEOUT:-120}" -o "$tmp_dl" "$asset_url" || {
+    tmpdir=$(mktemp -d)
+    bootstrap_bin="$tmpdir/marcos-bin-bootstrap"
+    trap 'd="${tmpdir:-}"; [[ -n "$d" ]] && rm -rf "$d"' RETURN
+    curl -fsSL --max-time "${CURL_TIMEOUT:-120}" -o "$bootstrap_bin" "$asset_url" || {
         log_error "Failed to download bin from $asset_url"
         return 1
     }
-    install -m 0755 "$tmp_dl" "$INSTALL_DIR/bin"
-    rm -f "$tmp_dl"
+    chmod +x "$bootstrap_bin"
+    if ! "$bootstrap_bin" install github.com/marcosnils/bin; then
+        log_error "Bootstrap bin failed: install github.com/marcosnils/bin"
+        return 1
+    fi
+    rm -rf "$tmpdir"
+    tmpdir=""
     trap - RETURN
-    log_success "Installed bin -> $INSTALL_DIR/bin"
-}
 
-# Install gh via release redirect when not already on PATH (no GitHub API).
-install_gh_bootstrap_curl() {
-    local gh_bin="$INSTALL_DIR/gh"
-    local os_arch="" releases_url="https://github.com/cli/cli/releases/latest"
-    local effective_url="" version="" asset_url="" tmp="" timeout="${CURL_TIMEOUT:-120}" http_code=""
-
-    case "$(uname -m)" in
-    x86_64 | amd64) os_arch="linux_amd64" ;;
-    aarch64 | arm64) os_arch="linux_arm64" ;;
-    *)
-        log_error "Unsupported architecture for gh bootstrap: $(uname -m)"
-        return 1
-        ;;
-    esac
-
-    if command -v gh >/dev/null 2>&1; then
-        log_info "gh already on PATH; skipping curl bootstrap"
-        return 0
-    fi
-
-    log_info "Installing GitHub CLI (gh) via release download (for auth / token export)..."
-
-    tmp=$(mktemp -d)
-    trap 't="${tmp:-}"; [[ -n "$t" ]] && rm -rf "$t"' RETURN
-
-    effective_url=$(curl --max-time "$timeout" -fsSL -o /dev/null -w "%{url_effective}" "$releases_url" 2>/dev/null || true)
-    if [[ -z "$effective_url" ]]; then
-        log_error "Failed to resolve gh latest release URL"
+    if [[ ! -x "$INSTALL_DIR/bin" ]]; then
+        log_error "Self-install did not produce an executable at $INSTALL_DIR/bin"
         return 1
     fi
-
-    version=$(echo "$effective_url" | sed -n 's#.*/tag/v\([0-9.]\+\).*#\1#p' | head -n1)
-    if [[ -z "$version" ]]; then
-        log_error "Failed to parse gh version from: $effective_url"
-        return 1
-    fi
-
-    asset_url="https://github.com/cli/cli/releases/download/v${version}/gh_${version}_${os_arch}.tar.gz"
-    log_info "Downloading gh from $asset_url"
-    http_code=$(curl --max-time "$timeout" -fsSL -o "$tmp/gh.tar.gz" -w "%{http_code}" "$asset_url" 2>/dev/null || true)
-    if [[ "$http_code" != "200" ]]; then
-        log_error "Failed to download gh (HTTP $http_code)"
-        return 1
-    fi
-
-    tar -xzf "$tmp/gh.tar.gz" -C "$tmp"
-    local gh_extracted
-    gh_extracted=$(find "$tmp" -type f -path "*/bin/gh" | head -n1 || true)
-    if [[ -z "$gh_extracted" ]]; then
-        log_error "Could not locate gh binary in archive"
-        return 1
-    fi
-
-    install -m 0755 "$gh_extracted" "$gh_bin"
-    log_success "Installed gh -> $gh_bin"
+    log_success "Installed bin (self-managed) -> $INSTALL_DIR/bin"
 }
 
 ensure_github_api_access() {
@@ -196,12 +156,22 @@ ensure_github_api_access() {
     if [[ -n "${GITHUB_AUTH_TOKEN:-}" ]]; then
         return 0
     fi
-    if gh_is_authed; then
-        export_github_token_from_gh_if_needed
-        [[ -n "${GITHUB_AUTH_TOKEN:-}" ]] && return 0
+    if ! command -v gh >/dev/null 2>&1; then
+        log_error "GitHub authentication required for the remainder of this script (bin installs, Neovim release metadata)."
+        log_error "Set GITHUB_AUTH_TOKEN (PAT, no scopes), or ensure gh is on PATH (from bin install) and run: gh auth login"
+        return 1
     fi
-    log_error "GitHub authentication required for bin installs and Neovim release metadata."
-    log_error "Export GITHUB_AUTH_TOKEN (PAT, no scopes) or run: gh auth login"
+    if ! gh_is_authed; then
+        log_error "GitHub CLI is present at $(command -v gh) but not authenticated."
+        log_error "Run: gh auth login"
+        log_error "Then re-run this script."
+        return 1
+    fi
+    export_github_token_from_gh_if_needed
+    if [[ -n "${GITHUB_AUTH_TOKEN:-}" ]]; then
+        return 0
+    fi
+    log_error "Could not read a token from gh; try: gh auth login"
     return 1
 }
 
@@ -405,8 +375,8 @@ Usage: $0
 Install user-local CLI tools and omarchy (no sudo) using marcosnils/bin for
 GitHub release binaries. Binaries go to INSTALL_DIR (default ~/.local/bin).
 
-Authentication: set GITHUB_AUTH_TOKEN (PAT, no scopes required) or install gh
-and run gh auth login so the token can be exported for bin.
+Authentication: after gh is installed via bin, set GITHUB_AUTH_TOKEN (PAT, no
+scopes) or run gh auth login so the token is exported for bin and curl API calls.
 
 See header comments for INSTALL_DIR, OMARCHY_DIR, OMARCHY_REPO_URL, etc.
 EOF
@@ -423,14 +393,25 @@ EOF
     mkdir -p "$INSTALL_DIR"
     replica_prepend_path
 
+    if ! ensure_bin_config_default_path; then
+        exit 1
+    fi
+
     if ! install_marcos_bin_bootstrap; then
         log_error "bin bootstrap failed; cannot continue"
         exit 1
     fi
     replica_prepend_path
 
-    if ! command -v gh >/dev/null 2>&1 && [[ -z "${GITHUB_AUTH_TOKEN:-}" ]]; then
-        install_gh_bootstrap_curl || log_warning "gh curl bootstrap failed; set GITHUB_AUTH_TOKEN or install gh manually"
+    if ! command -v bin >/dev/null 2>&1; then
+        log_error "'bin' not on PATH after bootstrap (expected $INSTALL_DIR/bin). Check INSTALL_DIR and PATH."
+        exit 1
+    fi
+
+    log_info "Installing GitHub CLI (gh) via bin"
+    if ! replica_bin_install "github.com/cli/cli"; then
+        log_error "bin install github.com/cli/cli failed; cannot continue"
+        exit 1
     fi
     replica_prepend_path
 
@@ -438,12 +419,10 @@ EOF
         exit 1
     fi
 
+    export_github_token_from_gh_if_needed
+
     if ! check_github_rate_limit; then
         log_error "GitHub API rate limit reached; try again later."
-        exit 1
-    fi
-
-    if ! ensure_bin_config_default_path; then
         exit 1
     fi
 
