@@ -72,6 +72,14 @@ replica_bin_config_path() {
     echo "$HOME/.bin/config.json"
 }
 
+# True when marcosnils/bin already tracks this provider URL in config.json (idempotent re-runs).
+replica_bin_is_registered() {
+    local spec="$1" conf=""
+    conf=$(replica_bin_config_path)
+    [[ -f "$conf" ]] || return 1
+    jq -e --arg u "$spec" 'any(.bins[]?; .url == $u)' "$conf" >/dev/null 2>&1
+}
+
 # Create a minimal bin config so first run does not prompt for a download directory.
 ensure_bin_config_default_path() {
     local conf="" dir=""
@@ -332,6 +340,10 @@ install_stow() {
 
 replica_bin_install() {
     local spec="$1"
+    if replica_bin_is_registered "$spec"; then
+        log_info "bin already manages $spec; skipping install"
+        return 0
+    fi
     log_info "bin install $spec"
     bin install "$spec" || return 1
 }
@@ -358,6 +370,7 @@ replica_install_tools_with_bin() {
         github.com/yorukot/superfile
         github.com/starship/starship
         github.com/charmbracelet/gum
+        github.com/alexpasmantier/television
     )
     local s
     for s in "${specs[@]}"; do
