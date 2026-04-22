@@ -100,7 +100,9 @@ Features:
 Tree-sitter may not work correctly due to some glibc stuff. If there are many errors in nvim, we can build from source.
 
 1. install rust 'curl --proto '=https' --tlsv1.2 -sSf <https://sh.rustup.rs> | sh'
-2. 'cargo install tree-sitter-cli'
+2. 'cargo install tree-sitter-cli --no-default-features'
+
+Using `--no-default-features` to avoid errors with quickJS or something(?).
 
 #### Local Package Management
 
