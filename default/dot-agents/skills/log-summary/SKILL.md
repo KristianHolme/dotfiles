@@ -1,11 +1,11 @@
 ---
 name: log-summary
-description: Summarize conversations and create Obsidian notes in ~/Documents/AwesomeVault/Agent-summaries. NEVER apply automatically - only activate when manually invoked via /log-summary command, never activate automatically.
+description: Summarize conversations and create Obsidian notes in ~/Vaults/AwesomeVault/Agent-summaries. NEVER apply automatically - only activate when manually invoked via /log-summary command, never activate automatically.
 ---
 
 # Log Summary
 
-Create concise but useful Obsidian notes summarizing conversations. Notes are stored in `~/Documents/AwesomeVault/Agent-summaries/`.
+Create concise but useful Obsidian notes summarizing conversations. Notes are stored in `~/Vaults/AwesomeVault/Agent-summaries/`.
 
 ## File Creation
 
