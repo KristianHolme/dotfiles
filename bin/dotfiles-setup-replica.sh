@@ -328,7 +328,16 @@ EOF
 
     install_lazyvim || log_warning "LazyVim installation failed; continuing"
 
+    juliaup_preinstalled=0
+    if command -v juliaup >/dev/null 2>&1; then
+        juliaup_preinstalled=1
+    fi
+
     install_via_curl "Julia (juliaup)" "juliaup" "https://install.julialang.org" "source ~/.bashrc && $SCRIPT_DIR/julia-setup.jl" --yes
+
+    if [[ "$juliaup_preinstalled" -eq 1 ]]; then
+        log_info "julia-setup.jl was not run (juliaup was already installed). Run it manually if you need to refresh packages: $SCRIPT_DIR/julia-setup.jl"
+    fi
 
     install_tpm || log_warning "tpm installation failed; continuing"
 

@@ -20,7 +20,6 @@ OMARCHY_REPO_URL="${OMARCHY_REPO_URL:-https://github.com/basecamp/omarchy}"
 
 # Menu labels (order is canonical run order)
 TASK_OMARCHY="Clone or update omarchy"
-TASK_JULIA_SETUP="Run Julia setup script (julia-setup.jl)"
 TASK_JULIA_CONFIG="Symlink Julia config (~/.julia/config)"
 TASK_STOW="Stow dot-config into ~/.config"
 TASK_TMUX_LEGACY="Remove legacy ~/.tmux.conf symlink"
@@ -28,7 +27,6 @@ TASK_BASHRC="Add dot-bashrc source to ~/.bashrc"
 
 MENU_OPTIONS=(
 	"$TASK_OMARCHY"
-	"$TASK_JULIA_SETUP"
 	"$TASK_JULIA_CONFIG"
 	"$TASK_STOW"
 	"$TASK_TMUX_LEGACY"
@@ -122,9 +120,6 @@ ensure_cmds_for_selection() {
 	if task_is_selected "$TASK_STOW" "$selection"; then
 		cmds+=(stow)
 	fi
-	if task_is_selected "$TASK_JULIA_SETUP" "$selection"; then
-		cmds+=(curl)
-	fi
 
 	if [[ ${#cmds[@]} -eq 0 ]]; then
 		return 0
@@ -179,15 +174,6 @@ run_selected_steps() {
 
 	if task_is_selected "$TASK_OMARCHY" "$selection"; then
 		clone_or_update_omarchy "$OMARCHY_DIR" "$OMARCHY_REPO_URL"
-	fi
-
-	if task_is_selected "$TASK_JULIA_SETUP" "$selection"; then
-		if command -v julia >/dev/null 2>&1; then
-			log_info "Running Julia setup script"
-			"$SCRIPT_DIR/julia-setup.jl" || log_warning "julia-setup.jl failed"
-		else
-			log_warning "Julia not found; install it via dotfiles-setup-replica.sh first"
-		fi
 	fi
 
 	if task_is_selected "$TASK_JULIA_CONFIG" "$selection"; then
