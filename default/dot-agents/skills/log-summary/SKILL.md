@@ -9,7 +9,7 @@ Create concise but useful Obsidian notes summarizing conversations. Notes are st
 
 ## File Creation
 
-1. Create a new markdown file in `~/Documents/AwesomeVault/Agent-summaries/`
+1. Create a new markdown file in `~/Vaults/AwesomeVault/Agent-summaries/`
 2. Use kebab-case filename based on the main topic (e.g., `fixing-hyprland-crash.md`)
 3. Include YAML frontmatter with metadata
 4. Write concise but useful content based on conversation type
