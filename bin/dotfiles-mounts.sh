@@ -204,6 +204,17 @@ do_enable() {
 		return 1
 	fi
 
+	# Empty automount directories must remain traversable so non-root users can
+	# trigger the mount and descend after SSHFS binds (avoid d--------- stubs → EIO on cd).
+	if ! sudo chmod 0755 "$local_path"; then
+		log_error "Failed to chmod mountpoint ${local_path}"
+		return 1
+	fi
+	if ! sudo chown "${USER}:$(id -gn "$USER")" "$local_path"; then
+		log_error "Failed to chown mountpoint ${local_path} (set ownership so you can traverse it)"
+		return 1
+	fi
+
 	if ! sudo systemctl daemon-reload; then
 		return 1
 	fi
@@ -237,6 +248,9 @@ do_disable() {
 	elif systemctl is-active "$unit_auto" &>/dev/null; then
 		sudo systemctl stop "$unit_auto" 2>/dev/null || true
 	fi
+
+	sudo chmod 0755 "$local_path" 2>/dev/null || true
+	sudo chown "${USER}:$(id -gn "$USER")" "$local_path" 2>/dev/null || true
 
 	sudo rm -f "$path_mount" "$path_auto"
 	sudo systemctl daemon-reload

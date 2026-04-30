@@ -229,6 +229,13 @@ SSH runs as root for the fuse mount, so the script wires the real user’s
 - **Bandwidth-efficient:** `compression=yes`
 - **Safe listing:** Parent paths like `/mnt` avoid `stat()` on idle child mountpoints
 
+If `cd /mnt/foo` yields **Input/output error** while the directory shows mode
+`----------` (`d---------`), fix permissions **while the SSHFS unit is stopped**
+then re-enable the automount, e.g. `sudo systemctl stop 'mnt-uio\x2dmath.mount'`,
+`sudo chmod 755 /mnt/foo`, `sudo chown "$USER:$USER" /mnt/foo`, then
+`sudo systemctl start 'mnt-uio\x2dmath.automount'` (or disable/enable from
+`dotfiles-mounts.sh`). New enables set `0755` and your user on the mountpoint.
+
 ### SSH Key Management
 
 ```bash
