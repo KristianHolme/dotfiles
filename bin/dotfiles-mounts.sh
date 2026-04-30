@@ -17,6 +17,10 @@ SYSTEMD_LEGACY_USER_DIR="${SYSTEMD_LEGACY_USER_DIR:-$HOME/.config/systemd/user}"
 # Idle expiry for autofs-triggered mounts (seconds).
 SSHFS_IDLE_SEC="${SSHFS_IDLE_SEC:-600}"
 
+# After enabling the automount waiter, start the backing .mount immediately so fuse
+# owns the dentry (friendly ls /mnt + pickers until idle-timeout unmount).
+SSHFS_MOUNT_AT_ENABLE="${SSHFS_MOUNT_AT_ENABLE:-1}"
+
 # Fuse options excluding ssh_command (assembled in mount_options_for).
 SSHFS_FUSE_OPTS_BASE="_netdev,delay_connect,reconnect,ServerAliveInterval=15,allow_other,default_permissions,dir_cache=yes,follow_symlinks,transform_symlinks,compression=yes"
 
@@ -69,6 +73,14 @@ mount_options_for() {
 	ssh_cmd_esc="$(escape_systemd_mount_option_value "$(ssh_invocation_for_systemd)")"
 	printf '%s,uid=%s,gid=%s,ssh_command=%s' \
 		"$SSHFS_FUSE_OPTS_BASE" "$(id -u)" "$(id -g)" "$ssh_cmd_esc"
+}
+
+# SSHFS_MOUNT_AT_ENABLE: 1|yes|true|on => start backing .mount right after enabling automount
+sshfs_mount_at_enable() {
+	case "${SSHFS_MOUNT_AT_ENABLE:-1}" in
+		1|yes|YES|true|TRUE|on|ON) return 0 ;;
+		*) return 1 ;;
+	esac
 }
 
 abort_if_legacy_user_unit() {
@@ -126,11 +138,10 @@ render_automount_unit() {
 	cat <<EOF
 [Unit]
 Description=SSHFS automount (${key})
-After=network-online.target
-Wants=network-online.target
 
 [Automount]
 Where=${local_path}
+DirectoryMode=0755
 TimeoutIdleSec=${SSHFS_IDLE_SEC}
 
 [Install]
@@ -223,7 +234,16 @@ do_enable() {
 		return 1
 	fi
 
-	log_success "Automount enabled for ${mount_name} (${host}:${remote_path} → ${local_path}; idle expiry ${SSHFS_IDLE_SEC}s). First access triggers the SSHFS mount."
+	if sshfs_mount_at_enable; then
+		if sudo systemctl start "$unit_mount"; then
+			log_success "Automount enabled for ${mount_name} (${host}:${remote_path} → ${local_path}; idle ${SSHFS_IDLE_SEC}s). Backing SSHFS started now (SSHFS_MOUNT_AT_ENABLE)."
+		else
+			log_warning "Automount is up but backing ${unit_mount} did not start yet (host down?). It will still mount on first access."
+			log_success "Automount enabled for ${mount_name} (${host}:${remote_path} → ${local_path}; idle expiry ${SSHFS_IDLE_SEC}s)."
+		fi
+	else
+		log_success "Automount enabled for ${mount_name} (${host}:${remote_path} → ${local_path}; idle ${SSHFS_IDLE_SEC}s). First access starts SSHFS (SSHFS_MOUNT_AT_ENABLE=0)."
+	fi
 }
 
 do_disable() {
@@ -364,7 +384,7 @@ list_status() {
 		printf "%-15s %-8s %-8s %-38s %-30s\n" "$mount_name" "$enabled" "$active" "$ua" "${local_path}"
 	done <<< "$available_mounts"
 	echo
-	log_info "\"Active\" is the systemd automount waiter (listening at Where). SSHFS attaches on first path access, then idle-unmounts after ${SSHFS_IDLE_SEC}s."
+	log_info "With SSHFS_MOUNT_AT_ENABLE=1 (default), enable also starts the backing fuse mount so entries under /mnt show normal modes until idle timeout (${SSHFS_IDLE_SEC}s). \"Active\" is the .automount waiter."
 }
 
 show_help() {
@@ -379,7 +399,8 @@ ${SYSTEMD_SYSTEM_DIR}: on-demand mount + idle unmount (${SSHFS_IDLE_SEC}s defaul
 to avoid hangs when listing parents of dead SSHFS targets. sudo is required.
 
 Environment:
-    SSHFS_IDLE_SEC      Idle-unmount timeout in seconds (${SSHFS_IDLE_SEC})
+    SSHFS_IDLE_SEC       Idle-unmount timeout in seconds (${SSHFS_IDLE_SEC})
+    SSHFS_MOUNT_AT_ENABLE  If 1/yes/true (default), start backing SSHFS right after enable so /mnt listings and pickers see normal metadata until idle-timeout
     SSHFS_IDENTITY_FILE Path for IdentityFile ssh option (default: \$HOME/.ssh/id_ed25519)
 
 OPTIONS:

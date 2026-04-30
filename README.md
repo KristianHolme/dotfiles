@@ -199,9 +199,13 @@ Interactive TUI for managing SSHFS mounts via **system** systemd units (sudo
 required). Filesystem inventory is read from [`hosts.toml`](hosts.toml) at the repo
 root; each entry gets a paired `.mount` + `.automount` under
 `/etc/systemd/system/`. The automount unit holds an autofs trigger at the mount
-point: the real SSHFS `.mount` starts on first access and **idle-unmounts** after 10
-minutes by default, so `ls /mnt` without entering subdirectories does not hang on
-unreachable remotes.
+point: the real SSHFS `.mount` mounts on demand and **idle-unmounts** after 10
+minutes by default, so unreachable hosts do not keep a live fuse dentry around.
+By default the script sets **`SSHFS_MOUNT_AT_ENABLE=1`**, so right after **`--enable`**
+systemd starts the backing SSHFS once: file managers see normal **`drwxr-xr-x`**
+entries under **`/mnt`** until idle timeout clears the fuse mount (idle autofs
+stubs alone often look like **`d--------- root`** in parent listings, which is not
+traverse-friendly for some TUIs).
 
 **Interactive management:**
 
@@ -223,18 +227,13 @@ SSH runs as root for the fuse mount, so the script wires the real user’s
 
 **Features:**
 
-- **On-access mounting:** systemd `.automount` + `delay_connect` SSHFS
-- **Idle expiry:** `SSHFS_IDLE_SEC` (default 600) frees stuck remotes from global directory listings
+- **On-demand + optional eager mount:** `.automount` plus `SSHFS_MOUNT_AT_ENABLE` (default on) pulls SSHFS up right after enable
+- **Idle expiry:** `SSHFS_IDLE_SEC` (default 600) drops the fuse inode when idle — parent `/mnt` won’t stall on hung SSH on that path afterward
 - **Auto-reconnect:** `reconnect` after sleep/network drops
 - **Bandwidth-efficient:** `compression=yes`
-- **Safe listing:** Parent paths like `/mnt` avoid `stat()` on idle child mountpoints
+- **Safer `/mnt`:** With idle fuse gone, naive `stat`/`ls` patterns do not crawl dead SSH targets (set **`SSHFS_MOUNT_AT_ENABLE=0`** if you want zero network touching until path access).
 
-If `cd /mnt/foo` yields **Input/output error** while the directory shows mode
-`----------` (`d---------`), fix permissions **while the SSHFS unit is stopped**
-then re-enable the automount, e.g. `sudo systemctl stop 'mnt-uio\x2dmath.mount'`,
-`sudo chmod 755 /mnt/foo`, `sudo chown "$USER:$USER" /mnt/foo`, then
-`sudo systemctl start 'mnt-uio\x2dmath.automount'` (or disable/enable from
-`dotfiles-mounts.sh`). New enables set `0755` and your user on the mountpoint.
+If **`cd /mnt/foo` fails while the dentry looks like **`d---------`**, use an updated **`dotfiles-mounts.sh`** (`DirectoryMode=` on the automount, eager backing mount via **`SSHFS_MOUNT_AT_ENABLE=1`**), confirm **`fuse.conf`** has **`user_allow_other`**, then **`sudo systemctl start`** the matching **`.mount`** unit (shown by **`dotfiles-mounts.sh -l`**) or re-run **`dotfiles-mounts.sh -e foo`**.
 
 ### SSH Key Management
 
