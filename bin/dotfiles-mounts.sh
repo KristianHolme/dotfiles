@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # SSHFS Mount Manager - Simple TUI and CLI for managing remote mounts.
-# Filesystem inventory comes from hosts.toml (see bin/lib-hosts.sh). System
-# .mount units are paired with .automount (on-demand + idle expiry) because
-# user-mode automount lacks CAP_SYS_ADMIN for autofs.
+# Filesystem inventory comes from hosts.toml (see bin/lib-hosts.sh). Mounts are
+# managed directly with user-owned sshfs so interactive SSH/MFA flows work.
 
 set -euo pipefail
 
@@ -14,27 +13,16 @@ source "$SCRIPT_DIR/lib-hosts.sh"
 SYSTEMD_SYSTEM_DIR="/etc/systemd/system"
 SYSTEMD_LEGACY_USER_DIR="${SYSTEMD_LEGACY_USER_DIR:-$HOME/.config/systemd/user}"
 
-# Idle expiry for autofs-triggered mounts (seconds).
-SSHFS_IDLE_SEC="${SSHFS_IDLE_SEC:-600}"
-
-# After enabling the automount waiter, start the backing .mount immediately so fuse
-# owns the dentry (friendly ls /mnt + pickers until idle-timeout unmount).
-SSHFS_MOUNT_AT_ENABLE="${SSHFS_MOUNT_AT_ENABLE:-1}"
-
-# Fuse options excluding ssh_command (assembled in mount_options_for).
-SSHFS_FUSE_OPTS_BASE="_netdev,delay_connect,reconnect,ServerAliveInterval=15,allow_other,default_permissions,dir_cache=yes,follow_symlinks,transform_symlinks,compression=yes"
+SSHFS_OPTS=(
+	-o reconnect
+	-o ServerAliveInterval=15
+	-o follow_symlinks
+	-o transform_symlinks
+	-o compression=yes
+)
 
 get_hostname() {
 	hostname | cut -d. -f1
-}
-
-# Escape embedded spaces and commas for systemd.mount(5) Options= value.
-escape_systemd_mount_option_value() {
-	local s="$1"
-	s="${s//\\/\\\\}"
-	s="${s// /\\040}"
-	s="${s//,/\\x2c}"
-	printf '%s' "$s"
 }
 
 # systemd-escape-derived unit basename for Where= path (paired .mount /.automount).
@@ -62,37 +50,49 @@ unit_automount_for_key() {
 	unit_automount_for_path "$local_path"
 }
 
-# sshfs runs as root; force user SSH config / keys (~ in root's config resolves wrong).
-ssh_invocation_for_systemd() {
-	printf 'ssh -F %s/.ssh/config -o IdentityFile=%s -o UserKnownHostsFile=%s/.ssh/known_hosts' \
-		"$HOME" "${SSHFS_IDENTITY_FILE:-$HOME/.ssh/id_ed25519}" "$HOME"
-}
+cleanup_legacy_user_unit() {
+	local unit="$1"
+	local legacy="$SYSTEMD_LEGACY_USER_DIR/$unit"
 
-mount_options_for() {
-	local ssh_cmd_esc
-	ssh_cmd_esc="$(escape_systemd_mount_option_value "$(ssh_invocation_for_systemd)")"
-	printf '%s,uid=%s,gid=%s,ssh_command=%s' \
-		"$SSHFS_FUSE_OPTS_BASE" "$(id -u)" "$(id -g)" "$ssh_cmd_esc"
-}
-
-# SSHFS_MOUNT_AT_ENABLE: 1|yes|true|on => start backing .mount right after enabling automount
-sshfs_mount_at_enable() {
-	case "${SSHFS_MOUNT_AT_ENABLE:-1}" in
-		1|yes|YES|true|TRUE|on|ON) return 0 ;;
-		*) return 1 ;;
-	esac
-}
-
-abort_if_legacy_user_unit() {
-	local unit_mount="$1"
-	local legacy="$SYSTEMD_LEGACY_USER_DIR/$unit_mount"
-
-	if [[ -e "$legacy" || -L "$legacy" ]] || systemctl --user is-enabled "$unit_mount" &>/dev/null; then
-		log_error "A legacy user-scoped systemd unit conflicts with ${unit_mount}."
-		log_error "Remove it first, e.g.: systemctl --user disable --now ${unit_mount}; rm -f ${legacy}; systemctl --user daemon-reload"
-		return 1
+	if [[ -e "$legacy" || -L "$legacy" ]]; then
+		log_info "Cleaning legacy user systemd unit ${unit}"
+		rm -f "$legacy"
 	fi
 	return 0
+}
+
+cleanup_legacy_systemd_units() {
+	local mount_name="$1"
+	local unit_mount unit_auto
+	unit_mount=$(unit_mount_for_key "$mount_name") || return 1
+	unit_auto=$(unit_automount_for_key "$mount_name") || return 1
+
+	cleanup_legacy_user_unit "$unit_mount"
+	cleanup_legacy_user_unit "$unit_auto"
+
+	local path_mount path_auto needs_cleanup=0
+	path_mount="$SYSTEMD_SYSTEM_DIR/$unit_mount"
+	path_auto="$SYSTEMD_SYSTEM_DIR/$unit_auto"
+
+	if [[ -e "$path_mount" || -L "$path_mount" || -e "$path_auto" || -L "$path_auto" ]]; then
+		needs_cleanup=1
+	fi
+	if systemctl is-active "$unit_auto" &>/dev/null || systemctl is-enabled "$unit_auto" &>/dev/null; then
+		needs_cleanup=1
+	fi
+
+	if [[ "$needs_cleanup" -eq 0 ]]; then
+		return 0
+	fi
+
+	log_info "Cleaning legacy systemd units for ${mount_name}"
+	if [[ -e "$path_mount" || -L "$path_mount" || -e "$path_auto" || -L "$path_auto" ]]; then
+		sudo systemctl stop "$unit_mount" &>/dev/null || true
+	fi
+	sudo systemctl disable --now "$unit_auto" &>/dev/null || true
+	sudo systemctl stop "$unit_auto" &>/dev/null || true
+	sudo rm -f "$path_mount" "$path_auto"
+	sudo systemctl daemon-reload
 }
 
 # List mountable filesystems from hosts.toml, excluding any whose mount-via host
@@ -110,65 +110,58 @@ list_available_mounts() {
 	done < <(hosts_filesystems)
 }
 
-# Render paired .mount (no [Install]) and .automount units.
-render_mount_unit() {
-	local key="$1"
-	local host="$2"
-	local remote_path="$3"
-	local local_path="$4"
-	local options
-	options=$(mount_options_for)
-	cat <<EOF
-[Unit]
-Description=SSHFS backing mount for ${key}
-After=network-online.target
-Wants=network-online.target
-
-[Mount]
-What=${host}:${remote_path}
-Where=${local_path}
-Type=fuse.sshfs
-Options=${options}
-EOF
-}
-
-render_automount_unit() {
-	local key="$1"
-	local local_path="$2"
-	cat <<EOF
-[Unit]
-Description=SSHFS automount (${key})
-
-[Automount]
-Where=${local_path}
-DirectoryMode=0755
-TimeoutIdleSec=${SSHFS_IDLE_SEC}
-
-[Install]
-WantedBy=multi-user.target
-EOF
-}
-
-# Enabled = unit files under /etc/systemd/system AND automount symlink active.
-is_mount_enabled() {
+hosts_filesystem_exists() {
 	local mount_name="$1"
-	local ua path_sys
-	ua=$(unit_automount_for_key "$mount_name") || return 1
-	path_sys="$SYSTEMD_SYSTEM_DIR/$ua"
-	[[ -e "$path_sys" ]] && systemctl is-enabled "$ua" &>/dev/null
+	local key
+	while IFS= read -r key; do
+		[[ "$key" == "$mount_name" ]] && return 0
+	done < <(hosts_filesystems)
+	return 1
 }
 
 is_mount_active() {
 	local mount_name="$1"
-	local ua
-	ua=$(unit_automount_for_key "$mount_name") || return 1
-	systemctl is-active "$ua" &>/dev/null
+	local local_path
+	local_path=$(hosts_filesystem_local_path "$mount_name") || return 1
+	findmnt --mountpoint "$local_path" &>/dev/null
+}
+
+is_mount_enabled() {
+	is_mount_active "$@"
+}
+
+prepare_mountpoint() {
+	local local_path="$1"
+	local uid gid
+
+	if [[ ! -d "$local_path" ]]; then
+		if ! sudo mkdir -p "$local_path"; then
+			log_error "Failed to create mountpoint ${local_path}"
+			return 1
+		fi
+	fi
+
+	uid=$(stat -c %u "$local_path")
+	gid=$(stat -c %g "$local_path")
+	if [[ "$uid" != "$(id -u)" || "$gid" != "$(id -g)" ]]; then
+		if ! sudo chown "${USER}:$(id -gn "$USER")" "$local_path"; then
+			log_error "Failed to chown mountpoint ${local_path}"
+			return 1
+		fi
+	fi
+
+	if ! chmod 0755 "$local_path" 2>/dev/null; then
+		if ! sudo chmod 0755 "$local_path"; then
+			log_error "Failed to chmod mountpoint ${local_path}"
+			return 1
+		fi
+	fi
 }
 
 do_enable() {
 	local mount_name="$1"
 
-	if ! hosts_filesystems | grep -qx "$mount_name"; then
+	if ! hosts_filesystem_exists "$mount_name"; then
 		log_error "Unknown filesystem: $mount_name (not declared in $(hosts_toml_path))"
 		return 1
 	fi
@@ -183,100 +176,53 @@ do_enable() {
 		return 1
 	fi
 
-	local unit_mount unit_auto
-	unit_mount=$(unit_mount_for_key "$mount_name")
-	unit_auto=$(unit_automount_for_key "$mount_name")
-
-	if ! abort_if_legacy_user_unit "$unit_mount"; then
+	if ! cleanup_legacy_systemd_units "$mount_name"; then
 		return 1
 	fi
 
-	local tmp_mount tmp_auto status
-	tmp_mount="$(mktemp)"
-	tmp_auto="$(mktemp)"
-	render_mount_unit "$mount_name" "$host" "$remote_path" "$local_path" >"$tmp_mount"
-	render_automount_unit "$mount_name" "$local_path" >"$tmp_auto"
+	if is_mount_active "$mount_name"; then
+		log_info "${mount_name} is already mounted at ${local_path}"
+		return 0
+	fi
 
-	status=0
-	if ! sudo install -m 0644 "$tmp_mount" "$SYSTEMD_SYSTEM_DIR/$unit_mount"; then
-		status=1
-	fi
-	if ! sudo install -m 0644 "$tmp_auto" "$SYSTEMD_SYSTEM_DIR/$unit_auto"; then
-		status=1
-	fi
-	rm -f "$tmp_mount" "$tmp_auto"
-	if [[ "$status" -ne 0 ]]; then
-		log_error "Failed installing unit files into ${SYSTEMD_SYSTEM_DIR}"
+	ensure_cmd sshfs findmnt
+	if ! prepare_mountpoint "$local_path"; then
 		return 1
 	fi
 
-	if ! sudo mkdir -p "$local_path"; then
-		log_error "Failed to create mountpoint ${local_path}"
-		return 1
+	if sshfs "${SSHFS_OPTS[@]}" "${host}:${remote_path}" "$local_path"; then
+		log_success "Mounted ${mount_name} (${host}:${remote_path} -> ${local_path})"
+		return 0
 	fi
 
-	# Empty automount directories must remain traversable so non-root users can
-	# trigger the mount and descend after SSHFS binds (avoid d--------- stubs → EIO on cd).
-	if ! sudo chmod 0755 "$local_path"; then
-		log_error "Failed to chmod mountpoint ${local_path}"
-		return 1
-	fi
-	if ! sudo chown "${USER}:$(id -gn "$USER")" "$local_path"; then
-		log_error "Failed to chown mountpoint ${local_path} (set ownership so you can traverse it)"
-		return 1
-	fi
-
-	if ! sudo systemctl daemon-reload; then
-		return 1
-	fi
-	if ! sudo systemctl enable --now "$unit_auto"; then
-		log_error "Failed to enable ${unit_auto}. Run: sudo systemctl status ${unit_auto}"
-		return 1
-	fi
-
-	if sshfs_mount_at_enable; then
-		if sudo systemctl start "$unit_mount"; then
-			log_success "Automount enabled for ${mount_name} (${host}:${remote_path} → ${local_path}; idle ${SSHFS_IDLE_SEC}s). Backing SSHFS started now (SSHFS_MOUNT_AT_ENABLE)."
-		else
-			log_warning "Automount is up but backing ${unit_mount} did not start yet (host down?). It will still mount on first access."
-			log_success "Automount enabled for ${mount_name} (${host}:${remote_path} → ${local_path}; idle expiry ${SSHFS_IDLE_SEC}s)."
-		fi
-	else
-		log_success "Automount enabled for ${mount_name} (${host}:${remote_path} → ${local_path}; idle ${SSHFS_IDLE_SEC}s). First access starts SSHFS (SSHFS_MOUNT_AT_ENABLE=0)."
-	fi
+	log_error "Failed to mount ${mount_name} (${host}:${remote_path} -> ${local_path})"
+	return 1
 }
 
 do_disable() {
 	local mount_name="$1"
 	local local_path
 	local_path=$(hosts_filesystem_local_path "$mount_name") || return 1
-	local unit_mount unit_auto
-	unit_mount=$(unit_mount_for_key "$mount_name") || return 1
-	unit_auto=$(unit_automount_for_key "$mount_name") || return 1
-	local path_mount path_auto
-	path_mount="$SYSTEMD_SYSTEM_DIR/$unit_mount"
-	path_auto="$SYSTEMD_SYSTEM_DIR/$unit_auto"
 
-	if [[ ! -e "$path_mount" && ! -e "$path_auto" ]] && ! systemctl is-enabled "$unit_auto" &>/dev/null; then
-		log_info "$mount_name is already disabled"
+	if ! cleanup_legacy_systemd_units "$mount_name"; then
+		return 1
+	fi
+
+	if ! is_mount_active "$mount_name"; then
+		log_info "$mount_name is already unmounted"
 		return 0
 	fi
 
-	sudo systemctl stop "$unit_mount" 2>/dev/null || true
-	if systemctl is-enabled "$unit_auto" &>/dev/null; then
-		sudo systemctl disable --now "$unit_auto" 2>/dev/null || true
-	elif systemctl is-active "$unit_auto" &>/dev/null; then
-		sudo systemctl stop "$unit_auto" 2>/dev/null || true
+	ensure_cmd fusermount3
+	if ! fusermount3 -u "$local_path"; then
+		log_error "Failed to unmount ${mount_name} at ${local_path}"
+		return 1
 	fi
 
-	sudo chmod 0755 "$local_path" 2>/dev/null || true
-	sudo chown "${USER}:$(id -gn "$USER")" "$local_path" 2>/dev/null || true
+	chmod 0755 "$local_path" 2>/dev/null || sudo chmod 0755 "$local_path" 2>/dev/null || true
+	chown "${USER}:$(id -gn "$USER")" "$local_path" 2>/dev/null || sudo chown "${USER}:$(id -gn "$USER")" "$local_path" 2>/dev/null || true
 
-	sudo rm -f "$path_mount" "$path_auto"
-	sudo systemctl daemon-reload
-	sudo rmdir "$local_path" 2>/dev/null || true
-
-	log_success "Disabled $mount_name"
+	log_success "Unmounted $mount_name"
 }
 
 interactive_tui() {
@@ -293,11 +239,6 @@ interactive_tui() {
 		return 1
 	fi
 
-	if ! sudo -v; then
-		log_error "sudo credentials required to install system systemd units"
-		return 1
-	fi
-
 	local options=()
 	local preselected=()
 	while IFS= read -r mount_name; do
@@ -305,13 +246,13 @@ interactive_tui() {
 
 		local label="$mount_name"
 		if is_mount_enabled "$mount_name"; then
-			label="$mount_name (enabled)"
+			label="$mount_name (mounted)"
 			preselected+=("$label")
 		fi
 		options+=("$label")
 	done <<< "$available_mounts"
 
-	gum style --foreground 212 "Toggle mounts with space, confirm with enter (sudo required)"
+	gum style --foreground 212 "Toggle mounts with space, confirm with enter"
 	echo
 
 	local selected_arg=""
@@ -349,7 +290,7 @@ interactive_tui() {
 }
 
 list_status() {
-	log_info "Mount status (from $(hosts_toml_path)); automount units in ${SYSTEMD_SYSTEM_DIR}"
+	log_info "Mount status (from $(hosts_toml_path))"
 
 	local available_mounts
 	available_mounts=$(list_available_mounts)
@@ -359,32 +300,29 @@ list_status() {
 		return 0
 	fi
 
-	printf "\n%-15s %-8s %-8s %-38s %-30s\n" "Mount" "Enabled" "Active" ".automount unit" "Where"
-	printf "%-15s %-8s %-8s %-38s %-30s\n" "---------------" "--------" "--------" "--------------------------------------" "------------------------------"
+	printf "\n%-15s %-8s %-38s %-30s\n" "Mount" "Mounted" "Source" "Where"
+	printf "%-15s %-8s %-38s %-30s\n" "---------------" "--------" "--------------------------------------" "------------------------------"
 
 	while IFS= read -r mount_name; do
 		[[ -z "$mount_name" ]] && continue
 
-		local enabled="no"
-		local active="no"
-		local ua
+		local mounted="no"
 		local local_path=""
+		local host remote_path source
 		local_path="$(hosts_filesystem_local_path "$mount_name")"
-		if ! ua=$(unit_automount_for_key "$mount_name"); then
-			ua="(?)"
-		fi
+		host="$(hosts_filesystem_host "$mount_name")"
+		remote_path="$(hosts_filesystem_remote_path "$mount_name")"
+		source="${host}:${remote_path}"
 
-		if is_mount_enabled "$mount_name"; then
-			enabled="yes"
-		fi
 		if is_mount_active "$mount_name"; then
-			active="yes"
+			mounted="yes"
+			source="$(findmnt --mountpoint "$local_path" --noheadings --output SOURCE 2>/dev/null || printf '%s' "$source")"
 		fi
 
-		printf "%-15s %-8s %-8s %-38s %-30s\n" "$mount_name" "$enabled" "$active" "$ua" "${local_path}"
+		printf "%-15s %-8s %-38s %-30s\n" "$mount_name" "$mounted" "$source" "${local_path}"
 	done <<< "$available_mounts"
 	echo
-	log_info "With SSHFS_MOUNT_AT_ENABLE=1 (default), enable also starts the backing fuse mount so entries under /mnt show normal modes until idle timeout (${SSHFS_IDLE_SEC}s). \"Active\" is the .automount waiter."
+	log_info "Mounted filesystems are direct user sshfs mounts. Selecting an unmounted entry mounts it; deselecting a mounted entry unmounts it."
 }
 
 show_help() {
@@ -394,14 +332,8 @@ Usage: $(basename "$0") [OPTIONS] [MOUNT...]
 Manage SSHFS mounts with interactive TUI or command-line operations. Filesystem
 inventory is read from hosts.toml at the repo root (override with HOSTS_TOML).
 
-Units are installed system-wide as paired .mount + .automount under
-${SYSTEMD_SYSTEM_DIR}: on-demand mount + idle unmount (${SSHFS_IDLE_SEC}s default)
-to avoid hangs when listing parents of dead SSHFS targets. sudo is required.
-
-Environment:
-    SSHFS_IDLE_SEC       Idle-unmount timeout in seconds (${SSHFS_IDLE_SEC})
-    SSHFS_MOUNT_AT_ENABLE  If 1/yes/true (default), start backing SSHFS right after enable so /mnt listings and pickers see normal metadata until idle-timeout
-    SSHFS_IDENTITY_FILE Path for IdentityFile ssh option (default: \$HOME/.ssh/id_ed25519)
+Mounts are created directly with sshfs as the current user. sudo is only used
+to prepare /mnt mountpoint directories and clean up old systemd units.
 
 OPTIONS:
     -i, --interactive   Interactive TUI (default when no args)
@@ -422,7 +354,7 @@ NOTES:
     - Must specify mount name(s) with --enable/--disable
     - Same mount in both --enable and --disable is an error
     - Mount entries with TODO placeholders are refused until filled in
-    - Remove any legacy user units for the same path before enabling (see error text)
+    - Legacy systemd units for the same path are cleaned up automatically
 EOF
 }
 
@@ -518,12 +450,6 @@ main() {
 			if [[ ${#enable_mounts[@]} -eq 0 && ${#disable_mounts[@]} -eq 0 ]]; then
 				log_error "Mount name(s) required. Use --enable or --disable"
 				exit 1
-			fi
-			if [[ ${#enable_mounts[@]} -gt 0 || ${#disable_mounts[@]} -gt 0 ]]; then
-				if ! sudo -v; then
-					log_error "sudo required to manage system systemd units"
-					exit 1
-				fi
 			fi
 			for m in "${enable_mounts[@]}"; do
 				do_enable "$m" || exit 1

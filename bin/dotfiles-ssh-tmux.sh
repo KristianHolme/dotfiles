@@ -6,47 +6,23 @@
 
 set -e # Exit on any error
 
-# Server list based on SSH config
-SERVERS=(
-    "atalanta"
-    "abacus-as"
-    "abacus-min"
-    "nam-shub-01"
-    "nam-shub-02"
-    "bioint01"
-    "bioint02"
-    "bioint03"
-    "bioint04"
-    "saga"
-    "ml1"
-    "ml2"
-    "ml3"
-    "ml4"
-    "ml6"
-    "ml7"
-    # personal machines via Tailscale
-    "bengal"
-    "kaspi"
-    "sibir"
-    "claw"
-)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib-dotfiles.sh"
+source "$SCRIPT_DIR/lib-hosts.sh"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     cat <<EOF
 Usage: $0
 
 Pick an SSH host with gum filter, connect with tmux session management.
+Server list comes from hosts.toml (set HOSTS_TOML to override).
 EOF
     exit 0
 fi
 
-# Check if gum is installed
-if ! command -v gum &>/dev/null; then
-    echo "Error: gum is not installed. Please install it first:"
-    echo "  Arch: sudo pacman -S gum"
-    echo "  Other: https://github.com/charmbracelet/gum#installation"
-    exit 1
-fi
+ensure_cmd gum
+
+readarray -t SERVERS < <(hosts_all_machines)
 
 # Hide current host from selection
 CURRENT_HOST="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "")"

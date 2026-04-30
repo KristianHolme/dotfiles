@@ -1,0 +1,45 @@
+# Single source of truth for machines, groups, and mountable filesystems.
+# Consumed by bin/dotfiles-mounts.sh, bin/dotfiles-rsync-ssh.sh, and
+# bin/dotfiles-ssh-tmux.sh through bin/lib-hosts.sh.
+#
+# Jump hosts live in ~/.ssh/config (ProxyJump), not here. Every alias used
+# below must resolve via ssh on its own.
+
+# ---- Individual SSH aliases. Mount fields => mountable as own filesystem. ----
+
+[machines.sibir]
+remote_path = "/home/kristian"
+local_path = "/mnt/sibir"
+
+[machines.bengal]
+remote_path = "/home/kristian"
+local_path = "/mnt/bengal"
+
+[machines.claw]
+remote_path = "/home/claw"
+local_path = "/mnt/claw"
+
+[machines.kaspi]
+remote_path = "/home/kristian"
+local_path = "/mnt/kaspi"
+[machines.saga]
+
+# ---- Groups: machines sharing a filesystem. mount_via picks the SSH alias. ----
+
+[groups.uio-math]
+machines = ["atalanta", "abacus-as", "abacus-min", "nam-shub-01", "nam-shub-02"]
+mount_via = "abacus-min"
+remote_path = "/mn/sarpanitu/ansatte-u6/kholme"
+local_path = "/mnt/uio-math"
+
+[groups.uio-bioint]
+machines = ["bioint01", "bioint02", "bioint03", "bioint04"]
+mount_via = "bioint01"
+remote_path = "/home/kholme"
+local_path = "/mnt/uio-bioint"
+
+[groups.uio-ml]
+machines = ["ml1", "ml2", "ml3", "ml4", "ml6", "ml7"]
+mount_via = "ml1"
+remote_path = "/itf-fi-ml/home/kholme"
+local_path = "/mnt/uio-ml"

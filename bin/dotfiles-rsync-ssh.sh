@@ -8,22 +8,13 @@ set -e # Exit on any error
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
+source "$SCRIPT_DIR/lib-hosts.sh"
 
 # Default values
 SOURCE_HOST=""
 SOURCE_DIR="~/Code/DRL_RDE/data/studies"
 TARGET_DIR="" # Will default to SOURCE_DIR if not specified
-USE_JUMP_HOST=false
 DELETE_FILES=true # Use --delete by default to mirror source exactly
-
-# Machine groups
-declare -A MACHINE_GROUPS
-MACHINE_GROUPS[math]="abacus-as abacus-min atalanta nam-shub-01 nam-shub-02"
-MACHINE_GROUPS[lightweight]="bioint01 bioint02 bioint03 bioint04"
-MACHINE_GROUPS[ml]="ml1 ml2 ml3 ml4 ml6 ml7"
-
-# Standalone machines
-STANDALONE_MACHINES=("saga" "bengal" "kaspi" "sibir")
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -75,16 +66,17 @@ fi
 # Check if gum is installed
 ensure_cmd gum
 
-# Build menu options for first level (groups + standalone machines)
+# Build first-level options (groups + standalone machines), sorted.
 FIRST_LEVEL_OPTIONS=()
-for group in "${!MACHINE_GROUPS[@]}"; do
+while IFS= read -r group; do
+	[[ -z "$group" ]] && continue
 	FIRST_LEVEL_OPTIONS+=("$group (group)")
-done
-for machine in "${STANDALONE_MACHINES[@]}"; do
+done < <(hosts_groups)
+while IFS= read -r machine; do
+	[[ -z "$machine" ]] && continue
 	FIRST_LEVEL_OPTIONS+=("$machine")
-done
+done < <(hosts_standalone_machines)
 
-# Sort options for consistent display
 IFS=$'\n' FIRST_LEVEL_OPTIONS=($(printf '%s\n' "${FIRST_LEVEL_OPTIONS[@]}" | sort))
 
 # First level menu: select group or standalone machine with fuzzy finding
@@ -100,14 +92,14 @@ fi
 
 # Determine if it's a group or standalone machine
 if [[ "$SELECTED_FIRST" == *" (group)" ]]; then
-	# It's a group - extract group name
 	GROUP_NAME="${SELECTED_FIRST% (group)}"
 
-	# Second level menu: select machine from group with fuzzy finding
-	# Properly split the space-separated string into an array
-	MACHINES_STR="${MACHINE_GROUPS[$GROUP_NAME]}"
-	# Use readarray to properly split into array
-	readarray -t MACHINES < <(echo "$MACHINES_STR" | tr ' ' '\n')
+	readarray -t MACHINES < <(hosts_group_machines "$GROUP_NAME")
+
+	if [[ ${#MACHINES[@]} -eq 0 ]]; then
+		echo "❌ Group '$GROUP_NAME' has no machines."
+		exit 1
+	fi
 
 	SELECTED_HOST=$(printf '%s\n' "${MACHINES[@]}" | gum filter \
 		--header "🔍 Choose a machine from $GROUP_NAME:" \
@@ -120,32 +112,14 @@ if [[ "$SELECTED_FIRST" == *" (group)" ]]; then
 	fi
 	SOURCE_HOST="$SELECTED_HOST"
 else
-	# It's a standalone machine
 	SOURCE_HOST="$SELECTED_FIRST"
 fi
 
-# Validate source host and set jump host logic
-case "$SOURCE_HOST" in
-atalanta | abacus-as | abacus-min | nam-shub-01 | nam-shub-02)
-	USE_JUMP_HOST=false
-	;;
-bioint01 | bioint02 | bioint03 | bioint04)
-	USE_JUMP_HOST=true
-	;;
-ml1 | ml2 | ml3 | ml4 | ml6 | ml7)
-	USE_JUMP_HOST=false
-	;;
-saga)
-	USE_JUMP_HOST=false
-	;;
-bengal | kaspi | sibir)
-	USE_JUMP_HOST=false
-	;;
-*)
-	echo "❌ Error: Unsupported host '$SOURCE_HOST'"
+# Validate against the host inventory; jump-host wiring lives in ~/.ssh/config.
+if ! hosts_all_machines | grep -qx "$SOURCE_HOST"; then
+	echo "❌ Error: Unsupported host '$SOURCE_HOST' (not in $(hosts_toml_path))"
 	exit 1
-	;;
-esac
+fi
 
 # Expand tilde in paths
 SOURCE_DIR_EXPANDED="${SOURCE_DIR/#\~/$HOME}"
@@ -153,16 +127,7 @@ TARGET_DIR_EXPANDED="${TARGET_DIR/#\~/$HOME}"
 
 REMOTE_DIR="${SOURCE_HOST}:${SOURCE_DIR}"
 
-# Set up SSH command based on whether we need jump host
-if [ "$USE_JUMP_HOST" = true ]; then
-	SSH_CMD="ssh -J atalanta"
-	RSYNC_SSH_OPTS="-e ssh -J atalanta"
-	echo "🔍 Fetching available directories from $SOURCE_HOST:$SOURCE_DIR (via atalanta)..."
-else
-	SSH_CMD="ssh"
-	RSYNC_SSH_OPTS=""
-	echo "🔍 Fetching available directories from $SOURCE_HOST:$SOURCE_DIR..."
-fi
+echo "🔍 Fetching available directories from $SOURCE_HOST:$SOURCE_DIR..."
 
 # Get list of directories from remote (fast - no size calculation)
 REMOTE_DIR_LIST_SCRIPT=$(
@@ -191,11 +156,7 @@ EOF
 )
 
 echo "📂 Fetching directory list..."
-if [ "$USE_JUMP_HOST" = true ]; then
-	DIR_LIST=$(ssh -J atalanta "$SOURCE_HOST" bash -s -- "$SOURCE_DIR" <<<"$REMOTE_DIR_LIST_SCRIPT")
-else
-	DIR_LIST=$(ssh "$SOURCE_HOST" bash -s -- "$SOURCE_DIR" <<<"$REMOTE_DIR_LIST_SCRIPT")
-fi
+DIR_LIST=$(ssh "$SOURCE_HOST" bash -s -- "$SOURCE_DIR" <<<"$REMOTE_DIR_LIST_SCRIPT")
 
 if [ -z "$DIR_LIST" ]; then
 	echo "❌ No directories found or unable to connect to $SOURCE_HOST:$SOURCE_DIR"
@@ -268,11 +229,7 @@ EOF
 
 # Pass selected directories as arguments to the remote script
 declare -A DIR_SIZES
-if [ "$USE_JUMP_HOST" = true ]; then
-	SIZE_OUTPUT=$(ssh -J atalanta "$SOURCE_HOST" bash -s -- "$SOURCE_DIR" "${FILTERED_DIRECTORIES[@]}" <<<"$REMOTE_SIZE_SCRIPT")
-else
-	SIZE_OUTPUT=$(ssh "$SOURCE_HOST" bash -s -- "$SOURCE_DIR" "${FILTERED_DIRECTORIES[@]}" <<<"$REMOTE_SIZE_SCRIPT")
-fi
+SIZE_OUTPUT=$(ssh "$SOURCE_HOST" bash -s -- "$SOURCE_DIR" "${FILTERED_DIRECTORIES[@]}" <<<"$REMOTE_SIZE_SCRIPT")
 
 # Parse size output
 while IFS='|' read -r dir_name dir_size; do
@@ -294,9 +251,6 @@ done
 echo
 echo "📍 Source: $SOURCE_HOST:$SOURCE_DIR"
 echo "📍 Target: $TARGET_DIR_EXPANDED"
-if [ "$USE_JUMP_HOST" = true ]; then
-	echo "🌉 Via jump host: atalanta"
-fi
 if [ "$DELETE_FILES" = false ]; then
 	echo "⚠️  Merge mode: files will not be deleted (merging from multiple machines)"
 fi
@@ -339,9 +293,6 @@ for directory in "${FILTERED_DIRECTORIES[@]}"; do
 	dir_size="${DIR_SIZES["$directory"]}"
 	echo "📂 [$CURRENT_DIR/$DIRECTORY_COUNT] Syncing: $directory ($dir_size)"
 	echo "   From: $SOURCE"
-	if [ "$USE_JUMP_HOST" = true ]; then
-		echo "   Via: atalanta (jump host)"
-	fi
 	echo "   To: $DEST"
 	echo
 
@@ -354,20 +305,11 @@ for directory in "${FILTERED_DIRECTORIES[@]}"; do
 		RSYNC_DELETE_FLAG="--delete"
 	fi
 
-	# Run rsync with minimal output (overall progress only)
-	if [ "$USE_JUMP_HOST" = true ]; then
-		rsync -az $RSYNC_DELETE_FLAG --info=progress2 --no-inc-recursive -e "ssh -J atalanta" "${SOURCE}/" "${DEST}/"
-	else
-		rsync -az $RSYNC_DELETE_FLAG --info=progress2 --no-inc-recursive "${SOURCE}/" "${DEST}/"
-	fi
+	rsync -az $RSYNC_DELETE_FLAG --info=progress2 --no-inc-recursive "${SOURCE}/" "${DEST}/"
 
 	echo "✅ [$CURRENT_DIR/$DIRECTORY_COUNT] Completed: $directory"
 done
 
 echo
-if [ "$USE_JUMP_HOST" = true ]; then
-	echo "🎉 All syncs from $SOURCE_HOST:$SOURCE_DIR (via atalanta) completed successfully!"
-else
-	echo "🎉 All syncs from $SOURCE_HOST:$SOURCE_DIR completed successfully!"
-fi
+echo "🎉 All syncs from $SOURCE_HOST:$SOURCE_DIR completed successfully!"
 echo "📁 Files synced to: $TARGET_DIR_EXPANDED"
