@@ -23,6 +23,8 @@ local_path = "/mnt/claw"
 remote_path = "/home/kristian"
 local_path = "/mnt/kaspi"
 [machines.saga]
+remote_path = "/cluster/home/kholme"
+local_path = "/mnt/saga"
 
 # ---- Groups: machines sharing a filesystem. mount_via picks the SSH alias. ----
 
