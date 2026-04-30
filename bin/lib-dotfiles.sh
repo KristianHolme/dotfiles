@@ -311,6 +311,16 @@ marcos_bin_install_if_missing() {
     bin install "$spec" || return 1
 }
 
+# Skip bin install when the expected CLI is already on PATH (e.g. distro package).
+marcos_bin_install_if_missing_and_cmd_absent() {
+    local spec="$1" cmd="$2"
+    if command -v "$cmd" >/dev/null 2>&1; then
+        log_info "$cmd already on PATH; skipping bin install ($spec)"
+        return 0
+    fi
+    marcos_bin_install_if_missing "$spec"
+}
+
 # If spec is registered, run bin update; otherwise bin install (e.g. prefer bin over a distro binary).
 marcos_bin_install_or_update_github() {
     local spec="$1"

@@ -3,13 +3,16 @@ set -Eeuo pipefail
 
 # Installs/updates user-local CLI tools without sudo (RHEL-compatible):
 # - Bootstraps https://github.com/marcosnils/bin: download release binary to a
-#   temp path, run `bin install github.com/marcosnils/bin` (README flow), then
-#   use `bin install` for gh, then require PAT or `gh auth login`, export token, then
-#   `bin install` for the rest (eza, zoxide, rg, lazygit, fzf, fd, starship, tree-sitter,
-#   git-lfs, btop, gum, superfile, dust; bin and gh are re-run idempotently in the full list).
+#   temp path, run `bin install github.com/marcosnils/bin` (README flow; no PATH skip here), then
+#   use `bin install` for gh (skipped if gh is already on PATH), then require PAT or `gh auth login`,
+#   export token, then `bin install` for the rest unless each tool's CLI already exists on PATH
+#   (eza, zoxide, rg, lazygit, fzf, fd, starship, tree-sitter, git-lfs, btop, gum, superfile, dust,
+#   television, bat; bin-managed specs still skip via config when applicable).
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl), LazyVim starter, tpm, omarchy clone.
+#
+# PATH skip: distro or other installs satisfy the checker (e.g. bat but not Debian's batcat-only name).
 #
 # Idempotent: safe to re-run; bin and neovim update when upstream releases change.
 #
@@ -231,26 +234,29 @@ configure_git_lfs_hooks() {
 }
 
 replica_install_tools_with_bin() {
-    local specs=(
-        github.com/eza-community/eza
-        github.com/ajeetdsouza/zoxide
-        github.com/BurntSushi/ripgrep
-        github.com/jesseduffield/lazygit
-        github.com/junegunn/fzf
-        github.com/sharkdp/fd
-        github.com/bootandy/dust
-        github.com/tree-sitter/tree-sitter
-        github.com/git-lfs/git-lfs
-        github.com/aristocratos/btop
-        github.com/yorukot/superfile
-        github.com/starship/starship
-        github.com/charmbracelet/gum
-        github.com/alexpasmantier/television
-        github.com/sharkdp/bat
+    # spec:cli — CLI name is what `command -v` checks before `bin install` (spf for superfile, etc.).
+    local spec_cmd_pairs=(
+        github.com/eza-community/eza:eza
+        github.com/ajeetdsouza/zoxide:zoxide
+        github.com/BurntSushi/ripgrep:rg
+        github.com/jesseduffield/lazygit:lazygit
+        github.com/junegunn/fzf:fzf
+        github.com/sharkdp/fd:fd
+        github.com/bootandy/dust:dust
+        github.com/tree-sitter/tree-sitter:tree-sitter
+        github.com/git-lfs/git-lfs:git-lfs
+        github.com/aristocratos/btop:btop
+        github.com/yorukot/superfile:spf
+        github.com/starship/starship:starship
+        github.com/charmbracelet/gum:gum
+        github.com/alexpasmantier/television:tv
+        github.com/sharkdp/bat:bat
     )
-    local s
-    for s in "${specs[@]}"; do
-        marcos_bin_install_if_missing "$s" || log_warning "bin install failed: $s; continuing"
+    local pair spec cmd
+    for pair in "${spec_cmd_pairs[@]}"; do
+        spec="${pair%%:*}"
+        cmd="${pair##*:}"
+        marcos_bin_install_if_missing_and_cmd_absent "$spec" "$cmd" || log_warning "bin install failed: $spec; continuing"
     done
 }
 
@@ -262,7 +268,9 @@ Usage: $0
 Install user-local CLI tools and omarchy (no sudo) using marcosnils/bin for
 GitHub release binaries. Binaries go to INSTALL_DIR (default ~/.local/bin).
 
-Authentication: after gh is installed via bin, set GITHUB_AUTH_TOKEN (PAT, no
+Each listed tool skips bin install if its CLI is already on PATH (except bin bootstrap).
+
+Authentication: after gh is available (preinstalled or via bin), set GITHUB_AUTH_TOKEN (PAT, no
 scopes) or run gh auth login so the token is exported for bin and curl API calls.
 
 See header comments for INSTALL_DIR, OMARCHY_DIR, OMARCHY_REPO_URL, etc.
@@ -295,8 +303,8 @@ EOF
         exit 1
     fi
 
-    log_info "Installing GitHub CLI (gh) via bin"
-    if ! marcos_bin_install_if_missing "github.com/cli/cli"; then
+    log_info "Installing GitHub CLI (gh) via bin (skipped if gh is already on PATH)"
+    if ! marcos_bin_install_if_missing_and_cmd_absent "github.com/cli/cli" gh; then
         log_error "bin install github.com/cli/cli failed; cannot continue"
         exit 1
     fi
