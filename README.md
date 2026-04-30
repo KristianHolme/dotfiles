@@ -189,37 +189,45 @@ Interactive SSH connection manager with automatic tmux session handling:
 Features:
 
 - **Interactive selection:** Choose multiple directories to sync
-- **Jump host support:** Automatic routing through atalanta for bioint servers
+- **Host inventory:** Machines and groups come from [`hosts.toml`](hosts.toml); jump hosts live in `~/.ssh/config` (`ProxyJump`)
 - **Progress tracking:** Real-time sync progress with numbered operations
 - **Safe syncing:** Uses `rsync` with delete protection and incremental transfers
 
 ### SSHFS Remote Mounts
 
-Interactive TUI for managing SSHFS mounts via systemd user units (Tailscale SSH).
+Interactive TUI for managing SSHFS mounts via **system** systemd units (sudo
+required). Filesystem inventory is read from [`hosts.toml`](hosts.toml) at the repo
+root; each entry gets a paired `.mount` + `.automount` under
+`/etc/systemd/system/`. The automount unit holds an autofs trigger at the mount
+point: the real SSHFS `.mount` starts on first access and **idle-unmounts** after 10
+minutes by default, so `ls /mnt` without entering subdirectories does not hang on
+unreachable remotes.
 
 **Interactive management:**
 
 ```bash
-~/dotfiles/bin/dotfiles-mounts.sh    # Toggle mounts with gum TUI
-dotfiles-mounts -l                     # List current status
-dotfiles-mounts -a                     # Apply saved configuration
-dotfiles-mounts -p <profile>           # Use different profile
+~/dotfiles/bin/dotfiles-mounts.sh    # Toggle mounts with gum TUI (sudo)
+dotfiles-mounts -l                   # List current status (no sudo)
+dotfiles-mounts -e <name>            # Enable mount(s)
+dotfiles-mounts -d <name>            # Disable mount(s)
 ```
 
-**Mount templates** are stored in `templates/systemd/user/`:
+**Filesystems** are declared in `hosts.toml` either as `[machines.<alias>]`
+with `remote_path` + `local_path`, or as `[groups.<name>]` with `mount_via`,
+`remote_path`, and `local_path` (one mount per shared filesystem).
 
-- `mnt-bengal.mount` - bengal:/home/kristian → /mnt/bengal
-- `mnt-sibir.mount` - sibir:/home/kristian → /mnt/sibir
-- `mnt-claw.mount` - claw:/home/claw → /mnt/claw
+SSH runs as root for the fuse mount, so the script wires the real user’s
+`~/.ssh/config`, identity file, and `known_hosts` into the unit (see
+`SSHFS_IDENTITY_FILE`). On the host, **`user_allow_other`** must be enabled in
+`/etc/fuse.conf` for `allow_other` to work.
 
 **Features:**
 
-- **On-demand mounting:** `delay_connect` - mounts when you first `ls /mnt/<host>`
-- **Auto-reconnect:** `reconnect` - reconnects after sleep/network drops
+- **On-access mounting:** systemd `.automount` + `delay_connect` SSHFS
+- **Idle expiry:** `SSHFS_IDLE_SEC` (default 600) frees stuck remotes from global directory listings
+- **Auto-reconnect:** `reconnect` after sleep/network drops
 - **Bandwidth-efficient:** `compression=yes`
-- **Network-friendly:** Only enabled mounts consume resources
-
-**Configuration:** Enabled mounts are stored per-profile in `~/.config/dotfiles/mounts.conf`
+- **Safe listing:** Parent paths like `/mnt` avoid `stat()` on idle child mountpoints
 
 ### SSH Key Management
 
