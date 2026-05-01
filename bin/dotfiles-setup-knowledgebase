@@ -1,0 +1,260 @@
+#!/usr/bin/env bash
+#
+# dotfiles-setup-knowledgebase
+# Setup knowledge base on Arch Linux
+#
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Paths
+VAULT_PATH="${WIKI_PATH:-$HOME/Vaults/Wiki}"
+INBOX_PATH="$VAULT_PATH/inbox"
+RAW_PATH="$VAULT_PATH/raw"
+QMD_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/qmd"
+TEMPLATE_DIR="${DOTFILES_PATH:-$HOME/dotfiles}/knowledge-base/templates"
+
+# Logging
+log_info() { echo -e "${BLUE}ℹ${NC}  $1"; }
+log_success() { echo -e "${GREEN}✓${NC}  $1"; }
+log_warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
+log_error() { echo -e "${RED}✗${NC}  $1"; }
+
+command_exists() { command -v "$1" &> /dev/null; }
+ensure_dir() {
+    if [[ ! -d "$1" ]]; then
+        mkdir -p "$1"
+        log_success "Created: $1"
+    else
+        log_info "Exists: $1"
+    fi
+}
+
+copy_template() {
+    local src="$1"
+    local dst="$2"
+    if [[ -f "$dst" ]]; then
+        log_info "Exists: $dst"
+        return 0
+    fi
+    if [[ ! -f "$src" ]]; then
+        log_error "Template not found: $src"
+        return 1
+    fi
+    cp "$src" "$dst"
+    log_success "Created: $dst"
+}
+
+# Install QMD via npm (recommended)
+install_qmd() {
+    if command_exists qmd; then
+        log_info "QMD already installed"
+        return 0
+    fi
+    
+    log_info "Installing QMD via npm..."
+    
+    if ! command_exists npm; then
+        log_info "Installing npm..."
+        sudo pacman -S --needed --noconfirm npm nodejs
+    fi
+    
+    npm install -g @tobilu/qmd
+    
+    if ! command_exists qmd; then
+        log_error "QMD installation failed"
+        return 1
+    fi
+    
+    log_success "QMD installed"
+}
+
+# Install ripgrep
+install_ripgrep() {
+    if command_exists rg; then
+        log_info "ripgrep already installed"
+        return 0
+    fi
+    
+    log_info "Installing ripgrep..."
+    sudo pacman -S --needed --noconfirm ripgrep
+    log_success "ripgrep installed"
+}
+
+# Setup QMD config
+setup_qmd_config() {
+    ensure_dir "$QMD_CONFIG_DIR"
+    local f="$QMD_CONFIG_DIR/config.yaml"
+    [[ -f "$f" ]] && { log_info "QMD config exists"; return 0; }
+    
+    cat > "$f" << EOF
+vault_path: $VAULT_PATH
+index_path: ${XDG_CACHE_HOME:-$HOME/.cache}/qmd/index.db
+exclude_patterns:
+  - ".obsidian/*"
+  - ".git/*"
+  - "*.png"
+  - "*.jpg"
+  - "*.pdf"
+  - "node_modules/*"
+  - "__pycache__/*"
+search_depth: 5
+results_limit: 20
+EOF
+    log_success "QMD config created"
+}
+
+# Setup Syncthing
+setup_syncthing() {
+    log_info "Setting up Syncthing..."
+    
+    if ! command_exists syncthing; then
+        sudo pacman -S --needed --noconfirm syncthing
+    fi
+    
+    systemctl --user is-enabled syncthing.service &>/dev/null || {
+        systemctl --user enable syncthing.service
+        log_success "Enabled Syncthing"
+    }
+    
+    systemctl --user is-active syncthing.service &>/dev/null || {
+        systemctl --user start syncthing.service
+        log_success "Started Syncthing"
+    }
+    
+    log_info "Syncthing UI: http://localhost:8384"
+}
+
+# Create directory structure
+create_dirs() {
+    log_info "Creating directory structure..."
+    
+    # Inbox - where new stuff goes (flat structure - user throws everything here)
+    ensure_dir "$INBOX_PATH"
+    
+    # Raw - processed/organized raw materials (agent moves from inbox to here)
+    ensure_dir "$RAW_PATH/papers"
+    ensure_dir "$RAW_PATH/books"
+    ensure_dir "$RAW_PATH/web"
+    ensure_dir "$RAW_PATH/images"
+    ensure_dir "$RAW_PATH/audio"
+    ensure_dir "$RAW_PATH/plots"
+    ensure_dir "$RAW_PATH/data"
+    
+    # Wiki - compiled knowledge (references raw/ via links)
+    ensure_dir "$VAULT_PATH/wiki/entities"
+    ensure_dir "$VAULT_PATH/wiki/concepts"
+    ensure_dir "$VAULT_PATH/wiki/papers"
+    ensure_dir "$VAULT_PATH/wiki/sources"
+    ensure_dir "$VAULT_PATH/wiki/topics"
+    ensure_dir "$VAULT_PATH/wiki/comparisons"
+    ensure_dir "$VAULT_PATH/Daily"
+    ensure_dir "$VAULT_PATH/MOCs"
+    ensure_dir "$VAULT_PATH/Attachments"
+    ensure_dir "$VAULT_PATH/.templates"
+    
+    # Code - Julia projects for analysis
+    ensure_dir "$VAULT_PATH/code"
+}
+
+# Copy template files
+copy_templates() {
+    log_info "Copying template files..."
+    
+    # .stignore for Syncthing
+    if [[ ! -f "$VAULT_PATH/.stignore" ]]; then
+        copy_template "$TEMPLATE_DIR/dot-stignore" "$VAULT_PATH/.stignore"
+    fi
+    
+    # Main index
+    if [[ ! -f "$VAULT_PATH/wiki/index.md" ]]; then
+        copy_template "$TEMPLATE_DIR/wiki-index.md" "$VAULT_PATH/wiki/index.md"
+    fi
+    
+    # Log file (with date substitution)
+    if [[ ! -f "$VAULT_PATH/wiki/log.md" ]]; then
+        local today=$(date +%Y-%m-%d)
+        sed "s/{{DATE}}/$today/g" "$TEMPLATE_DIR/wiki-log.md" > "$VAULT_PATH/wiki/log.md"
+        log_success "Created: $VAULT_PATH/wiki/log.md"
+    fi
+}
+
+# Create note templates
+create_note_templates() {
+    log_info "Creating note templates..."
+    local d="$VAULT_PATH/.templates"
+    
+    copy_template "$TEMPLATE_DIR/paper.md" "$d/paper.md"
+    copy_template "$TEMPLATE_DIR/entity.md" "$d/entity.md"
+    copy_template "$TEMPLATE_DIR/concept.md" "$d/concept.md"
+}
+
+# Summary
+print_summary() {
+    echo ""
+    echo "=========================================="
+    echo "  Knowledge Base Setup Complete!"
+    echo "=========================================="
+    echo ""
+    echo "📁 Structure:"
+    echo "   inbox/     - Drop new items here (flat)"
+    echo "   raw/       - Organized raw sources (immutable)"
+    echo "   code/      - Julia projects for analysis"
+    echo "   wiki/      - LLM-generated knowledge base"
+    echo ""
+    echo "📚 Wiki structure:"
+    echo "   entities/    - People, organizations, tools"
+    echo "   concepts/    - Core concepts and ideas"
+    echo "   papers/      - Paper summaries"
+    echo "   topics/      - Topic overviews"
+    echo "   sources/     - Non-paper sources"
+    echo "   comparisons/ - Comparison analyses"
+    echo "   index.md     - Content catalog (critical!)"
+    echo "   log.md       - Chronological log (critical!)"
+    echo ""
+    echo "🔄 The Three Operations:"
+    echo "   1. INGEST  - inbox/ → raw/ + wiki/ + index.md + log.md"
+    echo "   2. QUERY   - Read index.md → answer → file back to wiki/"
+    echo "   3. LINT    - Health check for contradictions, orphans, gaps"
+    echo ""
+    echo "📊 For data analysis:"
+    echo "   - Create Julia project in code/project-name/"
+    echo "   - Scripts generate plots to raw/plots/"
+    echo "   - Wiki articles link to plots AND scripts"
+    echo ""
+    echo "🔧 Tools:"
+    command_exists qmd && echo "   ✓ QMD" || echo "   ✗ QMD"
+    command_exists rg && echo "   ✓ ripgrep" || echo "   ✗ ripgrep"
+    echo ""
+    echo "🚀 Next:"
+    echo "   1. Syncthing: http://localhost:8384"
+    echo "   2. Install Obsidian"
+    echo "   3. Open $VAULT_PATH"
+    echo "   4. Drop something in inbox/ and run ingest"
+    echo ""
+}
+
+# Main
+main() {
+    echo ""
+    echo "🔧 Knowledge Base Setup"
+    echo "========================"
+    echo ""
+    
+    install_ripgrep
+    install_qmd
+    setup_qmd_config
+    create_dirs
+    setup_syncthing
+    copy_templates
+    create_note_templates
+    print_summary
+}
+
+main "$@"
