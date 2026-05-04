@@ -10,7 +10,7 @@ set -Eeuo pipefail
 #   television, bat; bin-managed specs still skip via config when applicable).
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
-# - juliaup (curl), LazyVim starter, tpm, omarchy clone.
+# - juliaup (curl); optional Cursor CLI (gum yes/no → official curl installer); LazyVim starter, tpm, omarchy clone.
 #
 # PATH skip: distro or other installs satisfy the checker (e.g. bat but not Debian's batcat-only name).
 #
@@ -260,6 +260,23 @@ replica_install_tools_with_bin() {
     done
 }
 
+maybe_install_cursor_cli() {
+    if command -v cursor >/dev/null 2>&1; then
+        return 0
+    fi
+    if ! command -v gum >/dev/null 2>&1; then
+        log_warning "gum not found; skipping Cursor CLI prompt"
+        return 0
+    fi
+    local choice=""
+    choice=$(printf '%s\n' "yes" "no" | gum choose --header "Install Cursor CLI? (official curl installer)" --selected "no") || choice="no"
+    if [[ "$choice" != "yes" ]]; then
+        log_info "Skipping Cursor CLI"
+        return 0
+    fi
+    install_via_curl "Cursor CLI" "agent" "https://cursor.com/install" || log_warning "Cursor CLI installation failed; continuing"
+}
+
 main() {
     if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
         cat <<EOF
@@ -272,6 +289,8 @@ Each listed tool skips bin install if its CLI is already on PATH (except bin boo
 
 Authentication: after gh is available (preinstalled or via bin), set GITHUB_AUTH_TOKEN (PAT, no
 scopes) or run gh auth login so the token is exported for bin and curl API calls.
+
+After juliaup, if gum is available, prompts whether to install Cursor CLI.
 
 See header comments for INSTALL_DIR, OMARCHY_DIR, OMARCHY_REPO_URL, etc.
 EOF
@@ -346,6 +365,8 @@ EOF
     if [[ "$juliaup_preinstalled" -eq 1 ]]; then
         log_info "julia-setup.jl was not run (juliaup was already installed). Run it manually if you need to refresh packages: $SCRIPT_DIR/julia-setup.jl"
     fi
+
+    maybe_install_cursor_cli
 
     install_tpm || log_warning "tpm installation failed; continuing"
 
