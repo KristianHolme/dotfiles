@@ -8,10 +8,10 @@
 # Dependencies: grim, slurp, hyprpicker, tesseract, wl-copy (wl-clipboard)
 #
 # Environment:
-#   DOTFILES_OCR_DIR           Output directory, default ~/textcapture
-#   DOTFILES_OCR_LANG          Tesseract language(s), default eng
-#   DOTFILES_OCR_TESSERACT_ARGS Extra tesseract args (whitespace-separated), e.g. --psm 6
-#   DOTFILES_OCR_EDITOR        Editor command; overrides EDITOR; default nvim
+#   DOTFILES_OCR_DIR     Output directory, default ~/textcapture
+#   DOTFILES_OCR_EDITOR  Editor command; overrides EDITOR; default nvim
+#
+# Tesseract flags match omarchy-capture-text-extraction (Omarchy builtin OCR).
 
 [[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
 
@@ -28,11 +28,16 @@ fi
 
 pkill slurp && exit 0
 
+# Keep hyprpicker alive until after grim captures (same as omarchy capture tools).
+cleanup_freeze() {
+  [[ -n $PID ]] && kill $PID 2>/dev/null
+}
+trap cleanup_freeze EXIT
+
 hyprpicker -r -z >/dev/null 2>&1 &
-picker_pid=$!
+PID=$!
 sleep .1
 SELECTION=$(slurp 2>/dev/null)
-kill "$picker_pid" 2>/dev/null
 
 [[ -z $SELECTION ]] && exit 0
 
@@ -44,14 +49,8 @@ fi
 FILENAME="ocr-$(date +'%Y-%m-%d_%H-%M-%S').txt"
 FILEPATH="$OUTPUT_DIR/$FILENAME"
 
-LANG_ARG="${DOTFILES_OCR_LANG:-eng}"
-TESS_EXTRA=()
-if [[ -n ${DOTFILES_OCR_TESSERACT_ARGS:-} ]]; then
-  read -r -a TESS_EXTRA <<< "$DOTFILES_OCR_TESSERACT_ARGS"
-fi
-
 set -o pipefail
-if ! grim -g "$SELECTION" - | tesseract stdin stdout -l "$LANG_ARG" "${TESS_EXTRA[@]}" 2>/dev/null | tr -d '\r' >"$FILEPATH"; then
+if ! grim -g "$SELECTION" - | tesseract stdin stdout --oem 1 --psm 6 -l eng --dpi 300 -c preserve_interword_spaces=1 2>/dev/null | tr -d '\r' >"$FILEPATH"; then
   notify-send "OCR failed" "grim or tesseract returned an error." -u critical -t 5000
   rm -f "$FILEPATH"
   exit 1
