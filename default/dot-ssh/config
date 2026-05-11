@@ -23,15 +23,8 @@ Host atalanta
     SendEnv TERM
     SetEnv TERM=xterm-256color
 
-Host nam-shub-01
-    Hostname nam-shub-01
-    ProxyJump uio
-    user kholme
-    SendEnv TERM
-    SetEnv TERM=xterm-256color
-
-Host nam-shub-02
-    Hostname nam-shub-02
+Host nam-shub*
+    Hostname %h
     ProxyJump uio
     user kholme
     SendEnv TERM
@@ -55,3 +48,7 @@ Host freebio* bioint0* ml*
 Host claw
     User claw
     Hostname claw
+
+Host nrec1
+    User ubuntu
+    HostName 2001:700:2:8201::1242
