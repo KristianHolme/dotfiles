@@ -26,6 +26,10 @@ local_path = "/mnt/kaspi"
 remote_path = "/cluster/home/kholme"
 local_path = "/mnt/saga"
 
+[machines.nrec1]
+remote_path = "/home/ubuntu"
+local_path = "/mnt/nrec1"
+
 # ---- Groups: machines sharing a filesystem. mount_via picks the SSH alias. ----
 
 [groups.uio-math]
