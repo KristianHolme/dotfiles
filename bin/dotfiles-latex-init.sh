@@ -1,13 +1,32 @@
 #!/bin/bash
 
 # Simple LaTeX Project Initialization Script
-# Creates basic LaTeX projects with UiO template support
+# Creates basic LaTeX projects from templates/latex/*_template/
 
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
 TEMPLATES_DIR="$SCRIPT_DIR/../templates/latex"
+
+template_dir_for() {
+    local template_type="$1"
+
+    case "$template_type" in
+    "default")
+        echo "$TEMPLATES_DIR/default_template"
+        ;;
+    "uio-presentation")
+        echo "$TEMPLATES_DIR/uio_presentation_template"
+        ;;
+    "arxiv-preprint")
+        echo "$TEMPLATES_DIR/arxiv_preprint_template"
+        ;;
+    *)
+        return 1
+        ;;
+    esac
+}
 
 show_help() {
     cat <<EOF
@@ -19,18 +38,20 @@ Arguments:
     PROJECT_NAME    Name of the project directory to create
 
 Options:
-    -t, --type TYPE     Project type: default|uio-presentation
+    -t, --type TYPE     Project type: default|uio-presentation|arxiv-preprint
     -d, --directory DIR Target directory (default: current directory)
     --no-git           Skip Git initialization
     -h, --help         Show this help message
 
 Examples:
-    $0 -t default my-doc                   # Creates plain LaTeX article project
-    $0 -t uio-presentation my-uio-talk     # Creates UiO presentation project
+    $0 -t default my-doc                       # Plain LaTeX article project
+    $0 -t uio-presentation my-uio-talk         # UiO presentation project
+    $0 -t arxiv-preprint my-paper                # arXiv preprint with versioned sources
 
 Available templates:
     default           - Plain LaTeX article with minimal preamble
     uio-presentation  - University of Oslo official beamer presentation
+    arxiv-preprint    - arXiv preprint with arxiv.sty and latexdiff helper
 EOF
 }
 
@@ -148,20 +169,27 @@ push_to_github() {
     esac
 }
 
+substitute_project_name() {
+    local file="$1"
+    local project_name="$2"
+
+    sed -i "s/PROJECT_NAME/$project_name/g" "$file"
+}
+
 setup_uio_template() {
     local project_dir="$1"
     local project_name="$2"
+    local template_dir
+    template_dir="$(template_dir_for uio-presentation)"
 
     log_info "Setting up UiO presentation template..."
 
-    if [[ -f "$TEMPLATES_DIR/uio-presentation.tex" && -f "$TEMPLATES_DIR/uio-preamble.tex" ]]; then
-        cp "$TEMPLATES_DIR/uio-presentation.tex" "$project_dir/src/main.tex"
-        cp "$TEMPLATES_DIR/uio-preamble.tex" "$project_dir/src/uio-preamble.tex"
-
-        # Replace PROJECT_NAME placeholder
-        sed -i "s/PROJECT_NAME/$project_name/g" "$project_dir/src/main.tex"
+    if [[ -f "$template_dir/main.tex" && -f "$template_dir/preamble.tex" ]]; then
+        cp "$template_dir/main.tex" "$project_dir/src/main.tex"
+        cp "$template_dir/preamble.tex" "$project_dir/src/preamble.tex"
+        substitute_project_name "$project_dir/src/main.tex" "$project_name"
     else
-        log_error "UiO template files not found in $TEMPLATES_DIR"
+        log_error "UiO template files not found in $template_dir"
         exit 1
     fi
 }
@@ -169,15 +197,37 @@ setup_uio_template() {
 setup_default_template() {
     local project_dir="$1"
     local project_name="$2"
+    local template_dir
+    template_dir="$(template_dir_for default)"
 
     log_info "Setting up default plain document template..."
 
-    if [[ -f "$TEMPLATES_DIR/default-main.tex" && -f "$TEMPLATES_DIR/default-preamble.tex" ]]; then
-        cp "$TEMPLATES_DIR/default-main.tex" "$project_dir/src/main.tex"
-        cp "$TEMPLATES_DIR/default-preamble.tex" "$project_dir/src/preamble.tex"
-        sed -i "s/PROJECT_NAME/$project_name/g" "$project_dir/src/main.tex"
+    if [[ -f "$template_dir/main.tex" && -f "$template_dir/preamble.tex" ]]; then
+        cp "$template_dir/main.tex" "$project_dir/src/main.tex"
+        cp "$template_dir/preamble.tex" "$project_dir/src/preamble.tex"
+        substitute_project_name "$project_dir/src/main.tex" "$project_name"
     else
-        log_error "Default template files not found in $TEMPLATES_DIR"
+        log_error "Default template files not found in $template_dir"
+        exit 1
+    fi
+}
+
+setup_arxiv_preprint_template() {
+    local project_dir="$1"
+    local project_name="$2"
+    local template_dir
+    template_dir="$(template_dir_for arxiv-preprint)"
+
+    log_info "Setting up arXiv preprint template..."
+
+    if [[ -f "$template_dir/v0/main.tex" && -f "$template_dir/v0/arxiv.sty" ]]; then
+        cp -r "$template_dir/v0" "$project_dir/src/v0"
+        cp "$template_dir/v0/main.tex" "$project_dir/src/main.tex"
+        cp "$template_dir/diff.tex" "$project_dir/diff.tex"
+        substitute_project_name "$project_dir/src/main.tex" "$project_name"
+        substitute_project_name "$project_dir/src/v0/main.tex" "$project_name"
+    else
+        log_error "arXiv preprint template files not found in $template_dir"
         exit 1
     fi
 }
@@ -227,9 +277,9 @@ main() {
         exit 1
     fi
 
-    if [[ "$template_type" != "uio-presentation" && "$template_type" != "default" ]]; then
+    if ! template_dir_for "$template_type" >/dev/null 2>&1; then
         log_error "Invalid template type: $template_type"
-        log_info "Currently available: default, uio-presentation"
+        log_info "Currently available: default, uio-presentation, arxiv-preprint"
         exit 1
     fi
 
@@ -252,6 +302,9 @@ main() {
     "default")
         setup_default_template "$project_dir" "$project_name"
         ;;
+    "arxiv-preprint")
+        setup_arxiv_preprint_template "$project_dir" "$project_name"
+        ;;
     esac
 
     if [[ "$init_git" == true ]]; then
@@ -267,6 +320,10 @@ main() {
 
     if [[ "$init_git" == true ]]; then
         log_info "  4. Large figures will be tracked with Git LFS automatically"
+    fi
+
+    if [[ "$template_type" == "arxiv-preprint" ]]; then
+        log_info "  5. Create src/v1/ when ready to track revisions with diff.tex"
     fi
 }
 
