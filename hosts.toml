@@ -30,6 +30,10 @@ local_path = "/mnt/saga"
 remote_path = "/home/ubuntu"
 local_path = "/mnt/nrec1"
 
+[machines.fox]
+remote_path = "/fp/homes01/u01/ec-kholme"
+local_path = "/mnt/fox"
+
 # ---- Groups: machines sharing a filesystem. mount_via picks the SSH alias. ----
 
 [groups.uio-math]
