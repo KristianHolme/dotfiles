@@ -52,3 +52,10 @@ Host claw
 Host nrec1
     User ubuntu
     HostName 2001:700:2:8201::1242
+
+Host fox
+    Hostname fox.educloud.no
+    User ec-kholme
+    setEnv TERM=xterm-256color
+    ControlMaster auto
+    ControlPath ~/.ssh/controlsock-%h-%p
