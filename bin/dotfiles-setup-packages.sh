@@ -391,7 +391,7 @@ step_install_tree_sitter() {
 }
 
 step_setup_julia() {
-    install_via_curl "Julia (juliaup)" "juliaup" "https://install.julialang.org" "source ~/.bashrc && ~/dotfiles/bin/julia-setup.jl"
+    install_juliaup_and_setup "$HOME/dotfiles/bin/julia-setup.jl"
 }
 
 all_main_step_keys() {

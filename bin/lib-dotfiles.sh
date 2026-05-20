@@ -98,6 +98,120 @@ ensure_cmd() {
     done
 }
 
+# Ensure ~/.bashrc exists with a minimal interactive stub (Debian-style).
+ensure_basic_bashrc() {
+    local bashrc_path="${1:-$HOME/.bashrc}"
+    if [[ -f "$bashrc_path" ]]; then
+        return 0
+    fi
+    log_info "Creating minimal $bashrc_path"
+    cat >"$bashrc_path" <<'EOF'
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# Created by dotfiles (ensure_basic_bashrc)
+
+# If not running interactively, don't do anything.
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+EOF
+}
+
+# Prepend juliaup/julia bin dirs without sourcing bashrc (non-interactive scripts return early).
+refresh_julia_path() {
+    local dir
+    for dir in "$HOME/.juliaup/bin" "$HOME/.julia/bin"; do
+        if [[ -d "$dir" ]] && [[ ":$PATH:" != *":$dir:"* ]]; then
+            PATH="$dir${PATH:+:$PATH}"
+        fi
+    done
+    export PATH
+}
+
+# Resolve julia for post-install setup (PATH, then common juliaup locations).
+find_julia_executable() {
+    refresh_julia_path
+    local candidate
+    if command -v julia >/dev/null 2>&1; then
+        command -v julia
+        return 0
+    fi
+    for candidate in "$HOME/.juliaup/bin/julia" "$HOME/.julia/bin/julia"; do
+        if [[ -x "$candidate" ]]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Backup stale juliaup.json when a previous install left config but no juliaup/julia binary.
+prepare_juliaup_install() {
+    local juliaup_json="$HOME/.julia/juliaup/juliaup.json"
+    if [[ ! -f "$juliaup_json" ]]; then
+        return 0
+    fi
+    if command -v juliaup >/dev/null 2>&1; then
+        return 0
+    fi
+    if find_julia_executable >/dev/null 2>&1; then
+        return 0
+    fi
+    local backup="${juliaup_json}.dotfiles-backup.$(date +%Y%m%d_%H%M%S)"
+    log_warning "Stale juliaup config at $juliaup_json without juliaup/julia on PATH; moving to $backup"
+    mv "$juliaup_json" "$backup"
+}
+
+# Run julia-setup.jl using an explicit julia path (do not rely on #!/usr/bin/env julia).
+run_julia_setup_script() {
+    local setup_script="$1"
+    if [[ -z "$setup_script" ]]; then
+        log_error "run_julia_setup_script: missing script path"
+        return 1
+    fi
+    if [[ ! -f "$setup_script" ]]; then
+        log_warning "Julia setup script not found: $setup_script; skipping"
+        return 0
+    fi
+
+    ensure_basic_bashrc
+
+    local julia_bin=""
+    if ! julia_bin=$(find_julia_executable); then
+        log_warning "julia not found after juliaup install; skipping $setup_script"
+        log_warning "Restart your shell or run: $setup_script"
+        return 1
+    fi
+
+    log_info "Running Julia setup with $julia_bin"
+    "$julia_bin" "$setup_script" || {
+        log_warning "Julia setup script failed: $setup_script"
+        return 1
+    }
+    return 0
+}
+
+# Install juliaup via official curl installer, then run optional setup script.
+install_juliaup_and_setup() {
+    local setup_script="${1:-}"
+    local juliaup_was_present=0
+    if command -v juliaup >/dev/null 2>&1; then
+        juliaup_was_present=1
+    fi
+
+    prepare_juliaup_install
+    install_via_curl "Julia (juliaup)" "juliaup" "https://install.julialang.org" "" --yes
+
+    if [[ "$juliaup_was_present" -eq 1 ]]; then
+        log_info "juliaup was already installed; run setup manually if needed: ${setup_script:-}"
+        return 0
+    fi
+
+    if [[ -n "$setup_script" ]]; then
+        run_julia_setup_script "$setup_script" || true
+    fi
+}
+
 # Portable helper to install a tool via piping curl to bash.
 # Usage: install_via_curl "Name" check_cmd url [post_install_cmd] [installer_args...]
 install_via_curl() {

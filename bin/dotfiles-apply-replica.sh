@@ -94,6 +94,8 @@ ensure_bashrc_source() {
 	local bashrc_path="$HOME/.bashrc"
 	local source_line="source '$HOME/dotfiles/default/dot-bashrc'"
 
+	ensure_basic_bashrc "$bashrc_path"
+
 	# Check if already sourced
 	if grep -qF "$source_line" "$bashrc_path" 2>/dev/null; then
 		log_info "dot-bashrc already sourced in $bashrc_path; skipping"
