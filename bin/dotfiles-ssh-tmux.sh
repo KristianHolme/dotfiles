@@ -44,26 +44,33 @@ echo "   - Will attach to existing tmux session or create new one"
 echo "   - Use Ctrl+D or 'exit' to disconnect"
 echo
 
-# For saga, check if ControlMaster socket exists and start background master if needed
-if [ "$SELECTED" = "saga" ]; then
-    CONTROL_SOCKET="$HOME/.ssh/kholme@saga.sigma2.no:22"
+# Hosts with ControlMaster in ~/.ssh/config: start background master if socket missing/stale
+ensure_ssh_controlmaster() {
+    local host="$1"
+    local control_socket=""
 
-    # Check if socket exists and is valid (not stale)
-    if [ ! -S "$CONTROL_SOCKET" ] || ! ssh -O check saga >/dev/null 2>&1; then
-        echo "🔐 Starting background master connection for saga..."
-        echo "   (This will prompt for 2FA + password once)"
-        # Start background master connection
-        # -fN: go to background after authentication, don't execute remote command
-        # -CX: compression and X11 forwarding
-        # -o ServerAliveInterval=30: keep connection alive
-        if ssh -CX -o ServerAliveInterval=30 -fN saga; then
-            echo "✅ Master connection established"
-        else
-            echo "⚠️  Failed to start master connection, continuing anyway..."
-        fi
-        echo
+    case "$host" in
+    saga) control_socket="$HOME/.ssh/kholme@saga.sigma2.no:22" ;;
+    fox) control_socket="$HOME/.ssh/controlsock-fox.educloud.no-22" ;;
+    *) return 0 ;;
+    esac
+
+    if [[ -S "$control_socket" ]] && ssh -O check "$host" >/dev/null 2>&1; then
+        return 0
     fi
-fi
+
+    echo "🔐 Starting background master connection for $host..."
+    echo "   (This will prompt for 2FA + password once)"
+    # -fN: background after auth, no remote command; -CX: compression + X11
+    if ssh -CX -o ServerAliveInterval=30 -fN "$host"; then
+        echo "✅ Master connection established"
+    else
+        echo "⚠️  Failed to start master connection, continuing anyway..."
+    fi
+    echo
+}
+
+ensure_ssh_controlmaster "$SELECTED"
 
 # Connect with SSH and handle tmux sessions
 # -t forces pseudo-terminal allocation (needed for tmux)
