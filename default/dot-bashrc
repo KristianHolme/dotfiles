@@ -1,12 +1,21 @@
 # If not running interactively, don't do anything (leave this at the top of this file)
 [[ $- != *i* ]] && return
 
-# All the default Omarchy aliases and functions
-# (don't mess with these directly, just overwrite them here!)
-source ~/.local/share/omarchy/default/bash/rc
+# User-local tools (replica hosts may not have omarchy on PATH yet)
+export PATH="$HOME/.local/bin:$HOME/dotfiles/bin:$PATH"
+
+# Omarchy aliases/functions when present (optional on replica servers)
+_omarchy_rc="$HOME/.local/share/omarchy/default/bash/rc"
+if [[ -f "$_omarchy_rc" ]]; then
+    # shellcheck source=/dev/null
+    source "$_omarchy_rc"
+else
+    echo "dot-bashrc: omarchy rc not found at $_omarchy_rc (run dotfiles-apply-replica omarchy step)" >&2
+fi
+unset _omarchy_rc
 
 # Source custom functions
-source ~/dotfiles/default/dot-bashrc-functions
+[[ -f "$HOME/dotfiles/default/dot-bashrc-functions" ]] && source "$HOME/dotfiles/default/dot-bashrc-functions"
 
 # >>> juliaup initialize >>>
 
@@ -42,9 +51,7 @@ alias q='qmd query'
 alias ghd='gh dash'
 alias tvn='nvim "$(tv)"'
 
-export PATH="$HOME/dotfiles/bin:$PATH"
 export PATH="$HOME/.julia/bin:$PATH"
-# export PATH="$HOME/.local/bin:$PATH" #i think omarchy adds this
 
 if [[ "$USER" == "kristian" ]]; then
     # Add dotfiles scripts to PATH
@@ -95,12 +102,16 @@ if [[ -n "$SSH_AUTH_SOCK" ]] && command -v ssh-add &>/dev/null; then
 fi
 
 
-# starship prompt
-eval "$(starship init bash)"
+# starship prompt (omarchy init also runs this when omarchy rc is present)
+if [[ "${TERM:-}" != "dumb" ]] && command -v starship &>/dev/null; then
+    eval "$(starship init bash)"
+fi
 
 [[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
 
-eval "$(tv init bash)"
+if command -v tv &>/dev/null; then
+    eval "$(tv init bash)"
+fi
 
 # zoxide - must be initialized last
 if command -v zoxide &>/dev/null; then

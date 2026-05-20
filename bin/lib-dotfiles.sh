@@ -117,6 +117,32 @@ esac
 EOF
 }
 
+# Ensure login shells (SSH, etc.) load ~/.bashrc — required on many RHEL/university images.
+ensure_bash_profile_sources_bashrc() {
+    local profile_path="${1:-$HOME/.bash_profile}"
+    local bashrc_path="${2:-$HOME/.bashrc}"
+    local source_line="[[ -f $bashrc_path ]] && . $bashrc_path"
+
+    if [[ -f "$profile_path" ]] && grep -qE '(^|\s)(\.|source)\s+.*\.bashrc' "$profile_path" 2>/dev/null; then
+        log_info "$profile_path already sources bashrc; skipping"
+        return 0
+    fi
+
+    if [[ ! -f "$profile_path" ]]; then
+        log_info "Creating $profile_path to source $bashrc_path"
+        cat >"$profile_path" <<EOF
+# ~/.bash_profile: executed by bash(1) for login shells.
+# Created by dotfiles (ensure_bash_profile_sources_bashrc)
+
+$source_line
+EOF
+        return 0
+    fi
+
+    log_info "Adding bashrc source to $profile_path"
+    printf '\n# Load interactive settings (added by dotfiles)\n%s\n' "$source_line" >>"$profile_path"
+}
+
 # Prepend juliaup/julia bin dirs without sourcing bashrc (non-interactive scripts return early).
 refresh_julia_path() {
     local dir

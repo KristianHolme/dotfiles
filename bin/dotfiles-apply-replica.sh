@@ -95,6 +95,7 @@ ensure_bashrc_source() {
 	local source_line="source '$HOME/dotfiles/default/dot-bashrc'"
 
 	ensure_basic_bashrc "$bashrc_path"
+	ensure_bash_profile_sources_bashrc "$HOME/.bash_profile" "$bashrc_path"
 
 	# Check if already sourced
 	if grep -qF "$source_line" "$bashrc_path" 2>/dev/null; then
@@ -249,7 +250,7 @@ EOF
 	ensure_cmds_for_selection "$REPLICA_SELECTION"
 	run_selected_steps "$REPLICA_SELECTION"
 
-	log_info "Done. Restart your shell or: source ~/.bashrc"
+	log_info "Done. Restart your shell or: source ~/.bash_profile"
 }
 
 main "$@"
