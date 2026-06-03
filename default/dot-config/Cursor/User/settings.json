@@ -1,7 +1,13 @@
 {
   "window.commandCenter": true,
   "cursor.composer.shouldChimeAfterChatFinishes": true,
-  "terminal.integrated.commandsToSkipShell": ["language-julia.interrupt"],
+  "terminal.integrated.commandsToSkipShell": [
+    "language-julia.interrupt",
+    "workbench.action.terminal.focus",
+    "workbench.action.focusActiveEditorGroup",
+    "workbench.action.terminal.toggleTerminal"
+  ],
+  "terminal.integrated.focusAfterOpen": false,
   "julia.symbolCacheDownload": true,
   "julia.enableCrashReporter": true,
   "julia.numTestProcesses": 6,
