@@ -76,7 +76,7 @@
   },
   {
     "key": "ctrl+b",
-    "command": "workbench.action.toggleUnifiedSidebarFromKeyboard",
-    "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && !isAuxiliaryWindowFocusedContext"
+    "command": "workbench.action.toggleSidebarVisibility",
+    "when": "editorTextFocus && neovim.init && neovim.mode != 'insert'"
   }
 ]
