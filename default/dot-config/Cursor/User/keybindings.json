@@ -68,5 +68,15 @@
     "key": "ctrl+alt+s",
     "command": "workbench.action.toggleUnifiedSidebarFromKeyboard",
     "when": "!isAuxiliaryWindowFocusedContext"
+  },
+  {
+    "key": "ctrl+b",
+    "command": "-vscode-neovim.ctrl-b",
+    "when": "editorTextFocus && neovim.ctrlKeysNormal.b && neovim.init && neovim.mode != 'insert' && editorLangId not in 'neovim.editorLangIdExclusions'"
+  },
+  {
+    "key": "ctrl+b",
+    "command": "workbench.action.toggleUnifiedSidebarFromKeyboard",
+    "when": "editorTextFocus && neovim.init && neovim.mode != 'insert' && !isAuxiliaryWindowFocusedContext"
   }
 ]
