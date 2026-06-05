@@ -17,19 +17,7 @@ unset _omarchy_rc
 # Source custom functions
 [[ -f "$HOME/dotfiles/default/dot-bashrc-functions" ]] && source "$HOME/dotfiles/default/dot-bashrc-functions"
 
-# >>> juliaup initialize >>>
 
-# !! Contents within this block are managed by juliaup !!
-
-case ":$PATH:" in
-*:$HOME/.juliaup/bin:*) ;;
-
-*)
-    export PATH=$HOME/.juliaup/bin${PATH:+:${PATH}}
-    ;;
-esac
-
-# <<< juliaup initialize <<<
 
 # Aliases
 alias j='julia'
@@ -112,6 +100,24 @@ fi
 if command -v tv &>/dev/null; then
     eval "$(tv init bash)"
 fi
+
+
+# >>> juliaup initialize >>>
+
+# !! Contents within this block are managed by juliaup !!
+
+case ":$PATH:" in
+    *:/home/kristian/.juliaup/bin:*)
+        ;;
+
+    *)
+        export PATH=/home/kristian/.juliaup/bin${PATH:+:${PATH}}
+        ;;
+esac
+# Tab completion for juliaup and julia channel selection
+[ -f "/home/kristian/.julia/juliaup/completions/bash.sh" ] && source "/home/kristian/.julia/juliaup/completions/bash.sh"
+
+# <<< juliaup initialize <<<
 
 # zoxide - must be initialized last
 if command -v zoxide &>/dev/null; then
