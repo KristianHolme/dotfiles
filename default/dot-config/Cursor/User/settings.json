@@ -44,10 +44,11 @@
     "files.eol": "\n"
   },
   "remote.SSH.remotePlatform": {
-    "bengal": "linux"
+    "bengal": "linux",
+    "ml7": "linux"
   },
   "python.terminal.activateEnvironment": false,
-  "workbench.colorTheme": "Tokyo Night",
+  "workbench.colorTheme": "flexoki-dark",
   "remote.autoForwardPortsSource": "hybrid",
   "git.suggestSmartCommit": false,
   "editor.cursorSurroundingLines": 8,
@@ -63,6 +64,8 @@
     "path": "/home/kristian/.julia/bin/jetls",
     "threads": "auto"
   },
-  "terminal.integrated.scrollback": 10000
+  "terminal.integrated.scrollback": 10000,
+  "workbench.navigationControl.enabled": false,
+  "window.titleBarStyle": "native"
 }
 
