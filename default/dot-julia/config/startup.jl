@@ -24,7 +24,7 @@ end
 # end
 
 
-local_file = joinpath(
+const local_file = joinpath(
     homedir(), "dotfiles", "default", "dot-julia",
     "config", "local_startup.jl"
 )
