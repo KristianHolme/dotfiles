@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 # Applies omarchy-tweaks configs for university servers:
 # - Stows default/dot-config into ~/.config (nvim, tmux, starship, hypr, etc.)
+# - Stows default/dot-agents into ~/.agents (skills, commands)
 # - Creates symlink for Julia config (~/.julia/config)
 # - Adds source line to server's ~/.bashrc for our dot-bashrc (idempotent)
 # - Ensures omarchy repo is cloned/updated first
@@ -22,6 +23,7 @@ OMARCHY_REPO_URL="${OMARCHY_REPO_URL:-https://github.com/basecamp/omarchy}"
 TASK_OMARCHY="Clone or update omarchy"
 TASK_JULIA_CONFIG="Symlink Julia config (~/.julia/config)"
 TASK_STOW="Stow dot-config into ~/.config"
+TASK_STOW_AGENTS="Stow dot-agents into ~/.agents"
 TASK_TMUX_LEGACY="Remove legacy ~/.tmux.conf symlink"
 TASK_BASHRC="Add dot-bashrc source to ~/.bashrc"
 
@@ -29,6 +31,7 @@ MENU_OPTIONS=(
 	"$TASK_OMARCHY"
 	"$TASK_JULIA_CONFIG"
 	"$TASK_STOW"
+	"$TASK_STOW_AGENTS"
 	"$TASK_TMUX_LEGACY"
 	"$TASK_BASHRC"
 )
@@ -69,6 +72,33 @@ stow_dot_config_into_xdg() {
 			log_success "Stowed dot-config into ~/.config"
 		else
 			log_error "Failed to stow dot-config"
+			cd "$original_pwd" || true
+			return 1
+		fi
+	fi
+
+	cd "$original_pwd" || true
+}
+
+# Stow default/dot-agents into ~/.agents (--adopt helps merge existing plain files).
+stow_dot_agents_into_home() {
+	local dotfiles_dir="$HOME/dotfiles"
+	local original_pwd="$PWD"
+
+	cd "$dotfiles_dir" || {
+		log_error "Failed to cd to $dotfiles_dir"
+		return 1
+	}
+
+	log_info "Stowing default/dot-agents into \$HOME/.agents (first with --adopt if existing files conflict)..."
+	if stow -d default -t "$HOME" --dotfiles -S dot-agents --adopt -v; then
+		log_success "Stowed dot-agents into ~/.agents"
+	else
+		log_warning "Stow with --adopt failed; retrying without --adopt"
+		if stow -d default -t "$HOME" --dotfiles -S dot-agents -v; then
+			log_success "Stowed dot-agents into ~/.agents"
+		else
+			log_error "Failed to stow dot-agents"
 			cd "$original_pwd" || true
 			return 1
 		fi
@@ -120,7 +150,7 @@ ensure_cmds_for_selection() {
 	if task_is_selected "$TASK_OMARCHY" "$selection"; then
 		cmds+=(git)
 	fi
-	if task_is_selected "$TASK_STOW" "$selection"; then
+	if task_is_selected "$TASK_STOW" "$selection" || task_is_selected "$TASK_STOW_AGENTS" "$selection"; then
 		cmds+=(stow)
 	fi
 
@@ -186,6 +216,13 @@ run_selected_steps() {
 	if task_is_selected "$TASK_STOW" "$selection"; then
 		stow_dot_config_into_xdg || {
 			log_error "dot-config stow failed; aborting"
+			exit 1
+		}
+	fi
+
+	if task_is_selected "$TASK_STOW_AGENTS" "$selection"; then
+		stow_dot_agents_into_home || {
+			log_error "dot-agents stow failed; aborting"
 			exit 1
 		}
 	fi
