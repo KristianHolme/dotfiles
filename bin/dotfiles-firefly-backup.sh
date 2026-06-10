@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
 # Firefly III backup script
@@ -7,8 +7,8 @@ set -Eeuo pipefail
 # Usage: dotfiles-firefly-backup.sh [DEST_DIR]
 # - If DEST_DIR not provided, defaults to ~/Firefly3/backup/<timestamp>
 
-log() { echo -e "[firefly-backup] $*"; }
-err() { echo -e "[firefly-backup][ERROR] $*" >&2; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib-dotfiles.sh"
 
 timestamp() { date +"%Y%m%d-%H%M%S"; }
 
@@ -42,22 +42,16 @@ else
 fi
 mkdir -p "$DEST_DIR"
 
-require() { command -v "$1" >/dev/null 2>&1 || {
-    err "Missing command: $1"
-    exit 1
-}; }
-
-require docker
-require tar
+ensure_cmd docker tar
 
 if [[ ! -f "$COMPOSE_FILE" ]]; then
-    err "Compose file not found: $COMPOSE_FILE"
+    log_error "Compose file not found: $COMPOSE_FILE"
     exit 1
 fi
 
 # Load DB credentials from .db.env (compose uses this file)
 if [[ ! -f "$DB_ENV_FILE" ]]; then
-    err "DB env file not found: $DB_ENV_FILE"
+    log_error "DB env file not found: $DB_ENV_FILE"
     exit 1
 fi
 # shellcheck disable=SC1090
@@ -68,19 +62,19 @@ DB_USER="${MYSQL_USER:-firefly}"
 DB_NAME="${MYSQL_DATABASE:-firefly}"
 DB_PASS="${MYSQL_PASSWORD:-}"
 if [[ -z "$DB_PASS" ]]; then
-    err "MYSQL_PASSWORD not set in $DB_ENV_FILE"
+    log_error "MYSQL_PASSWORD not set in $DB_ENV_FILE"
     exit 1
 fi
 
-log "Backing up Firefly3 files from $FIRE3_HOME → $DEST_DIR"
+log_info "Backing up Firefly3 files from $FIRE3_HOME → $DEST_DIR"
 
 # Create configs tarball (exclude backup dir itself)
 tar --exclude "backup" -C "$FIRE3_HOME" -czf "$DEST_DIR/firefly3_files.tgz" .
 
 # Dump database
 DB_DUMP="$DEST_DIR/firefly_db.sql"
-log "Dumping database $DB_NAME from container $CONTAINER_DB"
+log_info "Dumping database $DB_NAME from container $CONTAINER_DB"
 docker exec "$CONTAINER_DB" mariadb-dump -u"$DB_USER" --password="$DB_PASS" "$DB_NAME" >"$DB_DUMP"
 
-log "Backup completed at $DEST_DIR"
+log_success "Backup completed at $DEST_DIR"
 echo "$DEST_DIR"

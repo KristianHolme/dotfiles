@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # General script to sync directories from remote machines to local machine
 # Usage: ./dotfiles-rsync-ssh.sh [--source-dir DIR] [--target-dir DIR]
 # Allows interactive selection of machine and multiple directories using gum
 
-set -e # Exit on any error
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
         echo "General script to sync directories from remote machines to local machine"
         echo
         echo "Options:"
-        echo "  -s, --source-dir DIR   Remote source directory (default: ~/Code/DRL_RDE/data/studies)"
+        echo "  -s, --source-dir DIR   Remote source directory (default: ~/Code/)"
         echo "  -t, --target-dir DIR   Local target directory (default: same as source directory)"
         echo "                     Path is relative to home directory"
         echo "  --no-delete          Do not delete files in destination that don't exist in source"
@@ -245,7 +245,7 @@ done <<<"$SIZE_OUTPUT"
 echo
 echo "📦 Selected directories:"
 for directory in "${FILTERED_DIRECTORIES[@]}"; do
-    dir_size="${DIR_SIZES["$directory"]}"
+    dir_size="${DIR_SIZES["$directory"]:-?}"
     echo "   $directory ($dir_size)"
 done
 echo
@@ -290,7 +290,7 @@ for directory in "${FILTERED_DIRECTORIES[@]}"; do
     DEST="${TARGET_DIR_EXPANDED}/${directory}"
 
     echo
-    dir_size="${DIR_SIZES["$directory"]}"
+    dir_size="${DIR_SIZES["$directory"]:-?}"
     echo "📂 [$CURRENT_DIR/$DIRECTORY_COUNT] Syncing: $directory ($dir_size)"
     echo "   From: $SOURCE"
     echo "   To: $DEST"

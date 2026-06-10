@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Simple LaTeX Project Initialization Script
 # Creates basic LaTeX projects from templates/latex/*_template/

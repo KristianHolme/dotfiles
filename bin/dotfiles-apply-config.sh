@@ -1,19 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Simple Omarchy Tweaks Application Script
-# Copies config files from dotfiles to system locations
+# Apply dotfiles with GNU Stow: default package to ~, then optional profile overlay
 
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
 
-# Script lives in bin/, configs live one directory up in ../config
-CONFIG_SOURCE="$(realpath "$SCRIPT_DIR/../config")"
-TARGET_CONFIG="$HOME/.config"
 TARGET_HOME="$HOME"
 
-# Colors for output
 # Simple function to unstow any existing profile packages at repo root
 unstow_all_profiles() {
 	local packages_dir="$1"
@@ -136,12 +131,9 @@ apply_configs() {
 	log_success "Configuration linking completed"
 }
 
-# Removed bashrc manual sourcing; handled by Stow 'home' package
-
-# Link agent skills/commands to Cursor and OpenCode config directories
-# Skills and commands are stored in ~/.agents/ (via stow from dot-agents/)
-# Both Cursor and OpenCode support ~/.agents/skills/ natively for skills
-# Commands need symlinks since OpenCode only supports ~/.config/opencode/commands/
+# Link agent skills/commands to Cursor and OpenCode config directories.
+# Skills and commands are stored in ~/.agents/ (via stow from dot-agents/).
+# OpenCode reads ~/.agents/skills/ natively; everything else needs symlinks.
 link_agent_configs() {
 	local agents_dir="$HOME/.agents"
 
@@ -152,50 +144,9 @@ link_agent_configs() {
 	fi
 
 	log_info "Linking agent skills/commands to Cursor and OpenCode..."
-
-	# Cursor: symlink skills and commands from ~/.agents
-	local cursor_dir="$HOME/.cursor"
-	mkdir -p "$cursor_dir"
-
-	# Link skills to Cursor
-	if [[ -d "$agents_dir/skills" ]]; then
-		if [[ -L "$cursor_dir/skills" ]]; then
-			rm "$cursor_dir/skills"
-		elif [[ -d "$cursor_dir/skills" ]]; then
-			log_warning "~/.cursor/skills is a directory, backing up to ~/.cursor/skills.bak"
-			mv "$cursor_dir/skills" "$cursor_dir/skills.bak"
-		fi
-		ln -s "$agents_dir/skills" "$cursor_dir/skills"
-		log_success "Linked ~/.cursor/skills -> ~/.agents/skills"
-	fi
-
-	# Link commands to Cursor
-	if [[ -d "$agents_dir/commands" ]]; then
-		if [[ -L "$cursor_dir/commands" ]]; then
-			rm "$cursor_dir/commands"
-		elif [[ -d "$cursor_dir/commands" ]]; then
-			log_warning "~/.cursor/commands is a directory, backing up to ~/.cursor/commands.bak"
-			mv "$cursor_dir/commands" "$cursor_dir/commands.bak"
-		fi
-		ln -s "$agents_dir/commands" "$cursor_dir/commands"
-		log_success "Linked ~/.cursor/commands -> ~/.agents/commands"
-	fi
-
-	# OpenCode: symlink commands from ~/.agents
-	# Note: OpenCode supports ~/.agents/skills/ natively, no symlink needed for skills
-	local opencode_dir="$HOME/.config/opencode"
-	mkdir -p "$opencode_dir"
-
-	if [[ -d "$agents_dir/commands" ]]; then
-		if [[ -L "$opencode_dir/commands" ]]; then
-			rm "$opencode_dir/commands"
-		elif [[ -d "$opencode_dir/commands" ]]; then
-			log_warning "~/.config/opencode/commands is a directory, backing up"
-			mv "$opencode_dir/commands" "$opencode_dir/commands.bak"
-		fi
-		ln -s "$agents_dir/commands" "$opencode_dir/commands"
-		log_success "Linked ~/.config/opencode/commands -> ~/.agents/commands"
-	fi
+	create_symlink_with_backup "$agents_dir/skills" "$HOME/.cursor/skills" "Cursor skills"
+	create_symlink_with_backup "$agents_dir/commands" "$HOME/.cursor/commands" "Cursor commands"
+	create_symlink_with_backup "$agents_dir/commands" "$HOME/.config/opencode/commands" "OpenCode commands"
 }
 
 # Check for blank monitors (0x0 resolution) and fix them
@@ -243,76 +194,49 @@ check_and_fix_monitors() {
 	fi
 }
 
+# Post-reload fixups: blank-monitor recovery and waybar restart.
+# Waybar queries monitors at startup, so wait for them to be ready first.
+post_reload_fixups() {
+	sleep 0.5
+	check_and_fix_monitors || true
+
+	if command -v omarchy-restart-waybar &>/dev/null; then
+		log_info "Restarting waybar to ensure it appears on all monitors..."
+		sleep 2
+		omarchy-restart-waybar >/dev/null 2>&1 || true
+		sleep 1
+	fi
+}
+
 # Reload hyprland
 reload_hyprland() {
-	if command -v hyprctl &>/dev/null; then
-		# When switching profiles, workspace bindings to non-existent monitors can cause issues.
-		# Hyprland should handle this gracefully, but we ensure a clean reload.
-		log_info "Reloading Hyprland configuration..."
-
-		# Reload configuration - capture both stdout and stderr to check for issues
-		local reload_output
-		reload_output=$(hyprctl reload 2>&1)
-		local reload_status=$?
-
-		if [[ $reload_status -eq 0 ]]; then
-			# Check for warnings about workspace/monitor bindings in the output
-			# These are often non-fatal when switching profiles
-			if echo "$reload_output" | grep -qiE "(workspace.*monitor|monitor.*not found|monitor.*does not exist)"; then
-				log_info "Note: Some workspace bindings reference monitors that may not be available"
-				log_info "This is normal when switching profiles - workspaces will use available monitors"
-			fi
-
-			# Wait a moment for monitors to initialize, then check for blank monitors
-			sleep 0.5
-			check_and_fix_monitors || true
-
-			# Restart waybar after monitor configuration changes to ensure it appears on all monitors
-			# Wait a bit longer for monitors to be fully initialized before restarting waybar
-			# Waybar queries monitors at startup, so we need to ensure all monitors are ready
-			if command -v omarchy-restart-waybar &>/dev/null; then
-				log_info "Restarting waybar to ensure it appears on all monitors..."
-				# Wait longer to ensure monitors are fully initialized
-				sleep 2
-				omarchy-restart-waybar >/dev/null 2>&1 || true
-				# Give waybar time to detect all monitors
-				sleep 1
-			fi
-
-			log_success "Reloaded Hyprland configuration"
-		else
-			# Check if it's warnings about missing monitors (common when switching profiles)
-			if echo "$reload_output" | grep -qiE "(workspace|monitor)" && echo "$reload_output" | grep -qiE "(not found|does not exist|ignored|warning)"; then
-				log_warning "Hyprland reloaded with warnings about workspace/monitor bindings"
-				log_info "This is normal when switching profiles with different monitor setups"
-
-				# Still check for blank monitors
-				sleep 0.5
-				check_and_fix_monitors || true
-
-				# Restart waybar after monitor configuration changes
-				# Wait a bit longer for monitors to be fully initialized before restarting waybar
-				# Waybar queries monitors at startup, so we need to ensure all monitors are ready
-				if command -v omarchy-restart-waybar &>/dev/null; then
-					log_info "Restarting waybar to ensure it appears on all monitors..."
-					# Wait longer to ensure monitors are fully initialized
-					sleep 2
-					omarchy-restart-waybar >/dev/null 2>&1 || true
-					# Give waybar time to detect all monitors
-					sleep 1
-				fi
-
-				log_success "Configuration applied successfully"
-			else
-				log_warning "Hyprland reload failed:"
-				echo "$reload_output" | head -10
-				log_info "Tip: If workspace bindings are causing issues, try moving workspaces manually"
-				return 1
-			fi
-		fi
-	else
+	if ! command -v hyprctl &>/dev/null; then
 		log_warning "hyprctl not found. Please reload Hyprland manually."
+		return 0
 	fi
+
+	log_info "Reloading Hyprland configuration..."
+	local reload_output reload_status
+	set +e
+	reload_output=$(hyprctl reload 2>&1)
+	reload_status=$?
+	set -e
+
+	if [[ $reload_status -ne 0 ]]; then
+		# Workspace/monitor binding warnings are expected when switching profiles
+		# with different monitor setups; anything else is a real failure.
+		if echo "$reload_output" | grep -qiE "(workspace|monitor)" && echo "$reload_output" | grep -qiE "(not found|does not exist|ignored|warning)"; then
+			log_warning "Hyprland reloaded with warnings about workspace/monitor bindings (normal when switching profiles)"
+		else
+			log_warning "Hyprland reload failed:"
+			echo "$reload_output" | head -10
+			log_info "Tip: If workspace bindings are causing issues, try moving workspaces manually"
+			return 1
+		fi
+	fi
+
+	post_reload_fixups
+	log_success "Reloaded Hyprland configuration"
 }
 
 main() {

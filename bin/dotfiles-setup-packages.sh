@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
 # Omarchy prune/install script
@@ -7,36 +7,22 @@ set -Eeuo pipefail
 # - Refreshes application launchers
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib-dotfiles.sh"
+source "$SCRIPT_DIR/lib-install.sh"
 
 PACKAGE_LISTS_DIR="$SCRIPT_DIR/package-lists"
 
 OMARCHY_BIN="$HOME/.local/share/omarchy/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
 
-# Read a list file: one entry per line; skip empty lines and lines whose first non-whitespace char is #.
-# Second argument is the name of a function invoked once per line: fn "$line"
-read_list_file() {
-    local file="$1"
-    local fn="$2"
-    if [[ ! -f "$file" ]]; then
-        log_error "Missing package list: $file"
-        exit 1
-    fi
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        [[ -z "${line// /}" ]] && continue
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        "$fn" "$line"
-    done <"$file"
-}
-
-# Print one installable package name per line (same skip rules as read_list_file).
-list_packages_from_file() {
+# Print one entry per line from a list file; skip empty lines and lines whose
+# first non-whitespace char is #.
+list_from_file() {
     local file="$1"
     if [[ ! -f "$file" ]]; then
         log_error "Missing package list: $file"
         exit 1
     fi
+    local line
     while IFS= read -r line || [[ -n "$line" ]]; do
         [[ -z "${line// /}" ]] && continue
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
@@ -124,17 +110,6 @@ refresh_latex_database() {
         mktexlsr "$HOME/texmf" || log_warning "Warning: Could not refresh LaTeX file database"
     else
         log_info "mktexlsr not found; skipping LaTeX database refresh"
-    fi
-}
-
-setup_tmux_tpm() {
-    # Setup tmux plugin manager (tpm)
-    if [ ! -d "$HOME/.config/tmux/plugins/tpm" ]; then
-        log_info "Installing tmux plugin manager..."
-        mkdir -p "$HOME/.tmux/plugins"
-        git clone https://github.com/tmux-plugins/tpm "$HOME/.config/tmux/plugins/tpm"
-    else
-        log_info "tpm already installed at $HOME/.config/tmux/plugins/tpm; skipping clone"
     fi
 }
 
@@ -298,7 +273,7 @@ install_packages_from_gum() {
     local -a pkg_lines=()
     local selected
 
-    mapfile -t pkg_lines < <(list_packages_from_file "$list_file")
+    mapfile -t pkg_lines < <(list_from_file "$list_file")
     if [[ ${#pkg_lines[@]} -eq 0 ]]; then
         log_warning "No packages listed in $list_file; skipping installs."
         return 0
@@ -322,11 +297,17 @@ install_packages_from_gum() {
 }
 
 step_remove_webapps() {
-    read_list_file "$PACKAGE_LISTS_DIR/webapps-remove.txt" remove_webapp
+    local name
+    while IFS= read -r name; do
+        remove_webapp "$name"
+    done < <(list_from_file "$PACKAGE_LISTS_DIR/webapps-remove.txt")
 }
 
 step_remove_packages() {
-    read_list_file "$PACKAGE_LISTS_DIR/packages-remove.txt" remove_pkg
+    local pkg
+    while IFS= read -r pkg; do
+        remove_pkg "$pkg"
+    done < <(list_from_file "$PACKAGE_LISTS_DIR/packages-remove.txt")
 }
 
 step_install_node() {
@@ -335,7 +316,10 @@ step_install_node() {
 
 step_install_packages() {
     if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]]; then
-        read_list_file "$PACKAGE_LISTS_DIR/packages-install.txt" install_pkg
+        local pkg
+        while IFS= read -r pkg; do
+            install_pkg "$pkg"
+        done < <(list_from_file "$PACKAGE_LISTS_DIR/packages-install.txt")
     else
         install_packages_from_gum || return 1
     fi
@@ -370,7 +354,7 @@ step_latex_templates() {
 }
 
 step_setup_tmux_tpm() {
-    setup_tmux_tpm
+    install_tpm
 }
 
 step_setup_tailscale() {

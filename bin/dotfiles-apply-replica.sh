@@ -14,7 +14,7 @@ set -Eeuo pipefail
 #   DOTFILES_REPLICA_ALL - if set to 1, same as --all (skip menu)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib-dotfiles.sh"
+source "$SCRIPT_DIR/lib-install.sh"
 
 OMARCHY_DIR="${OMARCHY_DIR:-"$HOME/.local/share/omarchy"}"
 OMARCHY_REPO_URL="${OMARCHY_REPO_URL:-https://github.com/basecamp/omarchy}"
@@ -24,7 +24,6 @@ TASK_OMARCHY="Clone or update omarchy"
 TASK_JULIA_CONFIG="Symlink Julia config (~/.julia/config)"
 TASK_STOW="Stow dot-config into ~/.config"
 TASK_STOW_AGENTS="Stow dot-agents into ~/.agents"
-TASK_TMUX_LEGACY="Remove legacy ~/.tmux.conf symlink"
 TASK_BASHRC="Add dot-bashrc source to ~/.bashrc"
 
 MENU_OPTIONS=(
@@ -32,7 +31,6 @@ MENU_OPTIONS=(
 	"$TASK_JULIA_CONFIG"
 	"$TASK_STOW"
 	"$TASK_STOW_AGENTS"
-	"$TASK_TMUX_LEGACY"
 	"$TASK_BASHRC"
 )
 
@@ -53,92 +51,31 @@ setup_julia_config() {
 	create_symlink_with_backup "$julia_config_source" "$julia_config_target" "Julia config"
 }
 
-# Stow the whole default/dot-config tree into ~/.config (--adopt helps merge existing plain files).
-stow_dot_config_into_xdg() {
-	local dotfiles_dir="$HOME/dotfiles"
-	local original_pwd="$PWD"
+# Stow a package from default/ into a target directory (--adopt helps merge
+# existing plain files; on failure retries without --adopt).
+# Note for dot-agents: target must be ~/.agents, not ~ (GNU stow does not map
+# the package name to .agents).
+stow_replica_package() {
+	local package="$1"
+	local target="$2"
+	local stow_dir="$HOME/dotfiles/default"
 
-	cd "$dotfiles_dir" || {
-		log_error "Failed to cd to $dotfiles_dir"
-		return 1
-	}
+	mkdir -p "$target"
 
-	log_info "Stowing default/dot-config into \$HOME/.config (first with --adopt if existing files conflict)..."
-	if stow -d default -t "$HOME/.config" --dotfiles -S dot-config --adopt -v; then
-		log_success "Stowed dot-config into ~/.config"
-	else
-		log_warning "Stow with --adopt failed; retrying without --adopt"
-		if stow -d default -t "$HOME/.config" --dotfiles -S dot-config -v; then
-			log_success "Stowed dot-config into ~/.config"
-		else
-			log_error "Failed to stow dot-config"
-			cd "$original_pwd" || true
-			return 1
-		fi
+	log_info "Stowing default/$package into $target (first with --adopt if existing files conflict)..."
+	if stow -d "$stow_dir" -t "$target" --dotfiles -S "$package" --adopt -v; then
+		log_success "Stowed $package into $target"
+		return 0
 	fi
 
-	cd "$original_pwd" || true
-}
-
-# Stow default/dot-agents into ~/.agents (--adopt helps merge existing plain files).
-# Target must be ~/.agents, not ~: stowing package dot-agents to $HOME only links
-# skills/ and commands/ at $HOME root (GNU stow does not map the package name to .agents).
-stow_dot_agents_into_home() {
-	local dotfiles_dir="$HOME/dotfiles"
-	local agents_target="$HOME/.agents"
-	local original_pwd="$PWD"
-
-	cd "$dotfiles_dir" || {
-		log_error "Failed to cd to $dotfiles_dir"
-		return 1
-	}
-
-	mkdir -p "$agents_target"
-
-	log_info "Stowing default/dot-agents into \$HOME/.agents (first with --adopt if existing files conflict)..."
-	if stow -d default -t "$agents_target" --dotfiles -S dot-agents --adopt -v; then
-		log_success "Stowed dot-agents into ~/.agents"
-	else
-		log_warning "Stow with --adopt failed; retrying without --adopt"
-		if stow -d default -t "$agents_target" --dotfiles -S dot-agents -v; then
-			log_success "Stowed dot-agents into ~/.agents"
-		else
-			log_error "Failed to stow dot-agents"
-			cd "$original_pwd" || true
-			return 1
-		fi
+	log_warning "Stow with --adopt failed; retrying without --adopt"
+	if stow -d "$stow_dir" -t "$target" --dotfiles -S "$package" -v; then
+		log_success "Stowed $package into $target"
+		return 0
 	fi
 
-	cd "$original_pwd" || true
-}
-
-# Earlier replica runs stowed dot-agents to $HOME; remove only our mistaken top-level symlinks.
-remove_legacy_home_agents_symlinks() {
-	local dotfiles_dir="$HOME/dotfiles"
-	local repo_agents="$dotfiles_dir/default/dot-agents"
-	local name legacy
-
-	for name in skills commands; do
-		legacy="$HOME/$name"
-		[[ -L "$legacy" ]] || continue
-		if [[ "$(realpath "$legacy" 2>/dev/null)" == "$(realpath "$repo_agents/$name" 2>/dev/null)" ]]; then
-			log_info "Removing legacy ~/$name (agent files belong under ~/.agents/$name)"
-			rm "$legacy"
-		fi
-	done
-}
-
-# tmux reads ~/.tmux.conf before XDG; remove only our old symlink so ~/.config/tmux/tmux.conf wins.
-remove_legacy_home_tmux_conf_symlink() {
-	local legacy="$HOME/.tmux.conf"
-	local xdg_conf="$HOME/.config/tmux/tmux.conf"
-	local repo_conf="$HOME/dotfiles/default/dot-config/tmux/tmux.conf"
-	[[ -e "$xdg_conf" ]] || return 0
-	[[ -L "$legacy" ]] || return 0
-	if [[ "$(realpath "$legacy" 2>/dev/null)" == "$(realpath "$repo_conf" 2>/dev/null)" ]]; then
-		log_info "Removing legacy ~/.tmux.conf (tmux uses ~/.config/tmux/tmux.conf via stow)"
-		rm "$legacy"
-	fi
+	log_error "Failed to stow $package"
+	return 1
 }
 
 ensure_bashrc_source() {
@@ -235,22 +172,17 @@ run_selected_steps() {
 	fi
 
 	if task_is_selected "$TASK_STOW" "$selection"; then
-		stow_dot_config_into_xdg || {
+		stow_replica_package dot-config "$HOME/.config" || {
 			log_error "dot-config stow failed; aborting"
 			exit 1
 		}
 	fi
 
 	if task_is_selected "$TASK_STOW_AGENTS" "$selection"; then
-		stow_dot_agents_into_home || {
+		stow_replica_package dot-agents "$HOME/.agents" || {
 			log_error "dot-agents stow failed; aborting"
 			exit 1
 		}
-		remove_legacy_home_agents_symlinks
-	fi
-
-	if task_is_selected "$TASK_TMUX_LEGACY" "$selection"; then
-		remove_legacy_home_tmux_conf_symlink
 	fi
 
 	if task_is_selected "$TASK_BASHRC" "$selection"; then

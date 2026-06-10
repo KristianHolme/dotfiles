@@ -27,7 +27,7 @@ set -Eeuo pipefail
 #   CURL_TIMEOUT        - timeout for curl operations in seconds (default: 30 for API, 120 for downloads)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib-dotfiles.sh"
+source "$SCRIPT_DIR/lib-install.sh"
 
 INSTALL_DIR="${INSTALL_DIR:-"$HOME/.local/bin"}"
 OMARCHY_DIR="${OMARCHY_DIR:-"$HOME/.local/share/omarchy"}"
@@ -165,26 +165,6 @@ install_lazyvim() {
         log_info "Run 'nvim' to complete the setup and install plugins"
     else
         log_error "Failed to clone LazyVim starter template"
-        return 1
-    fi
-}
-
-install_tpm() {
-    local tpm_dir="$HOME/.config/tmux/plugins/tpm"
-
-    if [[ -d "$tpm_dir" ]]; then
-        log_info "tmux plugin manager (tpm) already installed; skipping"
-        return 0
-    fi
-
-    log_info "Installing tmux plugin manager (tpm)..."
-
-    mkdir -p "$(dirname "$tpm_dir")"
-
-    if git clone https://github.com/tmux-plugins/tpm "$tpm_dir" >/dev/null 2>&1; then
-        log_success "Installed tmux plugin manager -> $tpm_dir"
-    else
-        log_error "Failed to clone tmux plugin manager"
         return 1
     fi
 }

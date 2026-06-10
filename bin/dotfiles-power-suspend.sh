@@ -1,5 +1,5 @@
-#!/bin/bash
-set -euo pipefail
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
 # Configure power button to suspend instead of shutdown
 # Creates systemd logind drop-in configuration

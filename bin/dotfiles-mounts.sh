@@ -1,17 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # SSHFS Mount Manager - Simple TUI and CLI for managing remote mounts.
 # Filesystem inventory comes from hosts.toml (see bin/lib-hosts.sh). Mounts are
 # managed directly with user-owned sshfs so interactive SSH/MFA flows work.
 
-set -euo pipefail
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
 source "$SCRIPT_DIR/lib-hosts.sh"
-
-SYSTEMD_SYSTEM_DIR="/etc/systemd/system"
-SYSTEMD_LEGACY_USER_DIR="${SYSTEMD_LEGACY_USER_DIR:-$HOME/.config/systemd/user}"
 
 SSHFS_OPTS=(
 	-o reconnect
@@ -21,85 +18,11 @@ SSHFS_OPTS=(
 	-o compression=yes
 )
 
-get_hostname() {
-	hostname | cut -d. -f1
-}
-
-# systemd-escape-derived unit basename for Where= path (paired .mount /.automount).
-unit_mount_for_path() {
-	local local_path="$1"
-	systemd-escape -p --suffix=mount "$local_path"
-}
-
-unit_automount_for_path() {
-	local local_path="$1"
-	systemd-escape -p --suffix=automount "$local_path"
-}
-
-unit_mount_for_key() {
-	local key="$1"
-	local local_path
-	local_path=$(hosts_filesystem_local_path "$key") || return 1
-	unit_mount_for_path "$local_path"
-}
-
-unit_automount_for_key() {
-	local key="$1"
-	local local_path
-	local_path=$(hosts_filesystem_local_path "$key") || return 1
-	unit_automount_for_path "$local_path"
-}
-
-cleanup_legacy_user_unit() {
-	local unit="$1"
-	local legacy="$SYSTEMD_LEGACY_USER_DIR/$unit"
-
-	if [[ -e "$legacy" || -L "$legacy" ]]; then
-		log_info "Cleaning legacy user systemd unit ${unit}"
-		rm -f "$legacy"
-	fi
-	return 0
-}
-
-cleanup_legacy_systemd_units() {
-	local mount_name="$1"
-	local unit_mount unit_auto
-	unit_mount=$(unit_mount_for_key "$mount_name") || return 1
-	unit_auto=$(unit_automount_for_key "$mount_name") || return 1
-
-	cleanup_legacy_user_unit "$unit_mount"
-	cleanup_legacy_user_unit "$unit_auto"
-
-	local path_mount path_auto needs_cleanup=0
-	path_mount="$SYSTEMD_SYSTEM_DIR/$unit_mount"
-	path_auto="$SYSTEMD_SYSTEM_DIR/$unit_auto"
-
-	if [[ -e "$path_mount" || -L "$path_mount" || -e "$path_auto" || -L "$path_auto" ]]; then
-		needs_cleanup=1
-	fi
-	if systemctl is-active "$unit_auto" &>/dev/null || systemctl is-enabled "$unit_auto" &>/dev/null; then
-		needs_cleanup=1
-	fi
-
-	if [[ "$needs_cleanup" -eq 0 ]]; then
-		return 0
-	fi
-
-	log_info "Cleaning legacy systemd units for ${mount_name}"
-	if [[ -e "$path_mount" || -L "$path_mount" || -e "$path_auto" || -L "$path_auto" ]]; then
-		sudo systemctl stop "$unit_mount" &>/dev/null || true
-	fi
-	sudo systemctl disable --now "$unit_auto" &>/dev/null || true
-	sudo systemctl stop "$unit_auto" &>/dev/null || true
-	sudo rm -f "$path_mount" "$path_auto"
-	sudo systemctl daemon-reload
-}
-
 # List mountable filesystems from hosts.toml, excluding any whose mount-via host
 # matches the local hostname (can't SSH to self).
 list_available_mounts() {
 	local local_host
-	local_host=$(get_hostname)
+	local_host=$(hosts_local_hostname)
 	local key host
 	while IFS= read -r key; do
 		[[ -z "$key" ]] && continue
@@ -124,10 +47,6 @@ is_mount_active() {
 	local local_path
 	local_path=$(hosts_filesystem_local_path "$mount_name") || return 1
 	findmnt --mountpoint "$local_path" &>/dev/null
-}
-
-is_mount_enabled() {
-	is_mount_active "$@"
 }
 
 prepare_mountpoint() {
@@ -176,10 +95,6 @@ do_enable() {
 		return 1
 	fi
 
-	if ! cleanup_legacy_systemd_units "$mount_name"; then
-		return 1
-	fi
-
 	if is_mount_active "$mount_name"; then
 		log_info "${mount_name} is already mounted at ${local_path}"
 		return 0
@@ -203,10 +118,6 @@ do_disable() {
 	local mount_name="$1"
 	local local_path
 	local_path=$(hosts_filesystem_local_path "$mount_name") || return 1
-
-	if ! cleanup_legacy_systemd_units "$mount_name"; then
-		return 1
-	fi
 
 	if ! is_mount_active "$mount_name"; then
 		log_info "$mount_name is already unmounted"
@@ -245,7 +156,7 @@ interactive_tui() {
 		[[ -z "$mount_name" ]] && continue
 
 		local label="$mount_name"
-		if is_mount_enabled "$mount_name"; then
+		if is_mount_active "$mount_name"; then
 			label="$mount_name (mounted)"
 			preselected+=("$label")
 		fi
@@ -278,11 +189,11 @@ interactive_tui() {
 		[[ -z "$mount_name" ]] && continue
 
 		if [[ -n "${want_enabled[$mount_name]:-}" ]]; then
-			if ! is_mount_enabled "$mount_name"; then
+			if ! is_mount_active "$mount_name"; then
 				do_enable "$mount_name" || log_error "Failed to enable $mount_name (continuing)"
 			fi
 		else
-			if is_mount_enabled "$mount_name"; then
+			if is_mount_active "$mount_name"; then
 				do_disable "$mount_name" || log_error "Failed to disable $mount_name (continuing)"
 			fi
 		fi
@@ -333,7 +244,7 @@ Manage SSHFS mounts with interactive TUI or command-line operations. Filesystem
 inventory is read from hosts.toml at the repo root (override with HOSTS_TOML).
 
 Mounts are created directly with sshfs as the current user. sudo is only used
-to prepare /mnt mountpoint directories and clean up old systemd units.
+to prepare /mnt mountpoint directories.
 
 OPTIONS:
     -i, --interactive   Interactive TUI (default when no args)
@@ -354,7 +265,6 @@ NOTES:
     - Must specify mount name(s) with --enable/--disable
     - Same mount in both --enable and --disable is an error
     - Mount entries with TODO placeholders are refused until filled in
-    - Legacy systemd units for the same path are cleaned up automatically
 EOF
 }
 

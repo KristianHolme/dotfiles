@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # OCR a user-selected screen region on Wayland (rectangle via slurp + grim).
 # Saves text under ~/textcapture by default, copies it to the clipboard, and shows

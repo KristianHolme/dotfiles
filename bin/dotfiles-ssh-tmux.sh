@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Simple SSH + tmux connection script
 # Usage: ./dotfiles-ssh-tmux.sh
 # Select a server and connect with automatic tmux session management
 
-set -e # Exit on any error
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
@@ -25,7 +25,7 @@ ensure_cmd gum
 readarray -t SERVERS < <(hosts_all_machines)
 
 # Hide current host from selection
-CURRENT_HOST="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "")"
+CURRENT_HOST="$(hosts_local_hostname)"
 FILTERED=$(printf '%s\n' "${SERVERS[@]}" | awk -v h="$CURRENT_HOST" 'tolower($0)!=tolower(h)')
 
 # Let user choose server with fuzzy finding
@@ -44,18 +44,19 @@ echo "   - Will attach to existing tmux session or create new one"
 echo "   - Use Ctrl+D or 'exit' to disconnect"
 echo
 
-# Hosts with ControlMaster in ~/.ssh/config: start background master if socket missing/stale
+# Hosts with ControlMaster in ~/.ssh/config (detected via ssh -G):
+# start a background master if none is alive yet.
 ensure_ssh_controlmaster() {
-    local host="$1"
-    local control_socket=""
+    local host="$1" cm=""
 
-    case "$host" in
-    saga) control_socket="$HOME/.ssh/kholme@saga.sigma2.no:22" ;;
-    fox) control_socket="$HOME/.ssh/controlsock-fox.educloud.no-22" ;;
+    cm=$(ssh -G "$host" 2>/dev/null | awk '$1 == "controlmaster" { print $2; exit }')
+    case "$cm" in
+    auto | autoask | yes | ask) ;;
     *) return 0 ;;
     esac
 
-    if [[ -S "$control_socket" ]] && ssh -O check "$host" >/dev/null 2>&1; then
+    # ssh -O check is authoritative: master alive means nothing to do
+    if ssh -O check "$host" >/dev/null 2>&1; then
         return 0
     fi
 

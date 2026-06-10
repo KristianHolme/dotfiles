@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
 # SSH setup script
@@ -8,9 +8,6 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib-hosts.sh
 source "$SCRIPT_DIR/lib-hosts.sh"
-
-log() { echo -e "[ssh-setup] $*"; }
-err() { echo -e "[ssh-setup][ERROR] $*" >&2; }
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     cat <<EOF
@@ -32,33 +29,29 @@ PUB_KEY_FILE="$HOME/.ssh/id_ed25519.pub"
 
 # Check if key exists
 if [[ ! -f "$KEY_FILE" ]]; then
-    err "SSH key not found: $KEY_FILE"
-    err "Generate it with: ssh-keygen -t ed25519"
+    log_error "SSH key not found: $KEY_FILE"
+    log_error "Generate it with: ssh-keygen -t ed25519"
     exit 1
 fi
 
 if [[ ! -f "$PUB_KEY_FILE" ]]; then
-    err "Public key not found: $PUB_KEY_FILE"
+    log_error "Public key not found: $PUB_KEY_FILE"
     exit 1
 fi
 
 # Add key to ssh-agent if not already present
 if ! ssh-add -l | grep -q "$(ssh-keygen -lf "$KEY_FILE" | awk '{print $2}')"; then
-    log "Adding SSH key to agent..."
+    log_info "Adding SSH key to agent..."
     ssh-add "$KEY_FILE"
 else
-    log "SSH key already in agent"
+    log_info "SSH key already in agent"
 fi
-
-get_hostname() {
-    hostname | cut -d. -f1
-}
 
 choose_mount_targets() {
     ensure_cmd gum
 
     local local_host key kind host label selected selected_arg
-    local_host="$(get_hostname)"
+    local_host="$(hosts_local_hostname)"
     local options=()
     local preselected=()
     declare -gA TARGET_HOST_BY_LABEL=()
@@ -103,20 +96,19 @@ choose_mount_targets() {
 mapfile -t SERVERS < <(choose_mount_targets)
 
 if [[ ${#SERVERS[@]} -eq 0 ]]; then
-    log "No SSH targets selected"
+    log_info "No SSH targets selected"
     exit 0
 fi
 
-log "Copying SSH key to ${#SERVERS[@]} selected servers from $(hosts_toml_path)..."
+log_info "Copying SSH key to ${#SERVERS[@]} selected servers from $(hosts_toml_path)..."
 
 for server in "${SERVERS[@]}"; do
-    log "Copying to $server..."
+    log_info "Copying to $server..."
     if ssh-copy-id -i "$PUB_KEY_FILE" "$server" 2>/dev/null; then
-        log "✓ Successfully copied to $server"
+        log_success "Copied to $server"
     else
-        err "✗ Failed to copy to $server"
+        log_error "Failed to copy to $server"
     fi
 done
 
-log "SSH setup complete!"
-log "Test with: ssh abacus-as"
+log_success "SSH setup complete! Test with: ssh abacus-as"

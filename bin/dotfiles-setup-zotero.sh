@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
 # Robust Zotero plugin setup script
@@ -22,7 +22,7 @@ set -Eeuo pipefail
 # - arxiv-workflow: arXiv paper workflow (metadata, PDF, versioning); requires Zotero 8+ — https://github.com/AllanChain/zotero-arxiv-workflow
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib-dotfiles.sh"
+source "$SCRIPT_DIR/lib-install.sh"
 
 # Define paths
 PROFILE_DIR="$HOME/Zotero"

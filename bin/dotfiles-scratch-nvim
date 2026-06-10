@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 # Open Neovim in the default terminal on a new timestamped note under ~/quicknotes.
 #

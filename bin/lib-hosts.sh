@@ -31,6 +31,11 @@ if ! command -v ensure_cmd >/dev/null 2>&1; then
     source "$_LIB_HOSTS_DIR/lib-dotfiles.sh"
 fi
 
+# Short local hostname (for filtering self out of host menus).
+hosts_local_hostname() {
+    hostname -s 2>/dev/null || hostname | cut -d. -f1
+}
+
 _HOSTS_TOML_PATH=""
 
 _hosts_resolve() {

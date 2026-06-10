@@ -38,6 +38,7 @@ alias f='spf'
 alias q='qmd query'
 alias ghd='gh dash'
 alias tvn='nvim "$(tv)"'
+alias dotfiles-help='bat ~/dotfiles/README.md'
 
 export PATH="$HOME/.julia/bin:$PATH"
 
