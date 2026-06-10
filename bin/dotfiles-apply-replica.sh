@@ -81,8 +81,11 @@ stow_dot_config_into_xdg() {
 }
 
 # Stow default/dot-agents into ~/.agents (--adopt helps merge existing plain files).
+# Target must be ~/.agents, not ~: stowing package dot-agents to $HOME only links
+# skills/ and commands/ at $HOME root (GNU stow does not map the package name to .agents).
 stow_dot_agents_into_home() {
 	local dotfiles_dir="$HOME/dotfiles"
+	local agents_target="$HOME/.agents"
 	local original_pwd="$PWD"
 
 	cd "$dotfiles_dir" || {
@@ -90,12 +93,14 @@ stow_dot_agents_into_home() {
 		return 1
 	}
 
+	mkdir -p "$agents_target"
+
 	log_info "Stowing default/dot-agents into \$HOME/.agents (first with --adopt if existing files conflict)..."
-	if stow -d default -t "$HOME" --dotfiles -S dot-agents --adopt -v; then
+	if stow -d default -t "$agents_target" --dotfiles -S dot-agents --adopt -v; then
 		log_success "Stowed dot-agents into ~/.agents"
 	else
 		log_warning "Stow with --adopt failed; retrying without --adopt"
-		if stow -d default -t "$HOME" --dotfiles -S dot-agents -v; then
+		if stow -d default -t "$agents_target" --dotfiles -S dot-agents -v; then
 			log_success "Stowed dot-agents into ~/.agents"
 		else
 			log_error "Failed to stow dot-agents"
@@ -105,6 +110,22 @@ stow_dot_agents_into_home() {
 	fi
 
 	cd "$original_pwd" || true
+}
+
+# Earlier replica runs stowed dot-agents to $HOME; remove only our mistaken top-level symlinks.
+remove_legacy_home_agents_symlinks() {
+	local dotfiles_dir="$HOME/dotfiles"
+	local repo_agents="$dotfiles_dir/default/dot-agents"
+	local name legacy
+
+	for name in skills commands; do
+		legacy="$HOME/$name"
+		[[ -L "$legacy" ]] || continue
+		if [[ "$(realpath "$legacy" 2>/dev/null)" == "$(realpath "$repo_agents/$name" 2>/dev/null)" ]]; then
+			log_info "Removing legacy ~/$name (agent files belong under ~/.agents/$name)"
+			rm "$legacy"
+		fi
+	done
 }
 
 # tmux reads ~/.tmux.conf before XDG; remove only our old symlink so ~/.config/tmux/tmux.conf wins.
@@ -225,6 +246,7 @@ run_selected_steps() {
 			log_error "dot-agents stow failed; aborting"
 			exit 1
 		}
+		remove_legacy_home_agents_symlinks
 	fi
 
 	if task_is_selected "$TASK_TMUX_LEGACY" "$selection"; then
