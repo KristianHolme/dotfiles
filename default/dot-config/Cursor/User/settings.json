@@ -66,6 +66,11 @@
   },
   "terminal.integrated.scrollback": 10000,
   "workbench.navigationControl.enabled": false,
-  "window.titleBarStyle": "native"
+  "window.titleBarStyle": "native",
+  "julia.additionalArgs": [],
+  "julia.editor": "nvim",
+  "julia.execution.inlineResultsForCellEvaluation": true,
+  "julia.inlayHints.static.variableTypes.enabled": false,
+  "julia.inlayHints.static.enabled": true
 }
 
