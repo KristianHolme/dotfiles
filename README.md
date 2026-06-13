@@ -65,14 +65,20 @@ juliaup.
 
 ## Host inventory and remote access
 
-Machines, groups, and mountable filesystems are declared once in
+Machines, groups, mountable filesystems, and rsync sync roots are declared once in
 [`hosts.toml`](hosts.toml) and consumed via `bin/lib-hosts.sh` (requires
 `tomlq`). Jump hosts and ControlMaster settings live in `~/.ssh/config`.
+
+**Sync roots** (`[defaults.sync_roots]` plus optional per-machine/group entries)
+map remote `Code` trees to local `~/Code`. Values are path specs relative to
+each entry's `remote_path`, or absolute when they start with `/`. Example:
+fox has both `code` (home-area) and `project` (project-area) roots; both land
+under `~/Code` locally.
 
 | Script | Purpose |
 | --- | --- |
 | `dotfiles-ssh-tmux.sh` (`dst`) | Pick a host with gum, SSH in, attach/create tmux session. Starts a background ControlMaster first for hosts configured with one (2FA hosts). |
-| `dotfiles-rsync-ssh.sh` (`drs`) | Pick host + directories, rsync them locally (delete or merge mode). |
+| `dotfiles-rsync-ssh.sh` (`drs`) | Pick host + sync root, browse remote folders, rsync selections into `~/Code`. Examples: `drs fox DRL_Sphere`, `drs ml3`. Use `--source-dir`/`--target-dir` to bypass sync roots. |
 | `dotfiles-mounts.sh` | SSHFS mount manager (TUI and CLI). Plain user `sshfs` mounts of the filesystems in `hosts.toml`; sudo only to prepare `/mnt` mountpoints. `-l` lists status, `-e`/`-d` enable/disable. |
 | `dotfiles-server-monitor.sh` | tmux session with one `btop` window per selected host; group members preselected. |
 | `dotfiles-setup-ssh.sh` | ssh-copy-id your ed25519 key to one node per mountable filesystem. |

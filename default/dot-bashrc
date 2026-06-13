@@ -14,6 +14,15 @@ else
 fi
 unset _omarchy_rc
 
+# gum colors from Omarchy theme (bin/lib-gum.sh)
+_lib_gum="$HOME/dotfiles/bin/lib-gum.sh"
+if [[ -f "$_lib_gum" ]]; then
+    # shellcheck source=/dev/null
+    source "$_lib_gum"
+    omarchy_gum_env_load
+fi
+unset _lib_gum
+
 # Source custom functions
 [[ -f "$HOME/dotfiles/default/dot-bashrc-functions" ]] && source "$HOME/dotfiles/default/dot-bashrc-functions"
 

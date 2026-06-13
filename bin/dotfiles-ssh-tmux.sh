@@ -44,33 +44,6 @@ echo "   - Will attach to existing tmux session or create new one"
 echo "   - Use Ctrl+D or 'exit' to disconnect"
 echo
 
-# Hosts with ControlMaster in ~/.ssh/config (detected via ssh -G):
-# start a background master if none is alive yet.
-ensure_ssh_controlmaster() {
-    local host="$1" cm=""
-
-    cm=$(ssh -G "$host" 2>/dev/null | awk '$1 == "controlmaster" { print $2; exit }')
-    case "$cm" in
-    auto | autoask | yes | ask) ;;
-    *) return 0 ;;
-    esac
-
-    # ssh -O check is authoritative: master alive means nothing to do
-    if ssh -O check "$host" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    echo "🔐 Starting background master connection for $host..."
-    echo "   (This will prompt for 2FA + password once)"
-    # -fN: background after auth, no remote command; -CX: compression + X11
-    if ssh -CX -o ServerAliveInterval=30 -fN "$host"; then
-        echo "✅ Master connection established"
-    else
-        echo "⚠️  Failed to start master connection, continuing anyway..."
-    fi
-    echo
-}
-
 ensure_ssh_controlmaster "$SELECTED"
 
 # Connect with SSH and handle tmux sessions

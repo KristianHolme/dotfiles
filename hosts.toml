@@ -5,6 +5,9 @@
 # Jump hosts live in ~/.ssh/config (ProxyJump), not here. Every alias used
 # below must resolve via ssh on its own.
 
+[defaults.sync_roots]
+code = "Code"
+
 # ---- Individual SSH aliases. Mount fields => mountable as own filesystem. ----
 
 [machines.sibir]
@@ -33,6 +36,9 @@ local_path = "/mnt/nrec1"
 [machines.fox]
 remote_path = "/fp/homes01/u01/ec-kholme"
 local_path = "/mnt/fox"
+
+[machines.fox.sync_roots]
+project = "/fp/projects01/ec12/ec-kholme/Code"
 
 # ---- Groups: machines sharing a filesystem. mount_via picks the SSH alias. ----
 

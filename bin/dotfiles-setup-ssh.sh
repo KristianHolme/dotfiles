@@ -77,10 +77,13 @@ choose_mount_targets() {
 
     selected_arg=""
     if [[ ${#preselected[@]} -gt 0 ]]; then
-        selected_arg=$(IFS=,; echo "${preselected[*]}")
+        selected_arg=$(
+            IFS=,
+            echo "${preselected[*]}"
+        )
     fi
 
-    gum style --foreground 212 "Choose filesystems whose mount node should receive your SSH key"
+    gum style "Choose filesystems whose mount node should receive your SSH key"
     echo
 
     if ! selected=$(printf '%s\n' "${options[@]}" | gum choose --no-limit --selected-prefix="✓ " --unselected-prefix="  " --cursor-prefix="> " --selected="$selected_arg"); then

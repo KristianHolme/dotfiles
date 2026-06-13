@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# General script to sync directories from remote machines to local machine
-# Usage: ./dotfiles-rsync-ssh.sh [--source-dir DIR] [--target-dir DIR]
-# Allows interactive selection of machine and multiple directories using gum
+# Sync directories from remote machines to ~/Code using hosts.toml sync roots.
+# Usage: ./dotfiles-rsync-ssh.sh [host] [sync-root] [browse-path]
+# Legacy: ./dotfiles-rsync-ssh.sh --source-dir DIR [--target-dir DIR]
 
 set -Eeuo pipefail
 
@@ -10,141 +10,369 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
 source "$SCRIPT_DIR/lib-hosts.sh"
 
-# Default values
+USE_LEGACY=false
 SOURCE_HOST=""
 SOURCE_DIR="~/Code/"
-TARGET_DIR=""     # Will default to SOURCE_DIR if not specified
-DELETE_FILES=true # Use --delete by default to mirror source exactly
+TARGET_DIR=""
+DELETE_FILES=true
+CLI_HOST=""
+CLI_ROOT=""
+CLI_SUBPATH=""
+CLI_ARG2=""
+POSITIONAL=()
 
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-    -s | --source-dir)
-        SOURCE_DIR="$2"
-        shift 2
-        ;;
-    -t | --target-dir)
-        TARGET_DIR="$2"
-        shift 2
-        ;;
-    --no-delete)
-        DELETE_FILES=false
-        shift
-        ;;
-    -h | --help)
-        echo "Usage: $0 [--source-dir DIR] [--target-dir DIR]"
-        echo
-        echo "General script to sync directories from remote machines to local machine"
-        echo
-        echo "Options:"
-        echo "  -s, --source-dir DIR   Remote source directory (default: ~/Code/)"
-        echo "  -t, --target-dir DIR   Local target directory (default: same as source directory)"
-        echo "                     Path is relative to home directory"
-        echo "  --no-delete          Do not delete files in destination that don't exist in source"
-        echo "                     Use this when merging files from multiple machines"
-        echo "  -h, --help         Show this help message"
-        echo
-        echo "Examples:"
-        echo "  $0                                                    # Interactive machine selection, sync studies"
-        echo "  $0 --source-dir ~/Documents --target-dir ~/Backup   # Sync Documents to ~/Backup"
-        echo "  $0 --no-delete                                      # Merge files without deleting"
+DIR_INDEX=()
+BROWSE_ANCHOR_REL=""
+
+ACTION_UP=".."
+ACTION_SYNC_HERE="[Sync this folder]"
+ACTION_PICK_SUBS="[Choose subfolders to sync...]"
+
+normalize_subpath() {
+    local path="$1"
+    path="${path#./}"
+    path="${path%/}"
+    if [[ "$path" == *..* ]]; then
+        echo "❌ Invalid path (.. not allowed): $1" >&2
+        exit 1
+    fi
+    echo "$path"
+}
+
+parse_root_path_arg() {
+    local arg="$1"
+    if [[ "$arg" == *:* ]]; then
+        CLI_ROOT="${arg%%:*}"
+        CLI_SUBPATH="$(normalize_subpath "${arg#*:}")"
+    else
+        CLI_ROOT="$arg"
+    fi
+}
+
+select_host_interactive() {
+    local first_level_options=() selected_first group_name selected_host
+
+    while IFS= read -r group; do
+        [[ -z "$group" ]] && continue
+        first_level_options+=("$group (group)")
+    done < <(hosts_groups)
+    while IFS= read -r machine; do
+        [[ -z "$machine" ]] && continue
+        first_level_options+=("$machine")
+    done < <(hosts_standalone_machines)
+
+    IFS=$'\n' first_level_options=($(printf '%s\n' "${first_level_options[@]}" | sort))
+
+    selected_first=$(printf '%s\n' "${first_level_options[@]}" | gum filter \
+        --header "🔍 Choose a group or machine:" \
+        --placeholder "Type to search..." \
+        --prompt "❯ ")
+
+    if [[ -z "$selected_first" ]]; then
+        echo "❌ No selection made. Exiting."
         exit 0
+    fi
+
+    if [[ "$selected_first" == *" (group)" ]]; then
+        group_name="${selected_first% (group)}"
+        readarray -t machines < <(hosts_group_machines "$group_name")
+        if [[ ${#machines[@]} -eq 0 ]]; then
+            echo "❌ Group '$group_name' has no machines."
+            exit 1
+        fi
+        selected_host=$(printf '%s\n' "${machines[@]}" | gum filter \
+            --header "🔍 Choose a machine from $group_name:" \
+            --placeholder "Type to search machines..." \
+            --prompt "❯ ")
+        if [[ -z "$selected_host" ]]; then
+            echo "❌ No machine selected. Exiting."
+            exit 0
+        fi
+        SOURCE_HOST="$selected_host"
+    else
+        SOURCE_HOST="$selected_first"
+    fi
+}
+
+select_sync_root_interactive() {
+    local fs_kind="$1" fs_key="$2" roots=() selected
+
+    readarray -t roots < <(hosts_sync_root_names "$fs_kind" "$fs_key")
+    if [[ ${#roots[@]} -eq 0 ]]; then
+        echo "❌ No sync roots configured for $SOURCE_HOST (check $(hosts_toml_path))"
+        exit 1
+    fi
+
+    if [[ ${#roots[@]} -eq 1 ]]; then
+        CLI_ROOT="${roots[0]}"
+        return 0
+    fi
+
+    selected=$(printf '%s\n' "${roots[@]}" | gum choose --header "Choose sync root:")
+    if [[ -z "$selected" ]]; then
+        echo "❌ No sync root selected. Exiting."
+        exit 0
+    fi
+    CLI_ROOT="$selected"
+}
+
+resolve_host_context() {
+    local context
+    context="$(hosts_ssh_alias_context "$SOURCE_HOST")" || exit 1
+    IFS=$'\t' read -r FS_KIND FS_KEY FS_REMOTE_PATH FS_LOCAL_PATH <<<"$context"
+}
+
+validate_sync_root() {
+    if [[ -z "$CLI_ROOT" ]]; then
+        return 0
+    fi
+    if ! hosts_sync_root_exists "$CLI_ROOT" "$FS_KIND" "$FS_KEY"; then
+        echo "❌ Unknown sync root '$CLI_ROOT' for $SOURCE_HOST."
+        echo "Available sync roots:"
+        hosts_sync_root_names "$FS_KIND" "$FS_KEY" | sed 's/^/   /'
+        exit 1
+    fi
+}
+
+parse_positionals() {
+    local count=${#POSITIONAL[@]}
+
+    case "$count" in
+    0) ;;
+    1)
+        if hosts_all_machines | grep -qx "${POSITIONAL[0]}"; then
+            CLI_HOST="${POSITIONAL[0]}"
+        elif [[ "${POSITIONAL[0]}" == *:* ]]; then
+            parse_root_path_arg "${POSITIONAL[0]}"
+        else
+            CLI_SUBPATH="$(normalize_subpath "${POSITIONAL[0]}")"
+        fi
+        ;;
+    2)
+        CLI_HOST="${POSITIONAL[0]}"
+        if [[ -z "$CLI_ROOT" ]]; then
+            CLI_ARG2="${POSITIONAL[1]}"
+        else
+            CLI_SUBPATH="$(normalize_subpath "${POSITIONAL[1]}")"
+        fi
+        ;;
+    3)
+        CLI_HOST="${POSITIONAL[0]}"
+        CLI_ROOT="${POSITIONAL[1]}"
+        CLI_SUBPATH="$(normalize_subpath "${POSITIONAL[2]}")"
         ;;
     *)
-        echo "Unknown option: $1"
+        echo "❌ Too many arguments."
         echo "Use --help for usage information"
         exit 1
         ;;
     esac
+}
+
+mount_local_base_for_remote() {
+    if [[ -z "${FS_LOCAL_PATH:-}" || -z "${FS_REMOTE_PATH:-}" ]]; then
+        return 0
+    fi
+    if ! command -v findmnt >/dev/null 2>&1; then
+        return 0
+    fi
+    if ! findmnt --mountpoint "$FS_LOCAL_PATH" &>/dev/null; then
+        return 0
+    fi
+    if [[ "$REMOTE_BASE" == "$FS_REMOTE_PATH" ]]; then
+        echo "$FS_LOCAL_PATH"
+    elif [[ "$REMOTE_BASE" == "$FS_REMOTE_PATH"/* ]]; then
+        echo "$FS_LOCAL_PATH/${REMOTE_BASE#"$FS_REMOTE_PATH"/}"
+    fi
+}
+
+remote_dir_index() {
+    local anchor_rel="$1" mount_local_base="" search_path="" index_output=""
+
+    BROWSE_ANCHOR_REL="$anchor_rel"
+    DIR_INDEX=()
+
+    if [[ -n "$anchor_rel" ]]; then
+        search_path="$REMOTE_BASE/$anchor_rel"
+    else
+        search_path="$REMOTE_BASE"
+    fi
+
+    mount_local_base="$(mount_local_base_for_remote || true)"
+    if [[ -n "$mount_local_base" ]]; then
+        if [[ -n "$anchor_rel" ]]; then
+            search_path="$mount_local_base/$anchor_rel"
+        else
+            search_path="$mount_local_base"
+        fi
+        if [[ ! -d "$search_path" ]]; then
+            echo "❌ Browse path not found: $search_path"
+            exit 1
+        fi
+        while IFS= read -r abs_path; do
+            [[ -z "$abs_path" ]] && continue
+            local rel_path="${abs_path#"$mount_local_base"/}"
+            DIR_INDEX+=("$rel_path")
+        done < <(find "$search_path" -type d | sort)
+    else
+        ensure_ssh_controlmaster "$SOURCE_HOST"
+        if ! ssh "$SOURCE_HOST" test -d "$search_path"; then
+            echo "❌ Remote path not found: $SOURCE_HOST:$search_path"
+            exit 1
+        fi
+        index_output=$(gum spin --spinner dot --title "Indexing remote directories..." -- \
+            ssh "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" "${anchor_rel-}" <<'EOF'
+set -euo pipefail
+remote_base="$1"
+anchor_rel="${2-}"
+search_path="$remote_base"
+if [[ -n "$anchor_rel" ]]; then
+    search_path="${remote_base}/${anchor_rel}"
+fi
+find "$search_path" -type d | sort | while IFS= read -r abs_path; do
+    rel_path="${abs_path#${remote_base}/}"
+    printf '%s\n' "$rel_path"
 done
+EOF
+        )
+        while IFS= read -r rel_path; do
+            [[ -z "$rel_path" ]] && continue
+            DIR_INDEX+=("$rel_path")
+        done <<<"$index_output"
+    fi
 
-# Set default target directory to source directory if not specified
-if [ -z "$TARGET_DIR" ]; then
-    TARGET_DIR="$SOURCE_DIR"
-fi
-
-# Check if gum is installed
-ensure_cmd gum
-
-# Build first-level options (groups + standalone machines), sorted.
-FIRST_LEVEL_OPTIONS=()
-while IFS= read -r group; do
-    [[ -z "$group" ]] && continue
-    FIRST_LEVEL_OPTIONS+=("$group (group)")
-done < <(hosts_groups)
-while IFS= read -r machine; do
-    [[ -z "$machine" ]] && continue
-    FIRST_LEVEL_OPTIONS+=("$machine")
-done < <(hosts_standalone_machines)
-
-IFS=$'\n' FIRST_LEVEL_OPTIONS=($(printf '%s\n' "${FIRST_LEVEL_OPTIONS[@]}" | sort))
-
-# First level menu: select group or standalone machine with fuzzy finding
-SELECTED_FIRST=$(printf '%s\n' "${FIRST_LEVEL_OPTIONS[@]}" | gum filter \
-    --header "🔍 Choose a group or machine:" \
-    --placeholder "Type to search..." \
-    --prompt "❯ ")
-
-if [ -z "$SELECTED_FIRST" ]; then
-    echo "❌ No selection made. Exiting."
-    exit 0
-fi
-
-# Determine if it's a group or standalone machine
-if [[ "$SELECTED_FIRST" == *" (group)" ]]; then
-    GROUP_NAME="${SELECTED_FIRST% (group)}"
-
-    readarray -t MACHINES < <(hosts_group_machines "$GROUP_NAME")
-
-    if [[ ${#MACHINES[@]} -eq 0 ]]; then
-        echo "❌ Group '$GROUP_NAME' has no machines."
+    if [[ ${#DIR_INDEX[@]} -eq 0 ]]; then
+        echo "❌ No directories found under $search_path"
         exit 1
     fi
+}
 
-    SELECTED_HOST=$(printf '%s\n' "${MACHINES[@]}" | gum filter \
-        --header "🔍 Choose a machine from $GROUP_NAME:" \
-        --placeholder "Type to search machines..." \
-        --prompt "❯ ")
+browse_immediate_children() {
+    local current_rel="$1"
+    local -a children=()
+    local path prefix rest
 
-    if [ -z "$SELECTED_HOST" ]; then
-        echo "❌ No machine selected. Exiting."
-        exit 0
+    if [[ -z "$current_rel" ]]; then
+        for path in "${DIR_INDEX[@]}"; do
+            [[ -z "$path" || "$path" == */* ]] && continue
+            children+=("$path")
+        done
+    else
+        prefix="${current_rel}/"
+        for path in "${DIR_INDEX[@]}"; do
+            [[ "$path" == "$prefix"* ]] || continue
+            rest="${path#"$prefix"}"
+            [[ -z "$rest" || "$rest" == */* ]] && continue
+            children+=("$rest")
+        done
     fi
-    SOURCE_HOST="$SELECTED_HOST"
-else
-    SOURCE_HOST="$SELECTED_FIRST"
-fi
 
-# Validate against the host inventory; jump-host wiring lives in ~/.ssh/config.
-if ! hosts_all_machines | grep -qx "$SOURCE_HOST"; then
-    echo "❌ Error: Unsupported host '$SOURCE_HOST' (not in $(hosts_toml_path))"
-    exit 1
-fi
+    if [[ ${#children[@]} -eq 0 ]]; then
+        return 0
+    fi
 
-# Expand tilde in paths
-SOURCE_DIR_EXPANDED="${SOURCE_DIR/#\~/$HOME}"
-TARGET_DIR_EXPANDED="${TARGET_DIR/#\~/$HOME}"
+    printf '%s\n' "${children[@]}" | sort -u
+}
 
-REMOTE_DIR="${SOURCE_HOST}:${SOURCE_DIR}"
+browse_current_display() {
+    local current_rel="$1"
+    if [[ -n "$current_rel" ]]; then
+        echo "$SOURCE_HOST:$REMOTE_BASE/$current_rel"
+    else
+        echo "$SOURCE_HOST:$REMOTE_BASE"
+    fi
+}
 
-echo "🔍 Fetching available directories from $SOURCE_HOST:$SOURCE_DIR..."
+browse_remote_directories() {
+    local anchor_rel="${1:-}" current_rel="" selected="" header="" menu_options=()
+    local -a child_dirs=() picked=()
 
-# Get list of directories from remote (fast - no size calculation)
-REMOTE_DIR_LIST_SCRIPT=$(
-    cat <<'EOF'
+    remote_dir_index "$anchor_rel"
+    current_rel="$anchor_rel"
+
+    while true; do
+        readarray -t child_dirs < <(browse_immediate_children "$current_rel")
+        menu_options=()
+        if [[ -n "$current_rel" ]]; then
+            menu_options+=("$ACTION_UP")
+        fi
+        menu_options+=("$ACTION_SYNC_HERE")
+        if [[ ${#child_dirs[@]} -gt 0 ]]; then
+            menu_options+=("$ACTION_PICK_SUBS")
+            local child
+            for child in "${child_dirs[@]}"; do
+                menu_options+=("${child}/")
+            done
+        fi
+
+        header="Browse: $(browse_current_display "$current_rel")"
+        selected=$(printf '%s\n' "${menu_options[@]}" | gum choose --header "$header")
+        if [[ -z "$selected" ]]; then
+            echo "❌ No selection made. Exiting."
+            exit 0
+        fi
+
+        case "$selected" in
+        "$ACTION_UP")
+            current_rel="${current_rel%/*}"
+            ;;
+        "$ACTION_SYNC_HERE")
+            if [[ -n "$current_rel" ]]; then
+                FILTERED_DIRECTORIES=("$current_rel")
+            else
+                echo "❌ Cannot sync the entire sync root from here; enter a subfolder or choose subfolders."
+                continue
+            fi
+            return 0
+            ;;
+        "$ACTION_PICK_SUBS")
+            picked=()
+            while IFS= read -r line; do
+                [[ -n "$line" ]] && picked+=("$line")
+            done < <(printf '%s\n' "${child_dirs[@]}" | gum choose --no-limit --height=15 \
+                --header="Select subfolders to sync (Space to select, Enter to confirm):")
+            if [[ ${#picked[@]} -eq 0 ]]; then
+                continue
+            fi
+            FILTERED_DIRECTORIES=()
+            local name
+            for name in "${picked[@]}"; do
+                if [[ -n "$current_rel" ]]; then
+                    FILTERED_DIRECTORIES+=("$current_rel/$name")
+                else
+                    FILTERED_DIRECTORIES+=("$name")
+                fi
+            done
+            return 0
+            ;;
+        */)
+            selected="${selected%/}"
+            if [[ -n "$current_rel" ]]; then
+                current_rel="$current_rel/$selected"
+            else
+                current_rel="$selected"
+            fi
+            ;;
+        *)
+            echo "❌ Unexpected selection: $selected"
+            exit 1
+            ;;
+        esac
+    done
+}
+
+legacy_select_directories() {
+    local dir_list="" dir_entry_array=() selected=""
+
+    echo "🔍 Fetching available directories from $SOURCE_HOST:$REMOTE_BASE..."
+
+    dir_list=$(ssh "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" <<'EOF'
 set -e
-SOURCE_DIR="$1"
-if [ -z "$SOURCE_DIR" ]; then
+source_dir="$1"
+if [ -z "$source_dir" ]; then
 	exit 0
 fi
-case "$SOURCE_DIR" in
-	~*)
-		if [ -n "$HOME" ]; then
-			SOURCE_DIR="${HOME}${SOURCE_DIR:1}"
-		fi
-		;;
-esac
-if ! cd "$SOURCE_DIR" 2>/dev/null; then
+if ! cd "$source_dir" 2>/dev/null; then
 	exit 0
 fi
 shopt -s nullglob dotglob
@@ -155,64 +383,42 @@ done
 EOF
 )
 
-echo "📂 Fetching directory list..."
-DIR_LIST=$(ssh "$SOURCE_HOST" bash -s -- "$SOURCE_DIR" <<<"$REMOTE_DIR_LIST_SCRIPT")
-
-if [ -z "$DIR_LIST" ]; then
-    echo "❌ No directories found or unable to connect to $SOURCE_HOST:$SOURCE_DIR"
-    exit 1
-fi
-
-# Parse directory list into array
-DIR_ENTRY_ARRAY=()
-while IFS= read -r dir_name; do
-    if [ -n "$dir_name" ]; then
-        DIR_ENTRY_ARRAY+=("$dir_name")
+    if [[ -z "$dir_list" ]]; then
+        echo "❌ No directories found or unable to connect to $SOURCE_HOST:$REMOTE_BASE"
+        exit 1
     fi
-done <<<"$DIR_LIST"
 
-if [ ${#DIR_ENTRY_ARRAY[@]} -eq 0 ]; then
-    echo "❌ No directories found or unable to connect to $SOURCE_HOST:$SOURCE_DIR"
-    exit 1
-fi
-
-# Use gum to let user select multiple directories
-SELECTED=$(printf "%s\n" "${DIR_ENTRY_ARRAY[@]}" | gum choose --no-limit --height=15 \
-    --header="Select directories to sync (Space to select, Enter to confirm):")
-
-if [ -z "$SELECTED" ]; then
-    echo "❌ No directories selected. Exiting."
-    exit 0
-fi
-
-# Parse selected directories into array
-FILTERED_DIRECTORIES=()
-while IFS= read -r selected_line; do
-    if [ -n "$selected_line" ]; then
-        FILTERED_DIRECTORIES+=("$selected_line")
+    readarray -t dir_entry_array <<<"$dir_list"
+    if [[ ${#dir_entry_array[@]} -eq 0 ]]; then
+        echo "❌ No directories found or unable to connect to $SOURCE_HOST:$REMOTE_BASE"
+        exit 1
     fi
-done <<<"$SELECTED"
 
-# Now fetch sizes for only the selected directories (single SSH call)
-echo "📊 Fetching sizes for ${#FILTERED_DIRECTORIES[@]} selected directories..."
+    selected=$(printf "%s\n" "${dir_entry_array[@]}" | gum choose --no-limit --height=15 \
+        --header="Select directories to sync (Space to select, Enter to confirm):")
 
-# Build the remote script to get sizes for specific directories
-REMOTE_SIZE_SCRIPT=$(
-    cat <<'EOF'
+    if [[ -z "$selected" ]]; then
+        echo "❌ No directories selected. Exiting."
+        exit 0
+    fi
+
+    while IFS= read -r selected_line; do
+        [[ -n "$selected_line" ]] && FILTERED_DIRECTORIES+=("$selected_line")
+    done <<<"$selected"
+}
+
+fetch_directory_sizes() {
+    local size_output=""
+
+    echo "📊 Fetching sizes for ${#FILTERED_DIRECTORIES[@]} selected directories..."
+    size_output=$(ssh "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" "${FILTERED_DIRECTORIES[@]}" <<'EOF'
 set -e
-SOURCE_DIR="$1"
+source_dir="$1"
 shift
-if [ -z "$SOURCE_DIR" ]; then
+if [ -z "$source_dir" ]; then
 	exit 0
 fi
-case "$SOURCE_DIR" in
-	~*)
-		if [ -n "$HOME" ]; then
-			SOURCE_DIR="${HOME}${SOURCE_DIR:1}"
-		fi
-		;;
-esac
-if ! cd "$SOURCE_DIR" 2>/dev/null; then
+if ! cd "$source_dir" 2>/dev/null; then
 	exit 0
 fi
 for dir in "$@"; do
@@ -227,43 +433,158 @@ done
 EOF
 )
 
-# Pass selected directories as arguments to the remote script
-declare -A DIR_SIZES
-SIZE_OUTPUT=$(ssh "$SOURCE_HOST" bash -s -- "$SOURCE_DIR" "${FILTERED_DIRECTORIES[@]}" <<<"$REMOTE_SIZE_SCRIPT")
+    while IFS='|' read -r dir_name dir_size; do
+        [[ -n "$dir_name" ]] || continue
+        dir_size="${dir_size//$'\n'/}"
+        DIR_SIZES["$dir_name"]="${dir_size:-?}"
+    done <<<"$size_output"
+}
 
-# Parse size output
-while IFS='|' read -r dir_name dir_size; do
-    if [ -n "$dir_name" ]; then
-        dir_size=$(echo "$dir_size" | tr -d '\n')
-        if [ -z "$dir_size" ]; then
-            dir_size="?"
-        fi
-        DIR_SIZES["$dir_name"]="$dir_size"
+while [[ $# -gt 0 ]]; do
+    case $1 in
+    -s | --source-dir)
+        USE_LEGACY=true
+        SOURCE_DIR="$2"
+        shift 2
+        ;;
+    -t | --target-dir)
+        USE_LEGACY=true
+        TARGET_DIR="$2"
+        shift 2
+        ;;
+    --root)
+        parse_root_path_arg "$2"
+        shift 2
+        ;;
+    --no-delete)
+        DELETE_FILES=false
+        shift
+        ;;
+    -h | --help)
+        echo "Usage: $0 [host] [sync-root] [browse-path] [options]"
+        echo "       $0 --source-dir DIR [--target-dir DIR] [options]"
+        echo
+        echo "Sync directories from remote machines to ~/Code using sync roots from hosts.toml."
+        echo "Positional browse-path opens the folder browser at that location (does not sync immediately)."
+        echo
+        echo "Options:"
+        echo "  --root NAME[:PATH]   Sync root name, optionally with browse starting path"
+        echo "  -s, --source-dir DIR Bypass sync roots; remote source directory"
+        echo "  -t, --target-dir DIR Bypass sync roots; local target directory"
+        echo "  --no-delete          Do not delete files in destination missing on source"
+        echo "  -h, --help           Show this help message"
+        echo
+        echo "Examples:"
+        echo "  $0"
+        echo "  $0 DRL_Sphere"
+        echo "  $0 fox DRL_Sphere"
+        echo "  $0 fox project DRL_Sphere"
+        echo "  $0 --root project:DRL_Sphere"
+        echo "  $0 --source-dir ~/Documents --target-dir ~/Backup"
+        exit 0
+        ;;
+    -*)
+        echo "Unknown option: $1"
+        echo "Use --help for usage information"
+        exit 1
+        ;;
+    *)
+        POSITIONAL+=("$1")
+        shift
+        ;;
+    esac
+done
+
+ensure_cmd gum find
+
+FILTERED_DIRECTORIES=()
+declare -A DIR_SIZES
+
+if [[ "$USE_LEGACY" == true ]]; then
+    if [[ -z "$TARGET_DIR" ]]; then
+        TARGET_DIR="$SOURCE_DIR"
     fi
-done <<<"$SIZE_OUTPUT"
+
+    if [[ -n "$CLI_HOST" || -n "$CLI_ROOT" || -n "$CLI_SUBPATH" || ${#POSITIONAL[@]} -gt 0 ]]; then
+        echo "❌ Positional path arguments cannot be combined with --source-dir/--target-dir."
+        exit 1
+    fi
+
+    select_host_interactive
+
+    if ! hosts_all_machines | grep -qx "$SOURCE_HOST"; then
+        echo "❌ Error: Unsupported host '$SOURCE_HOST' (not in $(hosts_toml_path))"
+        exit 1
+    fi
+
+    ensure_ssh_controlmaster "$SOURCE_HOST"
+    SOURCE_DIR_EXPANDED="$(hosts_expand_path "$SOURCE_DIR")"
+    TARGET_DIR_EXPANDED="$(hosts_expand_path "$TARGET_DIR")"
+    REMOTE_BASE="$SOURCE_DIR_EXPANDED"
+    LOCAL_BASE="$TARGET_DIR_EXPANDED"
+    legacy_select_directories
+else
+    parse_positionals
+
+    if [[ -n "$CLI_HOST" ]]; then
+        SOURCE_HOST="$CLI_HOST"
+    else
+        select_host_interactive
+    fi
+
+    if ! hosts_all_machines | grep -qx "$SOURCE_HOST"; then
+        echo "❌ Error: Unsupported host '$SOURCE_HOST' (not in $(hosts_toml_path))"
+        exit 1
+    fi
+
+    resolve_host_context
+
+    if [[ -n "$CLI_ARG2" ]]; then
+        if hosts_sync_root_exists "$CLI_ARG2" "$FS_KIND" "$FS_KEY"; then
+            CLI_ROOT="$CLI_ARG2"
+        else
+            CLI_SUBPATH="$(normalize_subpath "$CLI_ARG2")"
+        fi
+    fi
+
+    if [[ -z "$CLI_ROOT" ]]; then
+        select_sync_root_interactive "$FS_KIND" "$FS_KEY"
+    else
+        validate_sync_root
+    fi
+
+    REMOTE_BASE="$(hosts_sync_root_remote_base "$CLI_ROOT" "$FS_KIND" "$FS_KEY")"
+    LOCAL_BASE="$(hosts_expand_path "$(hosts_sync_root_local "$CLI_ROOT" "$FS_KIND" "$FS_KEY")")"
+    browse_remote_directories "$CLI_SUBPATH"
+fi
+
+ensure_ssh_controlmaster "$SOURCE_HOST"
+fetch_directory_sizes
 
 echo
 echo "📦 Selected directories:"
 for directory in "${FILTERED_DIRECTORIES[@]}"; do
-    dir_size="${DIR_SIZES["$directory"]:-?}"
+    dir_size="${DIR_SIZES[$directory]:-?}"
     echo "   $directory ($dir_size)"
 done
 echo
-echo "📍 Source: $SOURCE_HOST:$SOURCE_DIR"
-echo "📍 Target: $TARGET_DIR_EXPANDED"
-if [ "$DELETE_FILES" = false ]; then
+echo "📍 Source host: $SOURCE_HOST"
+echo "📍 Remote base: $REMOTE_BASE"
+echo "📍 Local base: $LOCAL_BASE"
+if [[ "$USE_LEGACY" == false && -n "$CLI_ROOT" ]]; then
+    echo "📍 Sync root: $CLI_ROOT"
+fi
+if [[ "$DELETE_FILES" == false ]]; then
     echo "⚠️  Merge mode: files will not be deleted (merging from multiple machines)"
 fi
 echo
 
-# Confirm before proceeding
 if ! gum confirm "Proceed with syncing these directories?"; then
     echo "❌ Sync cancelled."
     exit 0
 fi
 
-# Prompt user about deleting files if not explicitly set with --no-delete
-if [ "$DELETE_FILES" = true ]; then
+if [[ "$DELETE_FILES" == true ]]; then
     echo
     if gum confirm --default=false \
         --affirmative="Yes, delete files not on server" \
@@ -280,36 +601,33 @@ fi
 echo
 echo "🚀 Starting sync process..."
 
-DIRECTORY_COUNT=${#FILTERED_DIRECTORIES[@]}
-CURRENT_DIR=0
+directory_count=${#FILTERED_DIRECTORIES[@]}
+current_dir=0
 
-# Sync each selected directory
 for directory in "${FILTERED_DIRECTORIES[@]}"; do
-    CURRENT_DIR=$((CURRENT_DIR + 1))
-    SOURCE="${REMOTE_DIR}/${directory}"
-    DEST="${TARGET_DIR_EXPANDED}/${directory}"
+    current_dir=$((current_dir + 1))
+    source="${SOURCE_HOST}:${REMOTE_BASE}/${directory}"
+    dest="${LOCAL_BASE}/${directory}"
 
     echo
-    dir_size="${DIR_SIZES["$directory"]:-?}"
-    echo "📂 [$CURRENT_DIR/$DIRECTORY_COUNT] Syncing: $directory ($dir_size)"
-    echo "   From: $SOURCE"
-    echo "   To: $DEST"
+    dir_size="${DIR_SIZES[$directory]:-?}"
+    echo "📂 [$current_dir/$directory_count] Syncing: $directory ($dir_size)"
+    echo "   From: $source"
+    echo "   To: $dest"
     echo
 
-    # Create local directory if it doesn't exist
-    mkdir -p "$DEST"
+    mkdir -p "$dest"
 
-    # Build rsync command with optional --delete flag
-    RSYNC_DELETE_FLAG=""
-    if [ "$DELETE_FILES" = true ]; then
-        RSYNC_DELETE_FLAG="--delete"
+    rsync_delete_flag=""
+    if [[ "$DELETE_FILES" == true ]]; then
+        rsync_delete_flag="--delete"
     fi
 
-    rsync -az $RSYNC_DELETE_FLAG --info=progress2 --no-inc-recursive "${SOURCE}/" "${DEST}/"
+    rsync -az $rsync_delete_flag --info=progress2 --no-inc-recursive "${source}/" "${dest}/"
 
-    echo "✅ [$CURRENT_DIR/$DIRECTORY_COUNT] Completed: $directory"
+    echo "✅ [$current_dir/$directory_count] Completed: $directory"
 done
 
 echo
-echo "🎉 All syncs from $SOURCE_HOST:$SOURCE_DIR completed successfully!"
-echo "📁 Files synced to: $TARGET_DIR_EXPANDED"
+echo "🎉 All syncs from $SOURCE_HOST completed successfully!"
+echo "📁 Files synced to: $LOCAL_BASE"

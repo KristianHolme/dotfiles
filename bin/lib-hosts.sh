@@ -18,6 +18,12 @@
 #   mount_via   = "<alias>"          # optional; together with paths => mountable
 #   remote_path = "/home/..."
 #   local_path  = "/mnt/..."
+#
+#   [defaults.sync_roots]            # merged with machine/group sync_roots
+#   code = "Code"                    # string: relative to remote_path, or absolute if starts with /
+#
+#   [machines.<alias>.sync_roots]    # optional extra/override sync roots
+#   project = "/fp/projects/.../Code"
 
 if [[ -n "${LIB_HOSTS_SH_SOURCED:-}" ]]; then
     return 0
@@ -161,4 +167,136 @@ hosts_filesystem_local_path() {
         group)   tomlq -r --arg k "$key" '.groups[$k].local_path'   "$f" ;;
         *)       log_error "Unknown filesystem: $key"; return 1 ;;
     esac
+}
+
+# Expand a leading ~ to $HOME.
+hosts_expand_path() {
+    local path="$1"
+    if [[ "$path" == "~/"* ]]; then
+        echo "$HOME/${path:2}"
+    elif [[ "$path" == "~" ]]; then
+        echo "$HOME"
+    else
+        echo "$path"
+    fi
+}
+
+# Default local landing directory for sync roots.
+hosts_sync_root_default_local() {
+    echo "~/Code"
+}
+
+# Resolve SSH alias to filesystem context: kind, inventory key, remote_path, local_path (tab-separated).
+hosts_ssh_alias_context() {
+    local alias="$1" f machine_remote group
+    f="$(_hosts_resolve)" || return 1
+
+    machine_remote="$(tomlq -r --arg a "$alias" '.machines[$a].remote_path // empty' "$f")"
+    if [[ -n "$machine_remote" ]]; then
+        local local_path=""
+        local_path="$(tomlq -r --arg a "$alias" '.machines[$a].local_path // empty' "$f")"
+        printf '%s\t%s\t%s\t%s\n' "machine" "$alias" "$machine_remote" "$local_path"
+        return 0
+    fi
+
+    group="$(tomlq -r --arg a "$alias" '.groups // {} | to_entries[] | select(.value.machines[]? == $a) | .key' "$f" | head -n1)"
+    if [[ -n "$group" ]]; then
+        local remote_path="" local_path=""
+        remote_path="$(tomlq -r --arg g "$group" '.groups[$g].remote_path // empty' "$f")"
+        local_path="$(tomlq -r --arg g "$group" '.groups[$g].local_path // empty' "$f")"
+        if [[ -n "$remote_path" ]]; then
+            printf '%s\t%s\t%s\t%s\n' "group" "$group" "$remote_path" "$local_path"
+            return 0
+        fi
+    fi
+
+    log_error "No filesystem context for SSH alias: $alias"
+    return 1
+}
+
+# Merged sync root names (defaults + machine/group), sorted.
+hosts_sync_root_names() {
+    local kind="$1" key="$2" f
+    f="$(_hosts_resolve)" || return 1
+    tomlq -r --arg kind "$kind" --arg key "$key" '
+        (.defaults.sync_roots // {}) as $defaults |
+        (if $kind == "machine" then
+            .machines[$key].sync_roots // {}
+        else
+            .groups[$key].sync_roots // {}
+        end) as $entry |
+        ($defaults + $entry) | keys[]?
+    ' "$f" | sort -u
+}
+
+# Remote path spec for a sync root (string or .remote from table).
+hosts_sync_root_remote() {
+    local name="$1" kind="$2" key="$3" f
+    f="$(_hosts_resolve)" || return 1
+    tomlq -r --arg name "$name" --arg kind "$kind" --arg key "$key" '
+        (.defaults.sync_roots // {}) as $defaults |
+        (if $kind == "machine" then
+            .machines[$key].sync_roots // {}
+        else
+            .groups[$key].sync_roots // {}
+        end) as $entry |
+        ($defaults + $entry)[$name] |
+        if type == "string" then .
+        elif type == "object" then .remote // empty
+        else empty end
+    ' "$f"
+}
+
+# Local landing path for a sync root (defaults to ~/Code).
+hosts_sync_root_local() {
+    local name="$1" kind="$2" key="$3" f local_override
+    f="$(_hosts_resolve)" || return 1
+    local_override="$(tomlq -r --arg name "$name" --arg kind "$kind" --arg key "$key" '
+        (.defaults.sync_roots // {}) as $defaults |
+        (if $kind == "machine" then
+            .machines[$key].sync_roots // {}
+        else
+            .groups[$key].sync_roots // {}
+        end) as $entry |
+        ($defaults + $entry)[$name] |
+        if type == "object" then .local // empty else empty end
+    ' "$f")"
+    if [[ -n "$local_override" ]]; then
+        echo "$local_override"
+    else
+        hosts_sync_root_default_local
+    fi
+}
+
+# Full remote base path for a sync root (absolute on the server).
+hosts_sync_root_remote_base() {
+    local name="$1" kind="$2" key="$3" f remote_path remote_spec
+    f="$(_hosts_resolve)" || return 1
+
+    case "$kind" in
+        machine) remote_path="$(tomlq -r --arg k "$key" '.machines[$k].remote_path' "$f")" ;;
+        group) remote_path="$(tomlq -r --arg k "$key" '.groups[$k].remote_path' "$f")" ;;
+        *)
+            log_error "Unknown context kind: $kind"
+            return 1
+            ;;
+    esac
+
+    remote_spec="$(hosts_sync_root_remote "$name" "$kind" "$key")" || return 1
+    if [[ -z "$remote_spec" ]]; then
+        log_error "Unknown sync root: $name"
+        return 1
+    fi
+
+    if [[ "$remote_spec" == /* ]]; then
+        echo "$remote_spec"
+    else
+        echo "$remote_path/$remote_spec"
+    fi
+}
+
+# Return 0 if name is a valid sync root for the given context.
+hosts_sync_root_exists() {
+    local name="$1" kind="$2" key="$3"
+    hosts_sync_root_remote "$name" "$kind" "$key" | grep -q .
 }

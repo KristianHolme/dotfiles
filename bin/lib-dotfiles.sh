@@ -84,3 +84,28 @@ create_symlink_with_backup() {
     log_info "Creating symlink for $description: $target_path -> $source_path"
     ln -sf "$source_path" "$target_path"
 }
+
+# Start a background SSH ControlMaster when ~/.ssh/config enables multiplexing.
+# Subsequent ssh(1) calls to the same host reuse the connection (helps 2FA/jump hosts).
+ensure_ssh_controlmaster() {
+    local host="$1" cm=""
+
+    cm=$(ssh -G "$host" 2>/dev/null | awk '$1 == "controlmaster" { print $2; exit }')
+    case "$cm" in
+    auto | autoask | yes | ask) ;;
+    *) return 0 ;;
+    esac
+
+    if ssh -O check "$host" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    echo "🔐 Starting background master connection for $host..."
+    echo "   (This will prompt for 2FA + password once)"
+    if ssh -CX -o ServerAliveInterval=30 -fN "$host"; then
+        echo "✅ Master connection established"
+    else
+        echo "⚠️  Failed to start master connection, continuing anyway..."
+    fi
+    echo
+}
