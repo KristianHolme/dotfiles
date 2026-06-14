@@ -56,8 +56,6 @@ Host nrec1
 Host fox
     Hostname fox.educloud.no
     User ec-kholme
-    RequestTTY force
-    RemoteCommand ssh -t login-1
     setEnv TERM=xterm-256color
     ControlMaster auto
     ControlPath ~/.ssh/controlsock-%h-%p
