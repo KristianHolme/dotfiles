@@ -70,7 +70,6 @@
   "julia.additionalArgs": [],
   "julia.editor": "nvim",
   "julia.execution.inlineResultsForCellEvaluation": true,
-  "julia.inlayHints.static.variableTypes.enabled": false,
-  "julia.inlayHints.static.enabled": true
+  "julia.inlayHints.static.variableTypes.enabled": false
 }
 
