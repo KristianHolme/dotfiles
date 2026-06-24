@@ -8,6 +8,7 @@ set -Eeuo pipefail
 #   export token, then `bin install` for the rest unless each tool's CLI already exists on PATH
 #   (eza, zoxide, rg, lazygit, fzf, fd, starship, tree-sitter, git-lfs, btop, gum, superfile, dust,
 #   television, bat; bin-managed specs still skip via config when applicable).
+# - tomlq: pip install --user yq (kislyuk/yq; needs jq + python3; not marcos bin / mikefarah yq).
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); LazyVim starter, tpm, omarchy clone.
@@ -326,6 +327,7 @@ EOF
     fi
 
     replica_install_tools_with_bin
+    install_tomlq_if_missing || log_warning "tomlq installation failed; host-inventory scripts need it"
     configure_git_lfs_hooks
 
     install_stow || log_warning "stow installation failed; continuing"

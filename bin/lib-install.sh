@@ -418,6 +418,42 @@ marcos_bin_install_if_missing_and_cmd_absent() {
     marcos_bin_install_if_missing "$spec"
 }
 
+# tomlq from PyPI "yq" (kislyuk/yq) — jq wrapper for TOML; used by lib-hosts.sh.
+# Not the Go github.com/mikefarah/yq binary (different syntax; marcos bin installs that one).
+install_tomlq_if_missing() {
+    local install_base="${INSTALL_DIR:-$HOME/.local/bin}"
+
+    if command -v tomlq >/dev/null 2>&1; then
+        log_info "tomlq already on PATH; skipping install"
+        return 0
+    fi
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq required for tomlq (hosts.toml scripts); install jq first"
+        return 1
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+        log_error "python3 required for tomlq (pip install yq)"
+        return 1
+    fi
+
+    log_info "Installing tomlq via pip (PyPI package yq)"
+    python3 -m pip install --user yq || return 1
+
+    marcos_bin_prepend_path
+    case ":${PATH:-}:" in
+    *":$install_base:"*) ;;
+    *) export PATH="$install_base${PATH:+:${PATH}}" ;;
+    esac
+
+    if command -v tomlq >/dev/null 2>&1; then
+        log_success "Installed tomlq -> $(command -v tomlq)"
+        return 0
+    fi
+
+    log_error "tomlq not on PATH after pip install; ensure $install_base is on PATH"
+    return 1
+}
+
 # If spec is registered, run bin update; otherwise bin install (e.g. prefer bin over a distro binary).
 marcos_bin_install_or_update_github() {
     local spec="$1"

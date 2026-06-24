@@ -78,7 +78,7 @@ under `~/Code` locally.
 | Script | Purpose |
 | --- | --- |
 | `dotfiles-ssh-tmux.sh` (`dst`) | Pick a host with gum, SSH in, attach/create tmux session. Starts a background ControlMaster first for hosts configured with one (2FA hosts). |
-| `dotfiles-rsync-ssh.sh` (`drs`) | Pick host + sync root, browse remote folders, rsync selections into `~/Code`. Examples: `drs fox DRL_Sphere`, `drs ml3`. Use `--source-dir`/`--target-dir` to bypass sync roots. |
+| `dotfiles-rsync-ssh.sh` (`drs`) | Pick host + sync root, browse folders, rsync selections. Pull (default): remote → `~/Code`. Push: `drs --push host`. Examples: `drs fox DRL_Sphere`, `drs ml3`, `drs --push nam-shub-01`. |
 | `dotfiles-mounts.sh` | SSHFS mount manager (TUI and CLI). Plain user `sshfs` mounts of the filesystems in `hosts.toml`; sudo only to prepare `/mnt` mountpoints. `-l` lists status, `-e`/`-d` enable/disable. |
 | `dotfiles-server-monitor.sh` | tmux session with one `btop` window per selected host; group members preselected. |
 | `dotfiles-setup-ssh.sh` | ssh-copy-id your ed25519 key to one node per mountable filesystem. |
@@ -104,8 +104,9 @@ under `~/Code` locally.
 
 - Local: GNU Stow, `gum`, `yay` (Arch), Hyprland/Omarchy for the desktop bits,
   `tomlq` (yq) for host-inventory scripts, `sshfs` for mounts, `rsync`.
-- University servers: `curl`, `tar`, `git`, `jq`; no sudo needed. Optional
-  `GITHUB_AUTH_TOKEN` for API rate limits.
+- University servers: `curl`, `tar`, `git`, `jq`, `python3`; no sudo needed.
+  `dotfiles-setup-replica.sh` installs `tomlq` via `pip install --user yq`.
+  Optional `GITHUB_AUTH_TOKEN` for API rate limits.
 
 ## Notes
 

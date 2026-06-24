@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-# Sync directories from remote machines to ~/Code using hosts.toml sync roots.
-# Usage: ./dotfiles-rsync-ssh.sh [host] [sync-root] [browse-path]
-# Legacy: ./dotfiles-rsync-ssh.sh --source-dir DIR [--target-dir DIR]
+# Sync directories between remote machines and ~/Code using hosts.toml sync roots.
+# Usage: ./dotfiles-rsync-ssh.sh [host] [sync-root] [browse-path] [options]
 
 set -Eeuo pipefail
 
@@ -10,10 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
 source "$SCRIPT_DIR/lib-hosts.sh"
 
-USE_LEGACY=false
+SYNC_PUSH=false
 SOURCE_HOST=""
-SOURCE_DIR="~/Code/"
-TARGET_DIR=""
 DELETE_FILES=true
 CLI_HOST=""
 CLI_ROOT=""
@@ -27,6 +24,16 @@ BROWSE_ANCHOR_REL=""
 ACTION_UP=".."
 ACTION_SYNC_HERE="[Sync this folder]"
 ACTION_PICK_SUBS="[Choose subfolders to sync...]"
+
+set_sync_action_labels() {
+    if [[ "$SYNC_PUSH" == true ]]; then
+        ACTION_SYNC_HERE="[Push this folder]"
+        ACTION_PICK_SUBS="[Choose subfolders to push...]"
+    else
+        ACTION_SYNC_HERE="[Pull this folder]"
+        ACTION_PICK_SUBS="[Choose subfolders to pull...]"
+    fi
+}
 
 normalize_subpath() {
     local path="$1"
@@ -186,6 +193,35 @@ mount_local_base_for_remote() {
     fi
 }
 
+local_dir_index() {
+    local anchor_rel="$1" search_path="" local_base="$LOCAL_BASE"
+
+    BROWSE_ANCHOR_REL="$anchor_rel"
+    DIR_INDEX=()
+
+    if [[ -n "$anchor_rel" ]]; then
+        search_path="$local_base/$anchor_rel"
+    else
+        search_path="$local_base"
+    fi
+
+    if [[ ! -d "$search_path" ]]; then
+        echo "❌ Browse path not found: $search_path"
+        exit 1
+    fi
+
+    while IFS= read -r abs_path; do
+        [[ -z "$abs_path" ]] && continue
+        local rel_path="${abs_path#"$local_base"/}"
+        DIR_INDEX+=("$rel_path")
+    done < <(find "$search_path" -type d | sort)
+
+    if [[ ${#DIR_INDEX[@]} -eq 0 ]]; then
+        echo "❌ No directories found under $search_path"
+        exit 1
+    fi
+}
+
 remote_dir_index() {
     local anchor_rel="$1" mount_local_base="" search_path="" index_output=""
 
@@ -247,6 +283,14 @@ EOF
     fi
 }
 
+dir_index() {
+    if [[ "$SYNC_PUSH" == true ]]; then
+        local_dir_index "$1"
+    else
+        remote_dir_index "$1"
+    fi
+}
+
 browse_immediate_children() {
     local current_rel="$1"
     local -a children=()
@@ -276,18 +320,24 @@ browse_immediate_children() {
 
 browse_current_display() {
     local current_rel="$1"
-    if [[ -n "$current_rel" ]]; then
+    if [[ "$SYNC_PUSH" == true ]]; then
+        if [[ -n "$current_rel" ]]; then
+            echo "$LOCAL_BASE/$current_rel"
+        else
+            echo "$LOCAL_BASE"
+        fi
+    elif [[ -n "$current_rel" ]]; then
         echo "$SOURCE_HOST:$REMOTE_BASE/$current_rel"
     else
         echo "$SOURCE_HOST:$REMOTE_BASE"
     fi
 }
 
-browse_remote_directories() {
+browse_directories() {
     local anchor_rel="${1:-}" current_rel="" selected="" header="" menu_options=()
     local -a child_dirs=() picked=()
 
-    remote_dir_index "$anchor_rel"
+    dir_index "$anchor_rel"
     current_rel="$anchor_rel"
 
     while true; do
@@ -361,56 +411,25 @@ browse_remote_directories() {
     done
 }
 
-legacy_select_directories() {
-    local dir_list="" dir_entry_array=() selected=""
-
-    echo "🔍 Fetching available directories from $SOURCE_HOST:$REMOTE_BASE..."
-
-    dir_list=$(ssh "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" <<'EOF'
-set -e
-source_dir="$1"
-if [ -z "$source_dir" ]; then
-	exit 0
-fi
-if ! cd "$source_dir" 2>/dev/null; then
-	exit 0
-fi
-shopt -s nullglob dotglob
-for dir in */; do
-	[ -d "$dir" ] || continue
-	printf '%s\n' "${dir%/}"
-done
-EOF
-)
-
-    if [[ -z "$dir_list" ]]; then
-        echo "❌ No directories found or unable to connect to $SOURCE_HOST:$REMOTE_BASE"
-        exit 1
-    fi
-
-    readarray -t dir_entry_array <<<"$dir_list"
-    if [[ ${#dir_entry_array[@]} -eq 0 ]]; then
-        echo "❌ No directories found or unable to connect to $SOURCE_HOST:$REMOTE_BASE"
-        exit 1
-    fi
-
-    selected=$(printf "%s\n" "${dir_entry_array[@]}" | gum choose --no-limit --height=15 \
-        --header="Select directories to sync (Space to select, Enter to confirm):")
-
-    if [[ -z "$selected" ]]; then
-        echo "❌ No directories selected. Exiting."
-        exit 0
-    fi
-
-    while IFS= read -r selected_line; do
-        [[ -n "$selected_line" ]] && FILTERED_DIRECTORIES+=("$selected_line")
-    done <<<"$selected"
-}
-
 fetch_directory_sizes() {
-    local size_output=""
+    local size_output="" directory dir size
 
     echo "📊 Fetching sizes for ${#FILTERED_DIRECTORIES[@]} selected directories..."
+
+    if [[ "$SYNC_PUSH" == true ]]; then
+        if ! cd "$LOCAL_BASE" 2>/dev/null; then
+            echo "❌ Cannot access local base: $LOCAL_BASE"
+            exit 1
+        fi
+        for directory in "${FILTERED_DIRECTORIES[@]}"; do
+            if [[ -d "$directory" ]]; then
+                size=$(du -sh -- "$directory" 2>/dev/null | cut -f1)
+                DIR_SIZES["$directory"]="${size:-?}"
+            fi
+        done
+        return 0
+    fi
+
     size_output=$(ssh "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" "${FILTERED_DIRECTORIES[@]}" <<'EOF'
 set -e
 source_dir="$1"
@@ -442,19 +461,13 @@ EOF
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-    -s | --source-dir)
-        USE_LEGACY=true
-        SOURCE_DIR="$2"
-        shift 2
-        ;;
-    -t | --target-dir)
-        USE_LEGACY=true
-        TARGET_DIR="$2"
-        shift 2
-        ;;
     --root)
         parse_root_path_arg "$2"
         shift 2
+        ;;
+    --push)
+        SYNC_PUSH=true
+        shift
         ;;
     --no-delete)
         DELETE_FILES=false
@@ -462,15 +475,14 @@ while [[ $# -gt 0 ]]; do
         ;;
     -h | --help)
         echo "Usage: $0 [host] [sync-root] [browse-path] [options]"
-        echo "       $0 --source-dir DIR [--target-dir DIR] [options]"
         echo
-        echo "Sync directories from remote machines to ~/Code using sync roots from hosts.toml."
+        echo "Sync directories between remote machines and local sync roots from hosts.toml."
+        echo "Default: pull from remote to local. Use --push to browse local folders and push to remote."
         echo "Positional browse-path opens the folder browser at that location (does not sync immediately)."
         echo
         echo "Options:"
+        echo "  --push               Browse local sync root and push selected folders to remote"
         echo "  --root NAME[:PATH]   Sync root name, optionally with browse starting path"
-        echo "  -s, --source-dir DIR Bypass sync roots; remote source directory"
-        echo "  -t, --target-dir DIR Bypass sync roots; local target directory"
         echo "  --no-delete          Do not delete files in destination missing on source"
         echo "  -h, --help           Show this help message"
         echo
@@ -480,7 +492,8 @@ while [[ $# -gt 0 ]]; do
         echo "  $0 fox DRL_Sphere"
         echo "  $0 fox project DRL_Sphere"
         echo "  $0 --root project:DRL_Sphere"
-        echo "  $0 --source-dir ~/Documents --target-dir ~/Backup"
+        echo "  $0 --push nam-shub-01"
+        echo "  $0 --push fox project DRL_Sphere"
         exit 0
         ;;
     -*)
@@ -497,66 +510,43 @@ done
 
 ensure_cmd gum find
 
+set_sync_action_labels
+
 FILTERED_DIRECTORIES=()
 declare -A DIR_SIZES
 
-if [[ "$USE_LEGACY" == true ]]; then
-    if [[ -z "$TARGET_DIR" ]]; then
-        TARGET_DIR="$SOURCE_DIR"
-    fi
+parse_positionals
 
-    if [[ -n "$CLI_HOST" || -n "$CLI_ROOT" || -n "$CLI_SUBPATH" || ${#POSITIONAL[@]} -gt 0 ]]; then
-        echo "❌ Positional path arguments cannot be combined with --source-dir/--target-dir."
-        exit 1
-    fi
-
-    select_host_interactive
-
-    if ! hosts_all_machines | grep -qx "$SOURCE_HOST"; then
-        echo "❌ Error: Unsupported host '$SOURCE_HOST' (not in $(hosts_toml_path))"
-        exit 1
-    fi
-
-    ensure_ssh_controlmaster "$SOURCE_HOST"
-    SOURCE_DIR_EXPANDED="$(hosts_expand_path "$SOURCE_DIR")"
-    TARGET_DIR_EXPANDED="$(hosts_expand_path "$TARGET_DIR")"
-    REMOTE_BASE="$SOURCE_DIR_EXPANDED"
-    LOCAL_BASE="$TARGET_DIR_EXPANDED"
-    legacy_select_directories
+if [[ -n "$CLI_HOST" ]]; then
+    SOURCE_HOST="$CLI_HOST"
 else
-    parse_positionals
-
-    if [[ -n "$CLI_HOST" ]]; then
-        SOURCE_HOST="$CLI_HOST"
-    else
-        select_host_interactive
-    fi
-
-    if ! hosts_all_machines | grep -qx "$SOURCE_HOST"; then
-        echo "❌ Error: Unsupported host '$SOURCE_HOST' (not in $(hosts_toml_path))"
-        exit 1
-    fi
-
-    resolve_host_context
-
-    if [[ -n "$CLI_ARG2" ]]; then
-        if hosts_sync_root_exists "$CLI_ARG2" "$FS_KIND" "$FS_KEY"; then
-            CLI_ROOT="$CLI_ARG2"
-        else
-            CLI_SUBPATH="$(normalize_subpath "$CLI_ARG2")"
-        fi
-    fi
-
-    if [[ -z "$CLI_ROOT" ]]; then
-        select_sync_root_interactive "$FS_KIND" "$FS_KEY"
-    else
-        validate_sync_root
-    fi
-
-    REMOTE_BASE="$(hosts_sync_root_remote_base "$CLI_ROOT" "$FS_KIND" "$FS_KEY")"
-    LOCAL_BASE="$(hosts_expand_path "$(hosts_sync_root_local "$CLI_ROOT" "$FS_KIND" "$FS_KEY")")"
-    browse_remote_directories "$CLI_SUBPATH"
+    select_host_interactive
 fi
+
+if ! hosts_all_machines | grep -qx "$SOURCE_HOST"; then
+    echo "❌ Error: Unsupported host '$SOURCE_HOST' (not in $(hosts_toml_path))"
+    exit 1
+fi
+
+resolve_host_context
+
+if [[ -n "$CLI_ARG2" ]]; then
+    if hosts_sync_root_exists "$CLI_ARG2" "$FS_KIND" "$FS_KEY"; then
+        CLI_ROOT="$CLI_ARG2"
+    else
+        CLI_SUBPATH="$(normalize_subpath "$CLI_ARG2")"
+    fi
+fi
+
+if [[ -z "$CLI_ROOT" ]]; then
+    select_sync_root_interactive "$FS_KIND" "$FS_KEY"
+else
+    validate_sync_root
+fi
+
+REMOTE_BASE="$(hosts_sync_root_remote_base "$CLI_ROOT" "$FS_KIND" "$FS_KEY")"
+LOCAL_BASE="$(hosts_expand_path "$(hosts_sync_root_local "$CLI_ROOT" "$FS_KIND" "$FS_KEY")")"
+browse_directories "$CLI_SUBPATH"
 
 ensure_ssh_controlmaster "$SOURCE_HOST"
 fetch_directory_sizes
@@ -568,66 +558,108 @@ for directory in "${FILTERED_DIRECTORIES[@]}"; do
     echo "   $directory ($dir_size)"
 done
 echo
-echo "📍 Source host: $SOURCE_HOST"
+if [[ "$SYNC_PUSH" == true ]]; then
+    echo "📍 Remote host: $SOURCE_HOST"
+else
+    echo "📍 Source host: $SOURCE_HOST"
+fi
 echo "📍 Remote base: $REMOTE_BASE"
 echo "📍 Local base: $LOCAL_BASE"
-if [[ "$USE_LEGACY" == false && -n "$CLI_ROOT" ]]; then
+if [[ -n "$CLI_ROOT" ]]; then
     echo "📍 Sync root: $CLI_ROOT"
 fi
+if [[ "$SYNC_PUSH" == true ]]; then
+    echo "📍 Direction: push (local → remote)"
+else
+    echo "📍 Direction: pull (remote → local)"
+fi
 if [[ "$DELETE_FILES" == false ]]; then
-    echo "⚠️  Merge mode: files will not be deleted (merging from multiple machines)"
+    echo "⚠️  Merge mode: files will not be deleted"
 fi
 echo
 
-if ! gum confirm "Proceed with syncing these directories?"; then
+sync_verb="syncing"
+if [[ "$SYNC_PUSH" == true ]]; then
+    sync_verb="pushing"
+fi
+if ! gum confirm "Proceed with $sync_verb these directories?"; then
     echo "❌ Sync cancelled."
     exit 0
 fi
 
 if [[ "$DELETE_FILES" == true ]]; then
     echo
+    delete_prompt=""
+    if [[ "$SYNC_PUSH" == true ]]; then
+        delete_prompt="Delete files on $SOURCE_HOST that don't exist locally?"
+    else
+        delete_prompt="Delete files in destination that don't exist on $SOURCE_HOST?"
+    fi
     if gum confirm --default=false \
-        --affirmative="Yes, delete files not on server" \
+        --affirmative="Yes, delete extra files" \
         --negative="No, keep all existing files (merge mode)" \
-        "Delete files in destination that don't exist on $SOURCE_HOST?"; then
+        "$delete_prompt"; then
         DELETE_FILES=true
-        echo "ℹ️  Delete mode: files will be deleted to match server exactly"
+        if [[ "$SYNC_PUSH" == true ]]; then
+            echo "ℹ️  Delete mode: remote files will be deleted to match local exactly"
+        else
+            echo "ℹ️  Delete mode: local files will be deleted to match remote exactly"
+        fi
     else
         DELETE_FILES=false
-        echo "ℹ️  Merge mode: files will not be deleted (safe for multiple machines)"
+        echo "ℹ️  Merge mode: files will not be deleted"
     fi
 fi
 
 echo
-echo "🚀 Starting sync process..."
+if [[ "$SYNC_PUSH" == true ]]; then
+    echo "🚀 Starting push process..."
+else
+    echo "🚀 Starting sync process..."
+fi
 
 directory_count=${#FILTERED_DIRECTORIES[@]}
 current_dir=0
 
 for directory in "${FILTERED_DIRECTORIES[@]}"; do
     current_dir=$((current_dir + 1))
-    source="${SOURCE_HOST}:${REMOTE_BASE}/${directory}"
-    dest="${LOCAL_BASE}/${directory}"
-
-    echo
     dir_size="${DIR_SIZES[$directory]:-?}"
-    echo "📂 [$current_dir/$directory_count] Syncing: $directory ($dir_size)"
-    echo "   From: $source"
-    echo "   To: $dest"
-    echo
-
-    mkdir -p "$dest"
 
     rsync_delete_flag=""
     if [[ "$DELETE_FILES" == true ]]; then
         rsync_delete_flag="--delete"
     fi
 
-    rsync -az $rsync_delete_flag --info=progress2 --no-inc-recursive "${source}/" "${dest}/"
+    if [[ "$SYNC_PUSH" == true ]]; then
+        rsync_src="${LOCAL_BASE}/${directory}/"
+        rsync_dest="${SOURCE_HOST}:${REMOTE_BASE}/${directory}/"
+        echo
+        echo "📂 [$current_dir/$directory_count] Pushing: $directory ($dir_size)"
+        echo "   From: $rsync_src"
+        echo "   To: $rsync_dest"
+        echo
+        ssh "$SOURCE_HOST" mkdir -p "${REMOTE_BASE}/${directory}"
+        rsync -az $rsync_delete_flag --info=progress2 --no-inc-recursive "$rsync_src" "$rsync_dest"
+    else
+        rsync_src="${SOURCE_HOST}:${REMOTE_BASE}/${directory}/"
+        rsync_dest="${LOCAL_BASE}/${directory}/"
+        echo
+        echo "📂 [$current_dir/$directory_count] Syncing: $directory ($dir_size)"
+        echo "   From: $rsync_src"
+        echo "   To: $rsync_dest"
+        echo
+        mkdir -p "$rsync_dest"
+        rsync -az $rsync_delete_flag --info=progress2 --no-inc-recursive "$rsync_src" "$rsync_dest"
+    fi
 
     echo "✅ [$current_dir/$directory_count] Completed: $directory"
 done
 
 echo
-echo "🎉 All syncs from $SOURCE_HOST completed successfully!"
-echo "📁 Files synced to: $LOCAL_BASE"
+if [[ "$SYNC_PUSH" == true ]]; then
+    echo "🎉 All pushes to $SOURCE_HOST completed successfully!"
+    echo "📁 Files pushed to: $SOURCE_HOST:$REMOTE_BASE"
+else
+    echo "🎉 All syncs from $SOURCE_HOST completed successfully!"
+    echo "📁 Files synced to: $LOCAL_BASE"
+fi
