@@ -18,6 +18,10 @@ local_path = "/mnt/sibir"
 remote_path = "/home/kristian"
 local_path = "/mnt/bengal"
 
+[machines.bali]
+remote_path = "/home/kristian"
+local_path = "/mnt/bali"
+
 [machines.claw]
 remote_path = "/home/claw"
 local_path = "/mnt/claw"
