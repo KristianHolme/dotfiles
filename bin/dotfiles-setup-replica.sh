@@ -7,7 +7,7 @@ set -Eeuo pipefail
 #   use `bin install` for gh (skipped if gh is already on PATH), then require PAT or `gh auth login`,
 #   export token, then `bin install` for the rest unless each tool's CLI already exists on PATH
 #   (eza, zoxide, rg, lazygit, fzf, fd, starship, tree-sitter, git-lfs, btop, gum, superfile, dust,
-#   television, bat; bin-managed specs still skip via config when applicable).
+#   television, bat, shfmt; bin-managed specs still skip via config when applicable).
 # - tomlq: pip install --user yq (kislyuk/yq; needs jq + python3; not marcos bin / mikefarah yq).
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
@@ -232,6 +232,7 @@ replica_install_tools_with_bin() {
         github.com/charmbracelet/gum:gum
         github.com/alexpasmantier/television:tv
         github.com/sharkdp/bat:bat
+        github.com/mvdan/sh:shfmt
     )
     local pair spec cmd
     for pair in "${spec_cmd_pairs[@]}"; do
