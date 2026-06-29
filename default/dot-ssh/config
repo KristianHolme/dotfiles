@@ -4,9 +4,9 @@ Host *
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
 
-Host saga
+Host saga betzy olivia
     User kholme
-    Hostname saga.sigma2.no
+    Hostname %h.sigma2.no
     ForwardAgent yes
     setEnv TERM=xterm-256color
     ControlMaster auto
