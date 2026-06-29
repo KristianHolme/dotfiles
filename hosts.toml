@@ -29,9 +29,11 @@ local_path = "/mnt/claw"
 [machines.kaspi]
 remote_path = "/home/kristian"
 local_path = "/mnt/kaspi"
+
 [machines.saga]
 remote_path = "/cluster/home/kholme"
 local_path = "/mnt/saga"
+sync_roots = { project = "cluster/projects/nn9886k/kholme/Code" }
 
 [machines.nrec1]
 remote_path = "/home/ubuntu"
@@ -40,9 +42,7 @@ local_path = "/mnt/nrec1"
 [machines.fox]
 remote_path = "/fp/homes01/u01/ec-kholme"
 local_path = "/mnt/fox"
-
-[machines.fox.sync_roots]
-project = "/fp/projects01/ec12/ec-kholme/Code"
+sync_roots = { project = "/fp/projects01/ec12/ec-kholme/Code" }
 
 # ---- Groups: machines sharing a filesystem. mount_via picks the SSH alias. ----
 
