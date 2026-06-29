@@ -33,7 +33,7 @@ local_path = "/mnt/kaspi"
 [machines.saga]
 remote_path = "/cluster/home/kholme"
 local_path = "/mnt/saga"
-sync_roots = { project = "cluster/projects/nn9886k/kholme/Code" }
+sync_roots = { project = "/cluster/projects/nn9886k/kholme/Code" }
 
 [machines.nrec1]
 remote_path = "/home/ubuntu"
