@@ -59,6 +59,13 @@ extract_file = ['ctrl+e', '']
 open_current_directory_with_editor = ['E', '']
 open_file_with_editor = ['e', '']
 
+#-- Preview Panel
+preview_scroll_line_up = ['K', 'shift+up']
+preview_scroll_line_down = ['J', 'shift+down']
+preview_scroll_bulk_up = ['ctrl+k', 'ctrl+up']
+preview_scroll_bulk_down = ['ctrl+j', 'ctrl+down']
+preview_scroll_top = ['alt+k', 'alt+up']
+preview_scroll_bottom = ['alt+j', 'alt+down']
 #-- Other Actions
 change_panel_mode = ['v', '']
 copy_path = ['Y', '']
