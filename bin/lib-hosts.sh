@@ -19,11 +19,11 @@
 #   remote_path = "/home/..."
 #   local_path  = "/mnt/..."
 #
-#   [defaults.sync_roots]            # merged with machine/group sync_roots
-#   code = "Code"                    # string: relative to remote_path, or absolute if starts with /
+#   [defaults]
+#   sync_root = "Code"               # optional; relative to remote_path, or absolute if starts with /
 #
-#   [machines.<alias>.sync_roots]    # optional extra/override sync roots
-#   project = "/fp/projects/.../Code"
+#   [machines.<alias>]
+#   sync_root = "/fp/projects/.../Code"   # optional override; local landing defaults to ~/Code
 
 if [[ -n "${LIB_HOSTS_SH_SOURCED:-}" ]]; then
     return 0
@@ -181,7 +181,7 @@ hosts_expand_path() {
     fi
 }
 
-# Default local landing directory for sync roots.
+# Default local landing directory for sync.
 hosts_sync_root_default_local() {
     echo "~/Code"
 }
@@ -214,51 +214,33 @@ hosts_ssh_alias_context() {
     return 1
 }
 
-# Merged sync root names (defaults + machine/group), sorted.
-hosts_sync_root_names() {
+# Remote path spec for sync_root (string or .remote from table).
+hosts_sync_root_remote_spec() {
     local kind="$1" key="$2" f
     f="$(_hosts_resolve)" || return 1
     tomlq -r --arg kind "$kind" --arg key "$key" '
-        (.defaults.sync_roots // {}) as $defaults |
+        (.defaults.sync_root // "Code") as $default |
         (if $kind == "machine" then
-            .machines[$key].sync_roots // {}
+            .machines[$key].sync_root // $default
         else
-            .groups[$key].sync_roots // {}
-        end) as $entry |
-        ($defaults + $entry) | keys[]?
-    ' "$f" | sort -u
-}
-
-# Remote path spec for a sync root (string or .remote from table).
-hosts_sync_root_remote() {
-    local name="$1" kind="$2" key="$3" f
-    f="$(_hosts_resolve)" || return 1
-    tomlq -r --arg name "$name" --arg kind "$kind" --arg key "$key" '
-        (.defaults.sync_roots // {}) as $defaults |
-        (if $kind == "machine" then
-            .machines[$key].sync_roots // {}
-        else
-            .groups[$key].sync_roots // {}
-        end) as $entry |
-        ($defaults + $entry)[$name] |
+            .groups[$key].sync_root // $default
+        end) |
         if type == "string" then .
-        elif type == "object" then .remote // empty
-        else empty end
+        elif type == "object" then .remote // "Code"
+        else "Code" end
     ' "$f"
 }
 
-# Local landing path for a sync root (defaults to ~/Code).
+# Local landing path for sync_root (defaults to ~/Code).
 hosts_sync_root_local() {
-    local name="$1" kind="$2" key="$3" f local_override
+    local kind="$1" key="$2" f local_override
     f="$(_hosts_resolve)" || return 1
-    local_override="$(tomlq -r --arg name "$name" --arg kind "$kind" --arg key "$key" '
-        (.defaults.sync_roots // {}) as $defaults |
+    local_override="$(tomlq -r --arg kind "$kind" --arg key "$key" '
         (if $kind == "machine" then
-            .machines[$key].sync_roots // {}
+            .machines[$key].sync_root // null
         else
-            .groups[$key].sync_roots // {}
-        end) as $entry |
-        ($defaults + $entry)[$name] |
+            .groups[$key].sync_root // null
+        end) |
         if type == "object" then .local // empty else empty end
     ' "$f")"
     if [[ -n "$local_override" ]]; then
@@ -268,9 +250,9 @@ hosts_sync_root_local() {
     fi
 }
 
-# Full remote base path for a sync root (absolute on the server).
+# Full remote base path for sync_root (absolute on the server).
 hosts_sync_root_remote_base() {
-    local name="$1" kind="$2" key="$3" f remote_path remote_spec
+    local kind="$1" key="$2" f remote_path remote_spec
     f="$(_hosts_resolve)" || return 1
 
     case "$kind" in
@@ -282,9 +264,9 @@ hosts_sync_root_remote_base() {
             ;;
     esac
 
-    remote_spec="$(hosts_sync_root_remote "$name" "$kind" "$key")" || return 1
+    remote_spec="$(hosts_sync_root_remote_spec "$kind" "$key")" || return 1
     if [[ -z "$remote_spec" ]]; then
-        log_error "Unknown sync root: $name"
+        log_error "Empty sync_root for $kind $key"
         return 1
     fi
 
@@ -293,10 +275,4 @@ hosts_sync_root_remote_base() {
     else
         echo "$remote_path/$remote_spec"
     fi
-}
-
-# Return 0 if name is a valid sync root for the given context.
-hosts_sync_root_exists() {
-    local name="$1" kind="$2" key="$3"
-    hosts_sync_root_remote "$name" "$kind" "$key" | grep -q .
 }
