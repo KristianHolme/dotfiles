@@ -192,46 +192,6 @@ setup_television() {
     tv update-channels || log_warning "tv update-channels failed (non-critical)"
 }
 
-setup_yazi_plugins() {
-    local dotfiles_root list_file
-    dotfiles_root="$(cd "$SCRIPT_DIR/.." && pwd)"
-    list_file="$dotfiles_root/default/dot-config/yazi/plugins.txt"
-
-    if ! command -v ya >/dev/null 2>&1; then
-        log_warning "ya not on PATH (install yazi first); skipping Yazi plugins"
-        return 0
-    fi
-
-    local -a plugins=()
-    mapfile -t plugins < <(list_from_file "$list_file")
-    if [[ ${#plugins[@]} -eq 0 ]]; then
-        log_info "No Yazi plugins listed in plugins.txt; skipping"
-        return 0
-    fi
-
-    local installed_list plugin
-    local -a to_add=() to_upgrade=()
-    installed_list=$(ya pkg list 2>/dev/null || true)
-
-    for plugin in "${plugins[@]}"; do
-        if grep -qF "$plugin" <<<"$installed_list"; then
-            to_upgrade+=("$plugin")
-        else
-            to_add+=("$plugin")
-        fi
-    done
-
-    if [[ ${#to_add[@]} -gt 0 ]]; then
-        log_info "Installing Yazi plugins: ${to_add[*]}"
-        ya pkg add "${to_add[@]}" || log_warning "Some Yazi plugin installs failed (non-critical)"
-    fi
-
-    if [[ ${#to_upgrade[@]} -gt 0 ]]; then
-        log_info "Upgrading Yazi plugins: ${to_upgrade[*]}"
-        ya pkg upgrade "${to_upgrade[@]}" || log_warning "Some Yazi plugin upgrades failed (non-critical)"
-    fi
-}
-
 setup_github_cli_extensions() {
     if ! command -v gh >/dev/null 2>&1; then
         log_warning "gh not on PATH; skipping GitHub CLI extensions"
@@ -296,6 +256,7 @@ SETUP_STEPS=(
     'Remove packages:step_remove_packages'
     'Install Node dev env:step_install_node'
     'Install packages:step_install_packages'
+    'Setup cargo crates:step_setup_cargo_crates'
     'Setup Yazi plugins:step_setup_yazi_plugins'
     'Install GitHub CLI extensions:step_install_gh_extensions'
     'Setup marcosnils/bin:step_setup_marcosnils_bin'
@@ -364,6 +325,10 @@ step_install_packages() {
     else
         install_packages_from_gum || return 1
     fi
+}
+
+step_setup_cargo_crates() {
+    setup_cargo_crates || log_warning "cargo crate setup failed; continuing"
 }
 
 step_setup_yazi_plugins() {

@@ -274,6 +274,147 @@ install_tpm() {
     fi
 }
 
+cargo_prepend_path() {
+    local cargo_bin="$HOME/.cargo/bin"
+    case ":${PATH:-}:" in
+    *":$cargo_bin:"*) ;;
+    *) export PATH="$cargo_bin${PATH:+:${PATH}}" ;;
+    esac
+}
+
+ensure_cargo() {
+    cargo_prepend_path
+    if command -v cargo >/dev/null 2>&1; then
+        return 0
+    fi
+
+    ensure_cmd curl
+    log_info "Installing Rust toolchain via rustup..."
+    if ! curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; then
+        log_error "rustup installation failed"
+        return 1
+    fi
+
+    cargo_prepend_path
+    if ! command -v cargo >/dev/null 2>&1; then
+        log_error "cargo not on PATH after rustup install"
+        return 1
+    fi
+
+    log_success "Rust toolchain ready"
+    return 0
+}
+
+# Install crates from package-lists/cargo-install.txt (crate or crate:command per line).
+setup_cargo_crates() {
+    local list_file="${1:-$_LIB_INSTALL_DIR/package-lists/cargo-install.txt}"
+
+    if [[ ! -f "$list_file" ]]; then
+        log_info "No cargo install list at $list_file; skipping"
+        return 0
+    fi
+
+    local -a entries=()
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "${line// /}" ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        entries+=("$line")
+    done <"$list_file"
+
+    if [[ ${#entries[@]} -eq 0 ]]; then
+        log_info "No crates listed in $list_file; skipping"
+        return 0
+    fi
+
+    if ! ensure_cargo; then
+        log_warning "cargo unavailable; cannot install crates"
+        return 1
+    fi
+
+    local entry crate cmd
+    for entry in "${entries[@]}"; do
+        if [[ "$entry" == *:* ]]; then
+            crate="${entry%%:*}"
+            cmd="${entry##*:}"
+        else
+            crate="$entry"
+            cmd="$entry"
+        fi
+
+        cargo_prepend_path
+        if command -v "$cmd" >/dev/null 2>&1; then
+            log_info "$cmd already on PATH; skipping cargo install $crate"
+            continue
+        fi
+
+        log_info "Installing $crate via cargo (binary: $cmd)..."
+        if cargo install "$crate"; then
+            cargo_prepend_path
+            if command -v "$cmd" >/dev/null 2>&1; then
+                log_success "Installed $cmd -> $(command -v "$cmd")"
+            else
+                log_warning "$cmd not on PATH after cargo install $crate"
+            fi
+        else
+            log_warning "cargo install $crate failed (non-critical)"
+        fi
+    done
+}
+
+setup_yazi_plugins() {
+    local list_file="$_LIB_INSTALL_DIR/../default/dot-config/yazi/plugins.txt"
+
+    if ! command -v mdv >/dev/null 2>&1; then
+        log_warning "mdv not on PATH (install cargo crates first); mdv-previewer will not work"
+    fi
+
+    if ! command -v ya >/dev/null 2>&1; then
+        log_warning "ya not on PATH (install yazi first); skipping Yazi plugins"
+        return 0
+    fi
+
+    if [[ ! -f "$list_file" ]]; then
+        log_info "No Yazi plugins list at $list_file; skipping"
+        return 0
+    fi
+
+    local -a plugins=()
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "${line// /}" ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        plugins+=("$line")
+    done <"$list_file"
+
+    if [[ ${#plugins[@]} -eq 0 ]]; then
+        log_info "No Yazi plugins listed in plugins.txt; skipping"
+        return 0
+    fi
+
+    local installed_list plugin
+    local -a to_add=() to_upgrade=()
+    installed_list=$(ya pkg list 2>/dev/null || true)
+
+    for plugin in "${plugins[@]}"; do
+        if grep -qF "$plugin" <<<"$installed_list"; then
+            to_upgrade+=("$plugin")
+        else
+            to_add+=("$plugin")
+        fi
+    done
+
+    if [[ ${#to_add[@]} -gt 0 ]]; then
+        log_info "Installing Yazi plugins: ${to_add[*]}"
+        ya pkg add "${to_add[@]}" || log_warning "Some Yazi plugin installs failed (non-critical)"
+    fi
+
+    if [[ ${#to_upgrade[@]} -gt 0 ]]; then
+        log_info "Upgrading Yazi plugins: ${to_upgrade[*]}"
+        ya pkg upgrade "${to_upgrade[@]}" || log_warning "Some Yazi plugin upgrades failed (non-critical)"
+    fi
+}
+
 #######################################
 # Marcosnils/bin (https://github.com/marcosnils/bin)
 # Shared by dotfiles-setup-replica.sh, dotfiles-setup-packages.sh, etc.
