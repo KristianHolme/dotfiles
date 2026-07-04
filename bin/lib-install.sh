@@ -363,13 +363,52 @@ setup_cargo_crates() {
 }
 
 # Install yazi and ya from the official GitHub release zip (bin only installs one binary).
+yazi_cmd_works() {
+    local cmd="$1"
+    command -v "$cmd" >/dev/null 2>&1 && "$cmd" --version >/dev/null 2>&1
+}
+
+yazi_release_asset_re() {
+    local glibc_ver="" use_musl=0
+    glibc_ver=$(detect_glibc_version || true)
+    if [[ -z "$glibc_ver" ]] || ! ver_ge "$glibc_ver" "2.39"; then
+        use_musl=1
+        if [[ -n "$glibc_ver" ]]; then
+            log_info "glibc $glibc_ver < 2.39; using musl yazi release"
+        else
+            log_info "glibc version unknown; using musl yazi release"
+        fi
+    fi
+
+    case "$(uname -m)" in
+    aarch64 | arm64)
+        if [[ "$use_musl" -eq 1 ]]; then
+            echo 'yazi-aarch64-unknown-linux-musl\.zip$'
+        else
+            echo 'yazi-aarch64-unknown-linux-gnu\.zip$'
+        fi
+        ;;
+    x86_64 | amd64)
+        if [[ "$use_musl" -eq 1 ]]; then
+            echo 'yazi-x86_64-unknown-linux-musl\.zip$'
+        else
+            echo 'yazi-x86_64-unknown-linux-gnu\.zip$'
+        fi
+        ;;
+    *)
+        log_error "Unsupported architecture for yazi release: $(uname -m)"
+        return 1
+        ;;
+    esac
+}
+
 install_yazi_from_release() {
     local install_base="${INSTALL_DIR:-$HOME/.local/bin}"
     local need_yazi=0 need_ya=0 asset_re="" asset_url="" tmp="" extract_dir=""
 
     marcos_bin_prepend_path
-    command -v yazi >/dev/null 2>&1 || need_yazi=1
-    command -v ya >/dev/null 2>&1 || need_ya=1
+    yazi_cmd_works yazi || need_yazi=1
+    yazi_cmd_works ya || need_ya=1
     if [[ "$need_yazi" -eq 0 && "$need_ya" -eq 0 ]]; then
         log_info "yazi and ya already on PATH; skipping release install"
         return 0
@@ -377,17 +416,10 @@ install_yazi_from_release() {
 
     ensure_cmd curl unzip install
 
-    case "$(uname -m)" in
-    aarch64 | arm64) asset_re='yazi-aarch64-unknown-linux-gnu\.zip$' ;;
-    x86_64 | amd64) asset_re='yazi-x86_64-unknown-linux-gnu\.zip$' ;;
-    *)
-        log_error "Unsupported architecture for yazi release: $(uname -m)"
-        return 1
-        ;;
-    esac
+    asset_re=$(yazi_release_asset_re) || return 1
 
     asset_url=$(find_asset_url "sxyazi/yazi" "$asset_re") || {
-        log_error "Could not find yazi release zip"
+        log_error "Could not find yazi release zip matching $asset_re"
         return 1
     }
 
@@ -416,6 +448,12 @@ install_yazi_from_release() {
         install -m 0755 "$extract_dir/ya" "$install_base/ya"
         log_success "Installed ya -> $install_base/ya"
     fi
+
+    marcos_bin_prepend_path
+    if ! yazi_cmd_works ya; then
+        log_error "ya installed but does not run (check glibc / try musl build)"
+        return 1
+    fi
 }
 
 setup_yazi_plugins() {
@@ -425,8 +463,8 @@ setup_yazi_plugins() {
         log_warning "mdv not on PATH (install cargo crates first); mdv-previewer will not work"
     fi
 
-    if ! command -v ya >/dev/null 2>&1; then
-        log_warning "ya not on PATH (install yazi first); skipping Yazi plugins"
+    if ! yazi_cmd_works ya; then
+        log_warning "ya not working on PATH (install yazi release first); skipping Yazi plugins"
         return 0
     fi
 
