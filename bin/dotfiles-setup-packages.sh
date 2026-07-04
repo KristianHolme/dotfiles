@@ -381,7 +381,7 @@ step_install_tree_sitter() {
         return 1
     fi
     ensure_cmd jq
-    marcos_bin_install_or_update_github "github.com/tree-sitter/tree-sitter" "tree-sitter"
+    install_tree_sitter_via_bin
 }
 
 step_setup_julia() {

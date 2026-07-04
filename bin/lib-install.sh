@@ -544,12 +544,30 @@ marcos_bin_config_path() {
     echo "$HOME/.bin/config.json"
 }
 
-# True when marcosnils/bin already tracks this provider URL in config.json (idempotent re-runs).
-marcos_bin_is_registered() {
-    local spec="$1" conf=""
+# True when marcosnils/bin already tracks this install path in config.json.
+marcos_bin_is_managed_at() {
+    local install_path="$1" conf=""
     conf=$(marcos_bin_config_path)
     [[ -f "$conf" ]] || return 1
-    jq -e --arg u "$spec" 'any(.bins[]?; .url == $u)' "$conf" >/dev/null 2>&1
+    jq -e --arg p "$install_path" '.bins | has($p)' "$conf" >/dev/null 2>&1
+}
+
+# True when marcosnils/bin already tracks this provider URL in config.json (idempotent re-runs).
+# bin may store the short spec (github.com/owner/repo) or a full release/tag URL after install.
+marcos_bin_is_registered() {
+    local spec="$1" conf="" repo=""
+    conf=$(marcos_bin_config_path)
+    [[ -f "$conf" ]] || return 1
+    repo="${spec#github.com/}"
+    if [[ -z "$repo" || "$repo" == "$spec" ]]; then
+        return 1
+    fi
+    jq -e --arg spec "$spec" --arg repo "$repo" '
+        any(.bins[]?;
+            .url == $spec
+            or (.url | test("github\\.com/" + ($repo | gsub("\\."; "\\\\.")) + "(/|$|\\?|#)"; "i"))
+        )
+    ' "$conf" >/dev/null 2>&1
 }
 
 # Create a minimal bin config so first run does not prompt for a download directory.
@@ -693,14 +711,44 @@ install_tomlq_if_missing() {
 marcos_bin_install_or_update_github() {
     local spec="$1"
     local binary_name="$2"
+    local install_path="${INSTALL_DIR:-$HOME/.local/bin}/$binary_name"
+    local -a update_flags=()
     export_github_token_from_gh_if_needed
-    if marcos_bin_is_registered "$spec"; then
+    if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]]; then
+        update_flags=(-y)
+    fi
+    if marcos_bin_is_registered "$spec" || marcos_bin_is_managed_at "$install_path"; then
         log_info "bin update $binary_name"
-        bin update "$binary_name" || return 1
+        bin update "$binary_name" "${update_flags[@]}" || return 1
         return 0
     fi
     log_info "bin install $spec"
     bin install "$spec" || return 1
+}
+
+# tree-sitter releases ship both CLI (.zip) and library (.gz) assets; bin scores them equally
+# and prompts interactively. Always pick the CLI (option 1) for non-interactive setup.
+install_tree_sitter_via_bin() {
+    local spec="github.com/tree-sitter/tree-sitter"
+    local cmd="tree-sitter"
+    local install_path="${INSTALL_DIR:-$HOME/.local/bin}/$cmd"
+    local -a update_flags=()
+
+    export_github_token_from_gh_if_needed
+    marcos_bin_prepend_path
+
+    if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]]; then
+        update_flags=(-y)
+    fi
+
+    if marcos_bin_is_registered "$spec" || marcos_bin_is_managed_at "$install_path"; then
+        log_info "bin update $cmd"
+        bin update "$cmd" "${update_flags[@]}" || return 1
+        return 0
+    fi
+
+    log_info "bin install $spec (tree-sitter CLI)"
+    printf '1\n' | bin install "$spec" "$cmd" || return 1
 }
 
 #######################################
