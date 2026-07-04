@@ -1,0 +1,14 @@
+[[mgr.prepend_keymap]]
+on   = "<S-Left>"
+run  = "plugin preview-resize grow"
+desc = "Grow preview pane"
+
+[[mgr.prepend_keymap]]
+on   = "<S-Right>"
+run  = "plugin preview-resize shrink"
+desc = "Shrink preview pane"
+
+[[mgr.prepend_keymap]]
+on   = "R"
+run  = "plugin preview-resize reset"
+desc = "Reset pane ratios to default"
