@@ -39,3 +39,5 @@ tesseract-data-eng
 glow
 sshfs
 cursor-cli
+7zip
+yazi
