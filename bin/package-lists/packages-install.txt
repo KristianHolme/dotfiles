@@ -1,7 +1,6 @@
 # One package per line for yay install. Empty lines and # full-line comments ignored.
 # Omarchy Node dev env, Television channel setup, and Zotero extensions are handled in the script after this list.
 # Edited by dotfiles-setup-packages.sh — see bin/dotfiles-setup-packages.sh
-
 zotero-bin
 cursor-bin
 diffnav
@@ -32,11 +31,9 @@ television
 virt-viewer
 openbsd-netcat
 serpl
-superfile
 exiftool
 tesseract
 tesseract-data-eng
-glow
 sshfs
 cursor-cli
 7zip
