@@ -266,7 +266,6 @@ SETUP_STEPS=(
     'Setup tmux TPM:step_setup_tmux_tpm'
     'Setup Tailscale:step_setup_tailscale'
     'Setup Syncthing:step_setup_syncthing'
-    'Install tree-sitter:step_install_tree_sitter'
     'Setup Julia (juliaup):step_setup_julia'
 )
 
@@ -373,15 +372,6 @@ step_setup_tailscale() {
 
 step_setup_syncthing() {
     setup_syncthing
-}
-
-step_install_tree_sitter() {
-    if ! command -v bin >/dev/null 2>&1; then
-        log_error "marcosnils/bin ('bin') not on PATH. Run the 'Setup marcosnils/bin' step first, or install https://github.com/marcosnils/bin manually."
-        return 1
-    fi
-    ensure_cmd jq
-    install_tree_sitter_via_bin
 }
 
 step_setup_julia() {

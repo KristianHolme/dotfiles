@@ -726,31 +726,6 @@ marcos_bin_install_or_update_github() {
     bin install "$spec" || return 1
 }
 
-# tree-sitter releases ship both CLI (.zip) and library (.gz) assets; bin scores them equally
-# and prompts interactively. Always pick the CLI (option 1) for non-interactive setup.
-install_tree_sitter_via_bin() {
-    local spec="github.com/tree-sitter/tree-sitter"
-    local cmd="tree-sitter"
-    local install_path="${INSTALL_DIR:-$HOME/.local/bin}/$cmd"
-    local -a update_flags=()
-
-    export_github_token_from_gh_if_needed
-    marcos_bin_prepend_path
-
-    if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]]; then
-        update_flags=(-y)
-    fi
-
-    if marcos_bin_is_registered "$spec" || marcos_bin_is_managed_at "$install_path"; then
-        log_info "bin update $cmd"
-        bin update "$cmd" "${update_flags[@]}" || return 1
-        return 0
-    fi
-
-    log_info "bin install $spec (tree-sitter CLI)"
-    printf '1\n' | bin install "$spec" "$cmd" || return 1
-}
-
 #######################################
 # GitHub Release Helpers
 #######################################

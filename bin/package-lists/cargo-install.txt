@@ -1,3 +1,4 @@
 # One Cargo crate per line (cargo install). Empty lines and # comments ignored.
 # Optional crate:command when the binary name differs from the crate name.
 mdv
+tree-sitter-cli:tree-sitter

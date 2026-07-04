@@ -60,7 +60,7 @@ dotfiles-setup-packages.sh [--all]    # alias: dsp
 
 Gum menu of steps: remove default Omarchy webapps/packages, install packages
 from `bin/package-lists/`, gh extensions, marcosnils/bin, Television channels,
-Zotero plugins, LaTeX templates, tpm, Tailscale, Syncthing, tree-sitter,
+Zotero plugins, LaTeX templates, tpm, Tailscale, Syncthing,
 juliaup.
 
 ## Host inventory and remote access
@@ -113,5 +113,6 @@ project-area path on the server.
 - Hyprland `envs.conf` changes need a full Hyprland restart, not just reload.
 - Restore an Omarchy default config:
   `~/.local/share/omarchy/bin/omarchy-refresh-config hypr/bindings.conf`
-- Tree-sitter on old-glibc servers may need a source build:
+- Tree-sitter CLI is installed via cargo (`tree-sitter-cli` in `bin/package-lists/cargo-install.txt`).
+  On old-glibc servers where that build fails, install manually:
   `cargo install tree-sitter-cli --no-default-features`

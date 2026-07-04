@@ -6,7 +6,7 @@ set -Eeuo pipefail
 #   temp path, run `bin install github.com/marcosnils/bin` (README flow; no PATH skip here), then
 #   use `bin install` for gh (skipped if gh is already on PATH), then require PAT or `gh auth login`,
 #   export token, then `bin install` for the rest unless each tool's CLI already exists on PATH
-#   (eza, zoxide, rg, lazygit, fzf, fd, starship, tree-sitter, git-lfs, btop, gum, superfile, dust,
+#   (eza, zoxide, rg, lazygit, fzf, fd, starship, git-lfs, btop, gum, superfile, dust,
 #   television, bat, shfmt; bin-managed specs still skip via config when applicable).
 # - tomlq: pip install --user yq (kislyuk/yq; needs jq + python3; not marcos bin / mikefarah yq).
 # - GNU stow: built from source into ~/.local (not available via bin).
@@ -225,7 +225,6 @@ replica_install_tools_with_bin() {
         github.com/junegunn/fzf:fzf
         github.com/sharkdp/fd:fd
         github.com/bootandy/dust:dust
-        github.com/tree-sitter/tree-sitter:tree-sitter
         github.com/git-lfs/git-lfs:git-lfs
         github.com/aristocratos/btop:btop
         github.com/yorukot/superfile:spf
