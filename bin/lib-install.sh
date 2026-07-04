@@ -362,6 +362,62 @@ setup_cargo_crates() {
     done
 }
 
+# Install yazi and ya from the official GitHub release zip (bin only installs one binary).
+install_yazi_from_release() {
+    local install_base="${INSTALL_DIR:-$HOME/.local/bin}"
+    local need_yazi=0 need_ya=0 asset_re="" asset_url="" tmp="" extract_dir=""
+
+    marcos_bin_prepend_path
+    command -v yazi >/dev/null 2>&1 || need_yazi=1
+    command -v ya >/dev/null 2>&1 || need_ya=1
+    if [[ "$need_yazi" -eq 0 && "$need_ya" -eq 0 ]]; then
+        log_info "yazi and ya already on PATH; skipping release install"
+        return 0
+    fi
+
+    ensure_cmd curl unzip install
+
+    case "$(uname -m)" in
+    aarch64 | arm64) asset_re='yazi-aarch64-unknown-linux-gnu\.zip$' ;;
+    x86_64 | amd64) asset_re='yazi-x86_64-unknown-linux-gnu\.zip$' ;;
+    *)
+        log_error "Unsupported architecture for yazi release: $(uname -m)"
+        return 1
+        ;;
+    esac
+
+    asset_url=$(find_asset_url "sxyazi/yazi" "$asset_re") || {
+        log_error "Could not find yazi release zip"
+        return 1
+    }
+
+    tmp=$(mktemp -d)
+    trap 't="${tmp:-}"; [[ -n "$t" ]] && rm -rf "$t"' RETURN
+
+    log_info "Downloading yazi release (yazi + ya) from $asset_url"
+    curl -fsSL --max-time "${CURL_TIMEOUT:-120}" -o "$tmp/yazi.zip" "$asset_url" || {
+        log_error "Failed to download yazi release"
+        return 1
+    }
+    unzip -q "$tmp/yazi.zip" -d "$tmp"
+
+    extract_dir=$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -n1 || true)
+    if [[ -z "$extract_dir" || ! -f "$extract_dir/yazi" || ! -f "$extract_dir/ya" ]]; then
+        log_error "yazi release zip missing yazi or ya binary"
+        return 1
+    fi
+
+    mkdir -p "$install_base"
+    if [[ "$need_yazi" -eq 1 ]]; then
+        install -m 0755 "$extract_dir/yazi" "$install_base/yazi"
+        log_success "Installed yazi -> $install_base/yazi"
+    fi
+    if [[ "$need_ya" -eq 1 ]]; then
+        install -m 0755 "$extract_dir/ya" "$install_base/ya"
+        log_success "Installed ya -> $install_base/ya"
+    fi
+}
+
 setup_yazi_plugins() {
     local list_file="$_LIB_INSTALL_DIR/../default/dot-config/yazi/plugins.txt"
 
