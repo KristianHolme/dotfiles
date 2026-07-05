@@ -33,6 +33,11 @@ gh_is_authed() {
     command -v gh >/dev/null 2>&1 && gh auth status -h github.com >/dev/null 2>&1
 }
 
+# Prepend user-local and dotfiles bin dirs. SSH command sessions skip interactive .bashrc.
+dotfiles_prepend_user_path() {
+    export PATH="$HOME/.local/bin:$HOME/dotfiles/bin${PATH:+:$PATH}"
+}
+
 # Standardized dependency check
 # Usage: ensure_cmd "git" "curl"
 ensure_cmd() {

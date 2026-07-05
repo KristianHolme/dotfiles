@@ -66,6 +66,7 @@ fi
 SYNC_ROOT="$1"
 subpath="$(normalize_subpath "${2:-}")"
 
+dotfiles_prepend_user_path
 ensure_cmd yazi
 
 if [[ ! -t 0 && ! -t 1 ]]; then
