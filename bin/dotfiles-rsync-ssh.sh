@@ -21,26 +21,6 @@ CLI_TARGET=""
 CLI_SUBPATH=""
 POSITIONAL=()
 
-DIR_INDEX=()
-BROWSE_ANCHOR_REL=""
-
-ACTION_UP=".."
-ACTION_SYNC_HERE="[Sync this folder]"
-ACTION_PICK_SUBS="[Choose subfolders to sync...]"
-
-set_sync_action_labels() {
-    if [[ "$SYNC_REMOTE" == true ]]; then
-        ACTION_SYNC_HERE="[Copy this folder]"
-        ACTION_PICK_SUBS="[Choose subfolders to copy...]"
-    elif [[ "$SYNC_PUSH" == true ]]; then
-        ACTION_SYNC_HERE="[Push this folder]"
-        ACTION_PICK_SUBS="[Choose subfolders to push...]"
-    else
-        ACTION_SYNC_HERE="[Pull this folder]"
-        ACTION_PICK_SUBS="[Choose subfolders to pull...]"
-    fi
-}
-
 normalize_subpath() {
     local path="$1"
     path="${path#./}"
@@ -267,222 +247,76 @@ mount_local_base_for_remote() {
     fi
 }
 
-local_dir_index() {
-    local anchor_rel="$1" search_path="" local_base="$LOCAL_BASE"
+validate_filtered_directories() {
+    local base rel abs base_real resolved_base mount_local_base=""
 
-    BROWSE_ANCHOR_REL="$anchor_rel"
-    DIR_INDEX=()
-
-    if [[ -n "$anchor_rel" ]]; then
-        search_path="$local_base/$anchor_rel"
-    else
-        search_path="$local_base"
-    fi
-
-    if [[ ! -d "$search_path" ]]; then
-        echo "❌ Browse path not found: $search_path"
-        exit 1
-    fi
-
-    while IFS= read -r abs_path; do
-        [[ -z "$abs_path" ]] && continue
-        local rel_path="${abs_path#"$local_base"/}"
-        DIR_INDEX+=("$rel_path")
-    done < <(find "$search_path" -type d | sort)
-
-    if [[ ${#DIR_INDEX[@]} -eq 0 ]]; then
-        echo "❌ No directories found under $search_path"
-        exit 1
-    fi
-}
-
-remote_dir_index() {
-    local anchor_rel="$1" mount_local_base="" search_path="" index_output=""
-
-    BROWSE_ANCHOR_REL="$anchor_rel"
-    DIR_INDEX=()
-
-    if [[ -n "$anchor_rel" ]]; then
-        search_path="$REMOTE_BASE/$anchor_rel"
-    else
-        search_path="$REMOTE_BASE"
-    fi
-
-    mount_local_base="$(mount_local_base_for_remote || true)"
-    if [[ -n "$mount_local_base" ]]; then
-        if [[ -n "$anchor_rel" ]]; then
-            search_path="$mount_local_base/$anchor_rel"
-        else
-            search_path="$mount_local_base"
-        fi
-        if [[ ! -d "$search_path" ]]; then
-            echo "❌ Browse path not found: $search_path"
-            exit 1
-        fi
-        while IFS= read -r abs_path; do
-            [[ -z "$abs_path" ]] && continue
-            local rel_path="${abs_path#"$mount_local_base"/}"
-            DIR_INDEX+=("$rel_path")
-        done < <(find "$search_path" -type d | sort)
-    else
-        ensure_ssh_controlmaster "$SOURCE_HOST"
-        if ! ssh "$SOURCE_HOST" test -d "$search_path"; then
-            echo "❌ Remote path not found: $SOURCE_HOST:$search_path"
-            exit 1
-        fi
-        index_output=$(gum spin --spinner dot --title "Indexing remote directories..." -- \
-            ssh "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" "${anchor_rel-}" <<'EOF'
-set -euo pipefail
-remote_base="$1"
-anchor_rel="${2-}"
-search_path="$remote_base"
-if [[ -n "$anchor_rel" ]]; then
-    search_path="${remote_base}/${anchor_rel}"
-fi
-find "$search_path" -type d | sort | while IFS= read -r abs_path; do
-    rel_path="${abs_path#${remote_base}/}"
-    printf '%s\n' "$rel_path"
-done
-EOF
-        )
-        while IFS= read -r rel_path; do
-            [[ -z "$rel_path" ]] && continue
-            DIR_INDEX+=("$rel_path")
-        done <<<"$index_output"
-    fi
-
-    if [[ ${#DIR_INDEX[@]} -eq 0 ]]; then
-        echo "❌ No directories found under $search_path"
-        exit 1
-    fi
-}
-
-dir_index() {
     if [[ "$SYNC_PUSH" == true && "$SYNC_REMOTE" != true ]]; then
-        local_dir_index "$1"
+        base="$LOCAL_BASE"
+        resolved_base="$LOCAL_BASE"
     else
-        remote_dir_index "$1"
+        base="$REMOTE_BASE"
+        mount_local_base="$(mount_local_base_for_remote || true)"
+        resolved_base="${mount_local_base:-$REMOTE_BASE}"
     fi
-}
 
-browse_immediate_children() {
-    local current_rel="$1"
-    local -a children=()
-    local path prefix rest
-
-    if [[ -z "$current_rel" ]]; then
-        for path in "${DIR_INDEX[@]}"; do
-            [[ -z "$path" || "$path" == */* ]] && continue
-            children+=("$path")
-        done
+    if [[ -d "$resolved_base" ]]; then
+        base_real="$(realpath "$resolved_base")"
     else
-        prefix="${current_rel}/"
-        for path in "${DIR_INDEX[@]}"; do
-            [[ "$path" == "$prefix"* ]] || continue
-            rest="${path#"$prefix"}"
-            [[ -z "$rest" || "$rest" == */* ]] && continue
-            children+=("$rest")
-        done
+        base_real="$(realpath -m "$base")"
     fi
 
-    if [[ ${#children[@]} -eq 0 ]]; then
-        return 0
-    fi
-
-    printf '%s\n' "${children[@]}" | sort -u
-}
-
-browse_current_display() {
-    local current_rel="$1"
-    if [[ "$SYNC_PUSH" == true && "$SYNC_REMOTE" != true ]]; then
-        if [[ -n "$current_rel" ]]; then
-            echo "$LOCAL_BASE/$current_rel"
-        else
-            echo "$LOCAL_BASE"
-        fi
-    elif [[ -n "$current_rel" ]]; then
-        echo "$SOURCE_HOST:$REMOTE_BASE/$current_rel"
-    else
-        echo "$SOURCE_HOST:$REMOTE_BASE"
-    fi
-}
-
-browse_directories() {
-    local anchor_rel="${1:-}" current_rel="" selected="" header="" menu_options=()
-    local -a child_dirs=() picked=()
-
-    dir_index "$anchor_rel"
-    current_rel="$anchor_rel"
-
-    while true; do
-        readarray -t child_dirs < <(browse_immediate_children "$current_rel")
-        menu_options=()
-        if [[ -n "$current_rel" ]]; then
-            menu_options+=("$ACTION_UP")
-        fi
-        menu_options+=("$ACTION_SYNC_HERE")
-        if [[ ${#child_dirs[@]} -gt 0 ]]; then
-            menu_options+=("$ACTION_PICK_SUBS")
-            local child
-            for child in "${child_dirs[@]}"; do
-                menu_options+=("${child}/")
-            done
-        fi
-
-        header="Browse: $(browse_current_display "$current_rel")"
-        selected=$(printf '%s\n' "${menu_options[@]}" | gum choose --header "$header")
-        if [[ -z "$selected" ]]; then
-            echo "❌ No selection made. Exiting."
-            exit 0
-        fi
-
-        case "$selected" in
-        "$ACTION_UP")
-            current_rel="${current_rel%/*}"
-            ;;
-        "$ACTION_SYNC_HERE")
-            if [[ -n "$current_rel" ]]; then
-                FILTERED_DIRECTORIES=("$current_rel")
-            else
-                echo "❌ Cannot sync the entire sync root from here; enter a subfolder or choose subfolders."
-                continue
-            fi
-            return 0
-            ;;
-        "$ACTION_PICK_SUBS")
-            picked=()
-            while IFS= read -r line; do
-                [[ -n "$line" ]] && picked+=("$line")
-            done < <(printf '%s\n' "${child_dirs[@]}" | gum choose --no-limit --height=15 \
-                --header="Select subfolders to sync (Space to select, Enter to confirm):")
-            if [[ ${#picked[@]} -eq 0 ]]; then
-                continue
-            fi
-            FILTERED_DIRECTORIES=()
-            local name
-            for name in "${picked[@]}"; do
-                if [[ -n "$current_rel" ]]; then
-                    FILTERED_DIRECTORIES+=("$current_rel/$name")
-                else
-                    FILTERED_DIRECTORIES+=("$name")
-                fi
-            done
-            return 0
-            ;;
-        */)
-            selected="${selected%/}"
-            if [[ -n "$current_rel" ]]; then
-                current_rel="$current_rel/$selected"
-            else
-                current_rel="$selected"
-            fi
-            ;;
-        *)
-            echo "❌ Unexpected selection: $selected"
+    for rel in "${FILTERED_DIRECTORIES[@]}"; do
+        if [[ -z "$rel" || "$rel" == /* || "$rel" == *..* ]]; then
+            echo "❌ Invalid path: $rel" >&2
             exit 1
-            ;;
-        esac
+        fi
+
+        if [[ -d "$resolved_base" ]]; then
+            abs="$(realpath -m "$resolved_base/$rel")"
+        else
+            abs="$(realpath -m "$base/$rel")"
+        fi
+
+        if [[ "$abs" == "$base_real" ]]; then
+            echo "❌ Cannot sync sync root itself: $rel" >&2
+            exit 1
+        fi
+
+        if [[ "$abs" != "$base_real"/* ]]; then
+            echo "❌ Path not under sync root: $rel" >&2
+            exit 1
+        fi
+
+        if [[ -d "$resolved_base" && ! -d "$abs" ]]; then
+            echo "❌ Not a directory: $rel" >&2
+            exit 1
+        fi
     done
+}
+
+select_directories() {
+    local anchor_rel="${1:-}" choose_script="$SCRIPT_DIR/dotfiles-yazi-choose-dirs.sh"
+    local mount_local_base=""
+
+    if [[ "$SYNC_PUSH" == true && "$SYNC_REMOTE" != true ]]; then
+        mapfile -t FILTERED_DIRECTORIES < <("$choose_script" "$LOCAL_BASE" "$anchor_rel")
+    else
+        mount_local_base="$(mount_local_base_for_remote || true)"
+        if [[ -n "$mount_local_base" ]]; then
+            mapfile -t FILTERED_DIRECTORIES < <("$choose_script" "$mount_local_base" "$anchor_rel")
+        else
+            ensure_ssh_controlmaster "$SOURCE_HOST"
+            mapfile -t FILTERED_DIRECTORIES < <(
+                ssh -t "$SOURCE_HOST" '$HOME/dotfiles/bin/dotfiles-yazi-choose-dirs.sh' \
+                    "$REMOTE_BASE" "$anchor_rel" </dev/tty
+            )
+        fi
+    fi
+
+    if [[ ${#FILTERED_DIRECTORIES[@]} -eq 0 ]]; then
+        echo "❌ No selection made. Exiting."
+        exit 0
+    fi
 }
 
 fetch_directory_sizes() {
@@ -590,9 +424,7 @@ if [[ "$SYNC_REMOTE" == true && "$SYNC_PUSH" == true ]]; then
     exit 1
 fi
 
-ensure_cmd gum find
-
-set_sync_action_labels
+ensure_cmd gum yazi
 
 FILTERED_DIRECTORIES=()
 declare -A DIR_SIZES
@@ -616,7 +448,8 @@ else
 
     resolve_host_context
 fi
-browse_directories "$CLI_SUBPATH"
+select_directories "$CLI_SUBPATH"
+validate_filtered_directories
 
 ensure_ssh_controlmaster "$SOURCE_HOST"
 if [[ "$SYNC_REMOTE" == true ]]; then
