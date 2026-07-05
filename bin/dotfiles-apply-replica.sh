@@ -63,13 +63,13 @@ stow_replica_package() {
 	mkdir -p "$target"
 
 	log_info "Stowing default/$package into $target (first with --adopt if existing files conflict)..."
-	if stow -d "$stow_dir" -t "$target" --dotfiles -S "$package" --adopt -v; then
+	if stow -d "$stow_dir" -t "$target" --dotfiles --no-folding -S "$package" --adopt -v; then
 		log_success "Stowed $package into $target"
 		return 0
 	fi
 
 	log_warning "Stow with --adopt failed; retrying without --adopt"
-	if stow -d "$stow_dir" -t "$target" --dotfiles -S "$package" -v; then
+	if stow -d "$stow_dir" -t "$target" --dotfiles --no-folding -S "$package" -v; then
 		log_success "Stowed $package into $target"
 		return 0
 	fi

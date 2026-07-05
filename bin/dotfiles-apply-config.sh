@@ -112,7 +112,7 @@ apply_configs() {
 	local profile="${1:-}"
 
 	# Apply base default package (includes dotfiles under dot-* inside it)
-	stow_with_conflict_detection "$PACKAGES_DIR" "default" "$TARGET_HOME" "default files" --override='.*'
+	stow_with_conflict_detection "$PACKAGES_DIR" "default" "$TARGET_HOME" "default files" --override='.*' --no-folding
 
 	# If a profile was provided, handle profile switching via top-level packages named by profile
 	if [[ -n "$profile" ]]; then
@@ -122,7 +122,7 @@ apply_configs() {
 			unstow_all_profiles "$PACKAGES_DIR" "$TARGET_HOME"
 
 			# Then overlay the selected profile using override to replace base-owned files
-			stow_with_conflict_detection "$PACKAGES_DIR" "$profile_pkg_name" "$TARGET_HOME" "profile files" --override='.*'
+			stow_with_conflict_detection "$PACKAGES_DIR" "$profile_pkg_name" "$TARGET_HOME" "profile files" --override='.*' --no-folding
 		else
 			log_info "No profile package '$profile_pkg_name' found; skipping profile overlay"
 		fi

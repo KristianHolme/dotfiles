@@ -26,6 +26,10 @@ dotfiles/
 Stow layout: `dot-` prefixed entries map to dotfiles in `$HOME`
 (`default/dot-config/...` → `~/.config/...`).
 
+`dac` / `dar` pass `--no-folding` to GNU Stow so config dirs are never
+tree-folded into a single symlink (which would let app-managed files like Yazi
+`ya pkg` plugins land inside the dotfiles repo).
+
 ## Applying configuration
 
 ### Local machines
