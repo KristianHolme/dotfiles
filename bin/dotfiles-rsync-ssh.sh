@@ -296,7 +296,7 @@ validate_filtered_directories() {
 
 select_directories() {
     local anchor_rel="${1:-}" choose_script="$SCRIPT_DIR/dotfiles-yazi-choose-dirs.sh"
-    local mount_local_base=""
+    local mount_local_base="" remote_cache_file="" ssh_status=0
 
     if [[ "$SYNC_PUSH" == true && "$SYNC_REMOTE" != true ]]; then
         mapfile -t FILTERED_DIRECTORIES < <("$choose_script" "$LOCAL_BASE" "$anchor_rel")
@@ -306,9 +306,24 @@ select_directories() {
             mapfile -t FILTERED_DIRECTORIES < <("$choose_script" "$mount_local_base" "$anchor_rel")
         else
             ensure_ssh_controlmaster "$SOURCE_HOST"
+            remote_cache_file="dotfiles-yazi-choose-$$.paths"
+
+            # Do not capture ssh -t stdout: a PTY pipe steals the terminal from yazi.
+            ssh -t "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" "$anchor_rel" "$remote_cache_file" <<'REMOTE' </dev/tty
+set -euo pipefail
+out="$HOME/.cache/$3"
+mkdir -p "$HOME/.cache"
+rm -f "$out"
+"$HOME/dotfiles/bin/dotfiles-yazi-choose-dirs.sh" --output-file "$out" "$1" "${2:-}"
+REMOTE
+            ssh_status=$?
+            if [[ $ssh_status -ne 0 ]]; then
+                exit "$ssh_status"
+            fi
+
+            # Reuse ControlMaster (no extra TCP handshake).
             mapfile -t FILTERED_DIRECTORIES < <(
-                ssh -t "$SOURCE_HOST" '$HOME/dotfiles/bin/dotfiles-yazi-choose-dirs.sh' \
-                    "$REMOTE_BASE" "$anchor_rel" </dev/tty
+                ssh "$SOURCE_HOST" "f=\"\$HOME/.cache/$remote_cache_file\"; if [[ -f \"\$f\" ]]; then cat \"\$f\"; rm -f \"\$f\"; fi"
             )
         fi
     fi

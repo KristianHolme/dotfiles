@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
 # Choose directories under a sync root with yazi (chooser mode).
-# Usage: dotfiles-yazi-choose-dirs.sh SYNC_ROOT [subpath]
-# stdout: one validated relative path per line (empty if cancelled)
+# Usage: dotfiles-yazi-choose-dirs.sh [--output-file PATH] SYNC_ROOT [subpath]
+# stdout (or --output-file): one validated relative path per line (empty if cancelled)
 
 set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-dotfiles.sh"
+
+OUTPUT_FILE=""
 
 normalize_subpath() {
     local path="$1"
@@ -20,18 +22,41 @@ normalize_subpath() {
     echo "$path"
 }
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+usage() {
     cat <<EOF
-Usage: $0 SYNC_ROOT [subpath]
+Usage: $0 [--output-file PATH] SYNC_ROOT [subpath]
 
 Open yazi at SYNC_ROOT or SYNC_ROOT/subpath and return selected directories
-as paths relative to SYNC_ROOT (stdout, one per line).
+as paths relative to SYNC_ROOT (stdout or --output-file, one per line).
 
 The sync root itself cannot be selected; only strict subdirectories are allowed.
-Empty stdout with exit 0 means the user cancelled without selecting.
+Empty output with exit 0 means the user cancelled without selecting.
 EOF
-    exit 0
-fi
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --output-file)
+        [[ $# -ge 2 ]] || {
+            log_error "--output-file requires a path argument"
+            exit 1
+        }
+        OUTPUT_FILE="$2"
+        shift 2
+        ;;
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    -*)
+        log_error "Unknown option: $1"
+        exit 1
+        ;;
+    *)
+        break
+        ;;
+    esac
+done
 
 if [[ $# -lt 1 ]]; then
     log_error "Missing SYNC_ROOT argument"
@@ -76,7 +101,8 @@ fi
 chooser_file="$(mktemp)"
 trap 'rm -f "$chooser_file"' EXIT
 
-log_info "Select directories (Enter to confirm; Space for multi-select, then Enter on each selection)"
+# Hint on stderr only (stdout must stay clean for callers that capture paths).
+echo "Select directories in yazi (Enter to confirm; Space for multi-select)" >&2
 
 yazi "$start" --chooser-file "$chooser_file"
 
@@ -115,8 +141,15 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     rel_paths+=("$rel")
 done < "$chooser_file"
 
-for rel in "${rel_paths[@]}"; do
-    printf '%s\n' "$rel"
-done
+if [[ -n "$OUTPUT_FILE" ]]; then
+    : >"$OUTPUT_FILE"
+    for rel in "${rel_paths[@]}"; do
+        printf '%s\n' "$rel" >>"$OUTPUT_FILE"
+    done
+else
+    for rel in "${rel_paths[@]}"; do
+        printf '%s\n' "$rel"
+    done
+fi
 
 exit 0
