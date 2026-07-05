@@ -442,24 +442,42 @@ yazi_release_asset_re() {
 
 install_yazi_from_release() {
     local install_base="${INSTALL_DIR:-$HOME/.local/bin}"
-    local need_yazi=0 need_ya=0 asset_re="" asset_url="" tmp="" extract_dir=""
+    local need_install=0 asset_re="" asset_url="" tmp="" extract_dir="" latest_ver="" cur_ver="" cmd=""
 
     marcos_bin_prepend_path
-    yazi_cmd_works yazi || need_yazi=1
-    yazi_cmd_works ya || need_ya=1
-    if [[ "$need_yazi" -eq 0 && "$need_ya" -eq 0 ]]; then
-        log_info "yazi and ya already on PATH; skipping release install"
-        return 0
-    fi
+    yazi_cmd_works yazi || need_install=1
+    yazi_cmd_works ya || need_install=1
 
     ensure_cmd curl unzip install
 
     asset_re=$(yazi_release_asset_re) || return 1
 
     asset_url=$(find_asset_url "sxyazi/yazi" "$asset_re") || {
+        if [[ "$need_install" -eq 0 ]]; then
+            log_warning "Could not query latest yazi release; keeping existing yazi/ya"
+            return 0
+        fi
         log_error "Could not find yazi release zip matching $asset_re"
         return 1
     }
+
+    # Outdated binaries count as missing: ya pkg upgrades plugins to latest,
+    # which can require a newer yazi than an old-but-working install.
+    latest_ver=$(first_version_from_output <<<"$asset_url" || true)
+    if [[ "$need_install" -eq 0 && -n "$latest_ver" ]]; then
+        for cmd in yazi ya; do
+            cur_ver=$("$cmd" --version 2>/dev/null | first_version_from_output || true)
+            if [[ -z "$cur_ver" ]] || ! ver_ge "$cur_ver" "$latest_ver"; then
+                log_info "$cmd ${cur_ver:-unknown} older than latest release $latest_ver; upgrading"
+                need_install=1
+            fi
+        done
+    fi
+
+    if [[ "$need_install" -eq 0 ]]; then
+        log_info "yazi and ya up to date (${latest_ver:-unknown}); skipping release install"
+        return 0
+    fi
 
     tmp=$(mktemp -d)
     trap 't="${tmp:-}"; [[ -n "$t" ]] && rm -rf "$t"' RETURN
@@ -477,15 +495,13 @@ install_yazi_from_release() {
         return 1
     fi
 
+    # Always install both so yazi and ya stay in lockstep (a mismatched pair
+    # leaves plugins requiring a newer yazi than the one installed).
     mkdir -p "$install_base"
-    if [[ "$need_yazi" -eq 1 ]]; then
-        install -m 0755 "$extract_dir/yazi" "$install_base/yazi"
-        log_success "Installed yazi -> $install_base/yazi"
-    fi
-    if [[ "$need_ya" -eq 1 ]]; then
-        install -m 0755 "$extract_dir/ya" "$install_base/ya"
-        log_success "Installed ya -> $install_base/ya"
-    fi
+    install -m 0755 "$extract_dir/yazi" "$install_base/yazi"
+    log_success "Installed yazi -> $install_base/yazi"
+    install -m 0755 "$extract_dir/ya" "$install_base/ya"
+    log_success "Installed ya -> $install_base/ya"
 
     marcos_bin_prepend_path
     if ! yazi_cmd_works ya; then
