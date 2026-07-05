@@ -296,7 +296,7 @@ validate_filtered_directories() {
 
 select_directories() {
     local anchor_rel="${1:-}" choose_script="$SCRIPT_DIR/dotfiles-yazi-choose-dirs.sh"
-    local mount_local_base="" remote_cache_file="" ssh_status=0
+    local mount_local_base="" remote_cache_file="" remote_cmd="" ssh_status=0
 
     if [[ "$SYNC_PUSH" == true && "$SYNC_REMOTE" != true ]]; then
         mapfile -t FILTERED_DIRECTORIES < <("$choose_script" "$LOCAL_BASE" "$anchor_rel")
@@ -308,18 +308,18 @@ select_directories() {
             ensure_ssh_controlmaster "$SOURCE_HOST"
             remote_cache_file="dotfiles-yazi-choose-$$.paths"
 
-            # Do not capture ssh -t stdout: a PTY pipe steals the terminal from yazi.
-            # Do not redirect ssh stdin from /dev/tty here: that overrides the heredoc and
-            # leaves bash -s with no script (interactive remote shell). ssh -t allocates
-            # a remote PTY for yazi; the heredoc supplies the wrapper script on stdin.
-            ssh -t "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" "$anchor_rel" "$remote_cache_file" <<'REMOTE'
-set -euo pipefail
-out="$HOME/.cache/$3"
-mkdir -p "$HOME/.cache"
-rm -f "$out"
-"$HOME/dotfiles/bin/dotfiles-yazi-choose-dirs.sh" --output-file "$out" "$1" "${2:-}"
-REMOTE
-            ssh_status=$?
+            # Invoke the wrapper already deployed on the remote directly as the ssh
+            # command: stdin must remain the local TTY for -t (yazi needs a PTY), so no
+            # heredoc/script piping. ssh joins arguments into one remote shell string,
+            # so quote values with printf %q (an empty subpath would otherwise vanish).
+            # stdout is not captured either; paths go to the remote output file.
+            remote_cmd="\"\$HOME/dotfiles/bin/dotfiles-yazi-choose-dirs.sh\""
+            remote_cmd+=" --output-file \"\$HOME/.cache/$remote_cache_file\""
+            remote_cmd+=" $(printf '%q' "$REMOTE_BASE")"
+            if [[ -n "$anchor_rel" ]]; then
+                remote_cmd+=" $(printf '%q' "$anchor_rel")"
+            fi
+            ssh -t "$SOURCE_HOST" "$remote_cmd" || ssh_status=$?
             if [[ $ssh_status -ne 0 ]]; then
                 exit "$ssh_status"
             fi

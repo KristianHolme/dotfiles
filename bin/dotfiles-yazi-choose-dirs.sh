@@ -142,6 +142,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 done < "$chooser_file"
 
 if [[ -n "$OUTPUT_FILE" ]]; then
+    mkdir -p "$(dirname "$OUTPUT_FILE")"
     : >"$OUTPUT_FILE"
     for rel in "${rel_paths[@]}"; do
         printf '%s\n' "$rel" >>"$OUTPUT_FILE"
