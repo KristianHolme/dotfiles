@@ -16,8 +16,8 @@ dotfiles/
 ├── bin/                # Utility scripts (on PATH via dot-bashrc)
 │   ├── lib-dotfiles.sh # Shared lib: logging, ensure_cmd, symlink helper
 │   ├── lib-install.sh  # Shared lib: GitHub releases, marcosnils/bin, juliaup, tpm
-│   ├── lib-hosts.sh    # Shared lib: hosts.toml accessors (tomlq)
-│   └── lib-packages.sh # Shared lib: packages.toml accessors (tomlq)
+│   ├── lib-hosts.sh    # Shared lib: hosts.toml accessors (go-yq / jq)
+│   └── lib-packages.sh # Shared lib: packages.toml accessors (go-yq / jq)
 ├── default/            # Base stow package (dot-config, dot-bashrc, dot-agents, ...)
 ├── bengal/ kaspi/ sibir/ sibir2/   # Host profile overlays (stowed on top of default)
 └── templates/latex/    # Templates for dotfiles-latex-init.sh
@@ -63,13 +63,14 @@ dotfiles-setup-packages.sh [--all]    # alias: dsp
 Gum menu of steps: remove default Omarchy webapps/packages, install from
 `packages.toml` (Arch packages, gh extensions, cargo crates, Yazi plugins),
 marcosnils/bin, Television channels, Zotero plugins, LaTeX templates, tpm,
-Tailscale, Syncthing, juliaup.
+Tailscale, Syncthing, juliaup. Ensures go-yq is installed via yay before any
+step that reads `packages.toml` (safe when migrating from Python `yq`).
 
 ## Host inventory and remote access
 
 Machines, groups, mountable filesystems, and the rsync sync root are declared once in
 [`hosts.toml`](hosts.toml) and consumed via `bin/lib-hosts.sh` (requires
-`tomlq`). Jump hosts and ControlMaster settings live in `~/.ssh/config`.
+go-yq or legacy tomlq, plus `jq`). Jump hosts and ControlMaster settings live in `~/.ssh/config`.
 
 **Sync root** (`defaults.sync_root` plus optional per-machine/group override) maps
 each host's remote `Code` tree to local `~/Code`. The remote spec is relative to
@@ -105,9 +106,10 @@ project-area path on the server.
 ## Requirements
 
 - Local: GNU Stow, `gum`, `yay` (Arch), Hyprland/Omarchy for the desktop bits,
-  `tomlq` (yq) for host-inventory scripts, `sshfs` for mounts, `rsync`.
-- University servers: `curl`, `tar`, `git`, `jq`, `python3`; no sudo needed.
-  `dotfiles-setup-replica.sh` installs `tomlq` via `pip install --user yq`.
+  go-yq (mikefarah) for TOML inventory scripts (legacy tomlq fallback), `sshfs` for mounts, `rsync`.
+- University servers: `curl`, `tar`, `git`, `jq`; no sudo needed.
+  `dotfiles-setup-replica.sh` bootstraps go-yq via marcosnils/bin before reading
+  `packages.toml`, then installs the rest from `[bin.replica]`.
   Optional `GITHUB_AUTH_TOKEN` for API rate limits.
 
 ## Notes

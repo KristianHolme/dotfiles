@@ -44,10 +44,12 @@ install = [
     "cursor-cli",
     "7zip",
     "yazi",
+    "go-yq",
 ]
 remove = [
     "1password-beta",
     "1password-cli",
+    "yq",
     # "chromium",
     # "typora",
 ]
@@ -91,6 +93,7 @@ install = [
     "github.com/alexpasmantier/television:tv",
     "github.com/sharkdp/bat:bat",
     "github.com/mvdan/sh:shfmt",
+    "github.com/mikefarah/yq:yq",
 ]
 
 [gh]

@@ -17,6 +17,53 @@ source "$_LIB_INSTALL_DIR/lib-dotfiles.sh"
 # shellcheck source=lib-packages.sh
 source "$_LIB_INSTALL_DIR/lib-packages.sh"
 
+# Install go-yq on Arch before any packages.toml-driven step (migration-safe).
+ensure_toml_parser_arch() {
+    if go_yq_available; then
+        return 0
+    fi
+    if ! command -v yay >/dev/null 2>&1; then
+        log_error "yay required to install go-yq on Arch"
+        return 1
+    fi
+    log_info "Installing go-yq via yay (required for packages.toml / hosts.toml)"
+    yay -S --needed --noconfirm go-yq || return 1
+    if ! go_yq_available; then
+        log_error "go-yq not available after yay install"
+        return 1
+    fi
+    log_success "go-yq ready -> $(command -v yq)"
+    return 0
+}
+
+# Bootstrap go-yq via marcosnils/bin before packages.toml is read on replica servers.
+ensure_replica_yq_via_bin() {
+    if go_yq_available; then
+        log_info "go-yq already available; skipping bootstrap"
+        return 0
+    fi
+    if ! command -v bin >/dev/null 2>&1; then
+        log_error "marcosnils/bin required on PATH to bootstrap go-yq"
+        return 1
+    fi
+    if command -v yq >/dev/null 2>&1; then
+        log_info "Replacing non-go-yq on PATH with github.com/mikefarah/yq via bin"
+    else
+        log_info "Installing go-yq via bin (required before packages.toml)"
+    fi
+    bin install github.com/mikefarah/yq || {
+        log_error "Failed to bootstrap go-yq via bin"
+        return 1
+    }
+    marcos_bin_prepend_path
+    if ! go_yq_available; then
+        log_error "go-yq not available after bin install"
+        return 1
+    fi
+    log_success "go-yq ready -> $(command -v yq)"
+    return 0
+}
+
 # Populate GITHUB_AUTH_TOKEN from gh when possible (marcosnils/bin and curl GitHub API use this).
 export_github_token_from_gh_if_needed() {
     [[ -n "${GITHUB_AUTH_TOKEN:-}" ]] && return 0
@@ -648,42 +695,6 @@ marcos_bin_install_if_missing_and_cmd_absent() {
         return 0
     fi
     marcos_bin_install_if_missing "$spec"
-}
-
-# tomlq from PyPI "yq" (kislyuk/yq) — jq wrapper for TOML; used by lib-hosts.sh.
-# Not the Go github.com/mikefarah/yq binary (different syntax; marcos bin installs that one).
-install_tomlq_if_missing() {
-    local install_base="${INSTALL_DIR:-$HOME/.local/bin}"
-
-    if command -v tomlq >/dev/null 2>&1; then
-        log_info "tomlq already on PATH; skipping install"
-        return 0
-    fi
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq required for tomlq (hosts.toml scripts); install jq first"
-        return 1
-    fi
-    if ! command -v python3 >/dev/null 2>&1; then
-        log_error "python3 required for tomlq (pip install yq)"
-        return 1
-    fi
-
-    log_info "Installing tomlq via pip (PyPI package yq)"
-    python3 -m pip install --user yq || return 1
-
-    marcos_bin_prepend_path
-    case ":${PATH:-}:" in
-    *":$install_base:"*) ;;
-    *) export PATH="$install_base${PATH:+:${PATH}}" ;;
-    esac
-
-    if command -v tomlq >/dev/null 2>&1; then
-        log_success "Installed tomlq -> $(command -v tomlq)"
-        return 0
-    fi
-
-    log_error "tomlq not on PATH after pip install; ensure $install_base is on PATH"
-    return 1
 }
 
 # If spec is registered, run bin update; otherwise bin install (e.g. prefer bin over a distro binary).

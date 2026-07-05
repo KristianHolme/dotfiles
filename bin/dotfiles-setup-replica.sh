@@ -8,7 +8,8 @@ set -Eeuo pipefail
 #   export token, then `bin install` for the rest (packages.toml [bin.replica]) unless each
 #   tool's CLI already exists on PATH (eza, zoxide, rg, lazygit, fzf, fd, starship, git-lfs,
 #   btop, gum, superfile, dust, television, bat, shfmt; bin-managed specs still skip via config).
-# - tomlq: pip install --user yq (kislyuk/yq; needs jq + python3; not marcos bin / mikefarah yq).
+# - go-yq (mikefarah/yq): bootstrapped via bin immediately after bin self-install (before packages.toml);
+#   also listed in packages.toml [bin.replica] for updates on re-runs.
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); LazyVim starter, tpm, omarchy clone.
@@ -223,6 +224,11 @@ replica_install_tools_with_bin() {
     for pair in "${pairs[@]}"; do
         spec="${pair%%:*}"
         cmd="${pair##*:}"
+        # Python yq may still be on PATH; prefer mikefarah go-yq (also bootstrapped earlier).
+        if [[ "$cmd" == "yq" ]] && command -v yq >/dev/null 2>&1 && ! go_yq_available; then
+            marcos_bin_install_if_missing "$spec" || log_warning "bin install failed: $spec; continuing"
+            continue
+        fi
         marcos_bin_install_if_missing_and_cmd_absent "$spec" "$cmd" || log_warning "bin install failed: $spec; continuing"
     done
 }
@@ -289,6 +295,11 @@ EOF
         exit 1
     fi
 
+    if ! ensure_replica_yq_via_bin; then
+        log_error "go-yq bootstrap failed; cannot read packages.toml"
+        exit 1
+    fi
+
     local -a prereqs=()
     mapfile -t prereqs < <(bin_replica_prereq_list) || exit 1
 
@@ -325,7 +336,6 @@ EOF
     install_yazi_from_release || log_warning "yazi release install failed; continuing"
     setup_cargo_crates || log_warning "cargo crate setup failed; continuing"
     setup_yazi_plugins || log_warning "Yazi plugin setup failed; continuing"
-    install_tomlq_if_missing || log_warning "tomlq installation failed; host-inventory scripts need it"
     configure_git_lfs_hooks
 
     install_stow || log_warning "stow installation failed; continuing"

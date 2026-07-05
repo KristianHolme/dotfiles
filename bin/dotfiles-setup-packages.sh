@@ -43,12 +43,17 @@ remove_pkg() {
 
 install_pkg() {
     local pkg="$1"
-    if pkg_installed "$pkg"; then
-        log_info "Already installed: $pkg"
-    else
-        log_info "Installing package: $pkg"
-        yay -Sy --noconfirm "$pkg"
+    log_info "Installing package: $pkg"
+    yay -S --needed --noconfirm "$pkg"
+}
+
+install_pkgs() {
+    local -a pkgs=("$@")
+    if [[ ${#pkgs[@]} -eq 0 ]]; then
+        return 0
     fi
+    log_info "Installing packages: ${pkgs[*]}"
+    yay -S --needed --noconfirm "${pkgs[@]}"
 }
 
 install_latex_template() {
@@ -273,10 +278,13 @@ install_packages_from_gum() {
         return 0
     fi
 
+    local -a selected_pkgs=()
     while IFS= read -r pkg || [[ -n "$pkg" ]]; do
         [[ -z "${pkg// /}" ]] && continue
-        install_pkg "$pkg"
+        selected_pkgs+=("$pkg")
     done <<<"$selected"
+
+    install_pkgs "${selected_pkgs[@]}"
 }
 
 step_remove_webapps() {
@@ -289,6 +297,10 @@ step_remove_webapps() {
 step_remove_packages() {
     local pkg
     while IFS= read -r pkg; do
+        if [[ "$pkg" == "yq" ]] && ! go_yq_available; then
+            log_warning "Skipping removal of yq until go-yq is available"
+            continue
+        fi
         remove_pkg "$pkg"
     done < <(packages_remove_list)
 }
@@ -299,10 +311,9 @@ step_install_node() {
 
 step_install_packages() {
     if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]]; then
-        local pkg
-        while IFS= read -r pkg; do
-            install_pkg "$pkg"
-        done < <(packages_install_list)
+        local -a pkgs=()
+        mapfile -t pkgs < <(packages_install_list)
+        install_pkgs "${pkgs[@]}"
     else
         install_packages_from_gum || return 1
     fi
@@ -420,6 +431,10 @@ EOF
     fi
 
     ensure_cmd yay
+
+    if ! ensure_toml_parser_arch; then
+        exit 1
+    fi
 
     local steps=""
 

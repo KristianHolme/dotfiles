@@ -5,6 +5,9 @@
 # dotfiles-setup-zotero.sh, and lib-install.sh:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib-packages.sh"
 #
+# TOML is parsed once per shell via toml_to_json (go-yq preferred, tomlq fallback)
+# and queried with jq.
+#
 # The TOML file is resolved as:
 #   1. $PACKAGES_TOML if set
 #   2. packages.toml searched upward from this file's directory (repo root)
@@ -49,13 +52,18 @@ if ! command -v ensure_cmd >/dev/null 2>&1; then
 fi
 
 _PACKAGES_TOML_PATH=""
+_PACKAGES_JSON=""
 
 _packages_resolve() {
     if [[ -n "$_PACKAGES_TOML_PATH" ]]; then
         echo "$_PACKAGES_TOML_PATH"
         return 0
     fi
-    ensure_cmd tomlq
+    if ! toml_backend_available; then
+        log_error "No TOML parser available; install go-yq (Arch: yay -S go-yq; replica: packages.toml [bin.replica])"
+        return 1
+    fi
+    ensure_cmd jq
 
     if [[ -n "${PACKAGES_TOML:-}" ]]; then
         if [[ ! -f "$PACKAGES_TOML" ]]; then
@@ -81,73 +89,65 @@ _packages_resolve() {
     return 1
 }
 
+_packages_json() {
+    if [[ -n "$_PACKAGES_JSON" ]]; then
+        echo "$_PACKAGES_JSON"
+        return 0
+    fi
+    local f
+    f="$(_packages_resolve)" || return 1
+    _PACKAGES_JSON="$(toml_to_json "$f")" || return 1
+    echo "$_PACKAGES_JSON"
+}
+
 # Path of the resolved packages.toml (for error messages).
 packages_toml_path() {
     _packages_resolve
 }
 
 packages_install_list() {
-    local f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r '.packages.install[]?' "$f"
+    _packages_json | jq -r '.packages.install[]?'
 }
 
 packages_remove_list() {
-    local f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r '.packages.remove[]?' "$f"
+    _packages_json | jq -r '.packages.remove[]?'
 }
 
 webapps_remove_list() {
-    local f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r '.webapps.remove[]?' "$f"
+    _packages_json | jq -r '.webapps.remove[]?'
 }
 
 cargo_install_list() {
-    local f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r '.cargo.install[]?' "$f"
+    _packages_json | jq -r '.cargo.install[]?'
 }
 
 bin_replica_prereq_list() {
-    local f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r '.bin.replica.prereq[]?' "$f"
+    _packages_json | jq -r '.bin.replica.prereq[]?'
 }
 
 bin_replica_install_list() {
-    local f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r '.bin.replica.install[]?' "$f"
+    _packages_json | jq -r '.bin.replica.install[]?'
 }
 
 gh_extensions_list() {
-    local f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r '.gh.extensions[]?' "$f"
+    _packages_json | jq -r '.gh.extensions[]?'
 }
 
 yazi_plugins_list() {
-    local f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r '.yazi.install[]?' "$f"
+    _packages_json | jq -r '.yazi.install[]?'
 }
 
 zotero_plugin_keys() {
-    local f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r '.zotero.plugins // {} | keys[]' "$f" | sort
+    _packages_json | jq -r '.zotero.plugins // {} | keys[]' | sort
 }
 
 zotero_plugin_field() {
-    local key="$1" field="$2" f
-    f="$(_packages_resolve)" || return 1
-    tomlq -r --arg k "$key" --arg f "$field" '.zotero.plugins[$k][$f] // empty' "$f"
+    local key="$1" field="$2"
+    _packages_json | jq -r --arg k "$key" --arg f "$field" '.zotero.plugins[$k][$f] // empty'
 }
 
 zotero_plugin_exists() {
-    local key="$1" f
-    f="$(_packages_resolve)" || return 1
-    [[ -n "$(tomlq -r --arg k "$key" '.zotero.plugins[$k] // empty' "$f")" ]]
+    local key="$1" json
+    json="$(_packages_json)" || return 1
+    [[ -n "$(jq -r --arg k "$key" '.zotero.plugins[$k] // empty' <<<"$json")" ]]
 }
