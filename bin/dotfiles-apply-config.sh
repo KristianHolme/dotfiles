@@ -149,11 +149,42 @@ link_agent_configs() {
 	create_symlink_with_backup "$agents_dir/commands" "$HOME/.config/opencode/commands" "OpenCode commands"
 }
 
+# hyprctl needs HYPRLAND_INSTANCE_SIGNATURE; local terminals get it from uwsm,
+# but SSH sessions do not. Discover the running instance via XDG_RUNTIME_DIR.
+ensure_hyprland_instance() {
+	if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+		return 0
+	fi
+
+	local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+	local hypr_dir="$runtime_dir/hypr"
+	local instance_dir
+
+	if [[ ! -d "$hypr_dir" ]]; then
+		return 1
+	fi
+
+	shopt -s nullglob
+	local instances=("$hypr_dir"/*)
+	shopt -u nullglob
+
+	[[ ${#instances[@]} -gt 0 ]] || return 1
+
+	instance_dir="${instances[0]}"
+	[[ -d "$instance_dir" ]] || return 1
+
+	export HYPRLAND_INSTANCE_SIGNATURE
+	HYPRLAND_INSTANCE_SIGNATURE=$(basename "$instance_dir")
+	return 0
+}
+
 # Check for blank monitors (0x0 resolution) and fix them
 check_and_fix_monitors() {
 	if ! command -v hyprctl &>/dev/null || ! command -v jq &>/dev/null; then
 		return 0
 	fi
+
+	ensure_hyprland_instance || return 0
 
 	local monitors_json
 	monitors_json=$(hyprctl monitors -j 2>/dev/null)
@@ -212,6 +243,11 @@ post_reload_fixups() {
 reload_hyprland() {
 	if ! command -v hyprctl &>/dev/null; then
 		log_warning "hyprctl not found. Please reload Hyprland manually."
+		return 0
+	fi
+
+	if ! ensure_hyprland_instance; then
+		log_info "Hyprland not running; skipping config reload"
 		return 0
 	fi
 
