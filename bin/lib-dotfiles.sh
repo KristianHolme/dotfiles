@@ -134,3 +134,59 @@ ensure_ssh_controlmaster() {
     fi
     echo
 }
+
+# True when FLAG appears in the remaining args (e.g. stow_flags_include -D "${flags[@]}").
+stow_flags_include() {
+    local flag="$1"
+    shift
+    local arg
+    for arg in "$@"; do
+        if [[ "$arg" == "$flag" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Remove agent symlinks created by link_agent_configs when they point into ~/.agents.
+unlink_agent_configs() {
+    local agents_dir="$HOME/.agents" target resolved
+    local -a targets=(
+        "$HOME/.cursor/skills"
+        "$HOME/.cursor/commands"
+        "$HOME/.config/opencode/commands"
+    )
+
+    for target in "${targets[@]}"; do
+        [[ -L "$target" ]] || continue
+        resolved="$(realpath "$target" 2>/dev/null || true)"
+        agents_real="$(realpath "$agents_dir" 2>/dev/null || echo "$agents_dir")"
+        if [[ -n "$resolved" && "$resolved" == "$agents_real/"* ]]; then
+            log_info "Removing agent symlink: $target"
+            rm "$target"
+        fi
+    done
+}
+
+# Merge script defaults with user stow flags for apply mode. Sets merged flags via nameref.
+merge_apply_stow_flags() {
+    local -n _merged="$1"
+    shift
+    local -a user_flags=("$@")
+    local arg has_override=0 has_no_folding=0
+
+    _merged=(--dotfiles)
+    for arg in "${user_flags[@]}"; do
+        [[ "$arg" == --override* ]] && has_override=1
+        [[ "$arg" == --no-folding ]] && has_no_folding=1
+    done
+    if [[ "$has_override" -eq 0 ]]; then
+        _merged+=(--override='.*')
+    fi
+    if [[ "$has_no_folding" -eq 0 ]]; then
+        _merged+=(--no-folding)
+    fi
+    if [[ ${#user_flags[@]} -gt 0 ]]; then
+        _merged+=("${user_flags[@]}")
+    fi
+}

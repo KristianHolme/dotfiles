@@ -9,44 +9,71 @@ source "$SCRIPT_DIR/lib-dotfiles.sh"
 
 TARGET_HOME="$HOME"
 
-# Simple function to unstow any existing profile packages at repo root
+usage() {
+	cat <<EOF
+Usage: $0 [-h] [PROFILE] [-- STOW_ARGS...]
+
+Apply dotfiles with GNU Stow: default package to ~, then optional profile overlay
+(e.g. bengal, kaspi, sibir) if that top-level package exists in the repo.
+
+Arguments after -- are passed to GNU Stow (e.g. unstow: $0 -- -D, dry-run: $0 -- -D -n).
+EOF
+}
+
+# Unstow any existing profile packages at repo root; optional extra stow flags after target_dir.
 unstow_all_profiles() {
 	local packages_dir="$1"
 	local target_dir="$2"
+	shift 2
+	local -a extra_flags=("$@")
+
 	log_info "Unstowing any existing profiles..."
 	shopt -s nullglob
 	for pkg_dir in "$packages_dir"/*; do
 		[[ -d "$pkg_dir" ]] || continue
 		local pkg_name
 		pkg_name=$(basename "$pkg_dir")
-		# Skip non-profile packages
-		if [[ "$pkg_name" == "default" || "$pkg_name" == "bin" ]]; then
+		if [[ "$pkg_name" == "default" || "$pkg_name" == "bin" || "$pkg_name" == "templates" ]]; then
 			continue
 		fi
-		stow -d "$packages_dir" -t "$target_dir" -D "$pkg_name" 2>/dev/null || true
+		local -a stow_extra=() arg
+		for arg in "${extra_flags[@]}"; do
+			[[ "$arg" == -D ]] && continue
+			stow_extra+=("$arg")
+		done
+		stow -d "$packages_dir" -t "$target_dir" --dotfiles "${stow_extra[@]}" -D "$pkg_name" 2>/dev/null || true
 	done
 	shopt -u nullglob
 }
 
 stow_with_conflict_detection() {
-	local packages_dir="$1" # e.g. /path/to/dotfiles
-	local package_name="$2" # e.g. "dot-config" or "home"
-	local target_dir="$3"   # e.g. ~/.config or ~
-	local description="$4"  # e.g. "config files" or "home files"
+	local packages_dir="$1"
+	local package_name="$2"
+	local target_dir="$3"
+	local description="$4"
 	shift 4
-	# Any remaining args are extra stow flags (e.g., --override, etc.)
 	local extra_flags=("$@")
 
-	# Check if package exists
 	[[ -d "$packages_dir/$package_name" ]] || return 0
+
+	if stow_flags_include -n "${extra_flags[@]}"; then
+		log_info "Dry-run stow for $description..."
+		local stow_op="-R"
+		local __flag
+		for __flag in "${extra_flags[@]}"; do
+			if [[ "$__flag" == --override* ]]; then
+				stow_op="-S"
+				break
+			fi
+		done
+		stow -d "$packages_dir" -t "$target_dir" $stow_op --dotfiles "${extra_flags[@]}" "$package_name"
+		return 0
+	fi
 
 	log_info "Checking for conflicts in $description..."
 
-	# Dry run to detect conflicts
 	set +e
-	local dry_run_output
-	# Use -S for stow (not -R) when we have --override to avoid restow conflicts
-	local stow_op="-R"
+	local dry_run_output stow_op="-R" __flag
 	for __flag in "${extra_flags[@]}"; do
 		if [[ "$__flag" == --override* ]]; then
 			stow_op="-S"
@@ -58,12 +85,10 @@ stow_with_conflict_detection() {
 	set -e
 
 	if [[ $dry_run_status -eq 0 ]]; then
-		# No conflicts, proceed with normal stow
 		log_info "No conflicts detected, proceeding with $description symlinks..."
 		stow -d "$packages_dir" -t "$target_dir" $stow_op -v --dotfiles "${extra_flags[@]}" "$package_name"
 		log_success "Successfully linked $description"
 	else
-		# Conflicts detected, present user with options
 		log_warning "Conflicts detected in $description:"
 		echo "$dry_run_output" | grep -E "(WARNING|ERROR|existing)" || echo "$dry_run_output"
 		echo
@@ -98,31 +123,31 @@ stow_with_conflict_detection() {
 	fi
 }
 
-########################################
-# Apply configs using GNU Stow (symlinks)
-########################################
 apply_configs() {
-	log_info "Linking with GNU Stow"
+	local profile="${1:-}"
+	shift
+	local -a user_stow_flags=("$@")
+	local -a stow_flags=()
 
+	log_info "Linking with GNU Stow"
 	ensure_cmd "stow"
 
-	# Packages directory (repo root of omarchy-tweaks)
-	PACKAGES_DIR="$(realpath "$SCRIPT_DIR/..")"
-	# Optional profile argument (e.g. "work" -> config-work)
-	local profile="${1:-}"
+	local packages_dir
+	packages_dir="$(realpath "$SCRIPT_DIR/..")"
 
-	# Apply base default package (includes dotfiles under dot-* inside it)
-	stow_with_conflict_detection "$PACKAGES_DIR" "default" "$TARGET_HOME" "default files" --override='.*' --no-folding
+	if [[ ${#user_stow_flags[@]} -gt 0 ]]; then
+		merge_apply_stow_flags stow_flags "${user_stow_flags[@]}"
+	else
+		stow_flags=(--dotfiles --override='.*' --no-folding)
+	fi
 
-	# If a profile was provided, handle profile switching via top-level packages named by profile
+	stow_with_conflict_detection "$packages_dir" "default" "$TARGET_HOME" "default files" "${stow_flags[@]}"
+
 	if [[ -n "$profile" ]]; then
 		local profile_pkg_name="$profile"
-		if [[ -d "$PACKAGES_DIR/$profile_pkg_name" ]]; then
-			# First, unstow any existing profile overlays
-			unstow_all_profiles "$PACKAGES_DIR" "$TARGET_HOME"
-
-			# Then overlay the selected profile using override to replace base-owned files
-			stow_with_conflict_detection "$PACKAGES_DIR" "$profile_pkg_name" "$TARGET_HOME" "profile files" --override='.*' --no-folding
+		if [[ -d "$packages_dir/$profile_pkg_name" ]]; then
+			unstow_all_profiles "$packages_dir" "$TARGET_HOME"
+			stow_with_conflict_detection "$packages_dir" "$profile_pkg_name" "$TARGET_HOME" "profile files" "${stow_flags[@]}"
 		else
 			log_info "No profile package '$profile_pkg_name' found; skipping profile overlay"
 		fi
@@ -131,13 +156,28 @@ apply_configs() {
 	log_success "Configuration linking completed"
 }
 
+unapply_configs() {
+	local -a stow_flags=("$@")
+
+	log_info "Unlinking with GNU Stow"
+	ensure_cmd "stow"
+
+	local packages_dir
+	packages_dir="$(realpath "$SCRIPT_DIR/..")"
+
+	unstow_all_profiles "$packages_dir" "$TARGET_HOME" "${stow_flags[@]}"
+	log_info "Unstowing default package..."
+	stow -d "$packages_dir" -t "$TARGET_HOME" --dotfiles "${stow_flags[@]}" default 2>/dev/null || true
+	if ! stow_flags_include -n "${stow_flags[@]}"; then
+		unlink_agent_configs
+	fi
+	log_success "Configuration unlinking completed"
+}
+
 # Link agent skills/commands to Cursor and OpenCode config directories.
-# Skills and commands are stored in ~/.agents/ (via stow from dot-agents/).
-# OpenCode reads ~/.agents/skills/ natively; everything else needs symlinks.
 link_agent_configs() {
 	local agents_dir="$HOME/.agents"
 
-	# Skip if ~/.agents doesn't exist (stow hasn't run yet)
 	if [[ ! -d "$agents_dir" ]]; then
 		log_info "~/.agents not found, skipping agent config linking"
 		return 0
@@ -149,8 +189,6 @@ link_agent_configs() {
 	create_symlink_with_backup "$agents_dir/commands" "$HOME/.config/opencode/commands" "OpenCode commands"
 }
 
-# hyprctl needs HYPRLAND_INSTANCE_SIGNATURE; local terminals get it from uwsm,
-# but SSH sessions do not. Discover the running instance via XDG_RUNTIME_DIR.
 ensure_hyprland_instance() {
 	if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
 		return 0
@@ -178,7 +216,6 @@ ensure_hyprland_instance() {
 	return 0
 }
 
-# Check for blank monitors (0x0 resolution) and fix them
 check_and_fix_monitors() {
 	if ! command -v hyprctl &>/dev/null || ! command -v jq &>/dev/null; then
 		return 0
@@ -192,7 +229,6 @@ check_and_fix_monitors() {
 		return 0
 	fi
 
-	# Check for monitors with 0x0 resolution
 	local blank_monitors
 	blank_monitors=$(echo "$monitors_json" | jq -r '.[] | select(.width == 0 or .height == 0) | .name' 2>/dev/null)
 
@@ -200,8 +236,6 @@ check_and_fix_monitors() {
 		log_warning "Detected blank monitors (0x0 resolution): $(echo "$blank_monitors" | tr '\n' ' ')"
 		log_info "Attempting to refresh monitors..."
 
-		# Try safe refresh methods first
-		# Turn DPMS off and on for each blank monitor
 		while IFS= read -r monitor; do
 			[[ -z "$monitor" ]] && continue
 			hyprctl dispatch dpms off "$monitor" >/dev/null 2>&1
@@ -211,7 +245,6 @@ check_and_fix_monitors() {
 
 		sleep 0.5
 
-		# Check if still blank
 		monitors_json=$(hyprctl monitors -j 2>/dev/null)
 		blank_monitors=$(echo "$monitors_json" | jq -r '.[] | select(.width == 0 or .height == 0) | .name' 2>/dev/null)
 
@@ -225,8 +258,6 @@ check_and_fix_monitors() {
 	fi
 }
 
-# Post-reload fixups: blank-monitor recovery and waybar restart.
-# Waybar queries monitors at startup, so wait for them to be ready first.
 post_reload_fixups() {
 	sleep 0.5
 	check_and_fix_monitors || true
@@ -239,7 +270,6 @@ post_reload_fixups() {
 	fi
 }
 
-# Reload hyprland
 reload_hyprland() {
 	if ! command -v hyprctl &>/dev/null; then
 		log_warning "hyprctl not found. Please reload Hyprland manually."
@@ -259,8 +289,6 @@ reload_hyprland() {
 	set -e
 
 	if [[ $reload_status -ne 0 ]]; then
-		# Workspace/monitor binding warnings are expected when switching profiles
-		# with different monitor setups; anything else is a real failure.
 		if echo "$reload_output" | grep -qiE "(workspace|monitor)" && echo "$reload_output" | grep -qiE "(not found|does not exist|ignored|warning)"; then
 			log_warning "Hyprland reloaded with warnings about workspace/monitor bindings (normal when switching profiles)"
 		else
@@ -276,28 +304,59 @@ reload_hyprland() {
 }
 
 main() {
-	if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-		cat <<EOF
-Usage: $0 [PROFILE]
+	local profile_arg=""
+	local stow_passthrough=0
+	local -a stow_flags=()
 
-Apply dotfiles with GNU Stow: default package to ~, then optional profile overlay
-(e.g. bengal, kaspi, sibir) if that top-level package exists in the repo.
-EOF
-		exit 0
+	while [[ $# -gt 0 ]]; do
+		if [[ "$1" == "--" ]]; then
+			stow_passthrough=1
+			shift
+			stow_flags=("$@")
+			break
+		fi
+		case "$1" in
+		-h | --help)
+			usage
+			exit 0
+			;;
+		-*)
+			log_error "Unknown option: $1 (stow flags must come after --)"
+			usage >&2
+			exit 1
+			;;
+		*)
+			if [[ -n "$profile_arg" ]]; then
+				log_error "Unexpected argument: $1"
+				usage >&2
+				exit 1
+			fi
+			profile_arg="$1"
+			shift
+			;;
+		esac
+	done
+
+	if [[ "$stow_passthrough" -eq 1 ]] && stow_flags_include -D "${stow_flags[@]}"; then
+		log_info "Unapplying Omarchy tweaks..."
+		unapply_configs "${stow_flags[@]}"
+		log_success "All tweaks unapplied successfully!"
+		return 0
 	fi
 
-	local profile_arg="${1:-}"
 	if [[ -n "$profile_arg" ]]; then
 		log_info "Applying Omarchy tweaks (profile: $profile_arg)..."
 	else
 		log_info "Applying Omarchy tweaks..."
 	fi
 
-	apply_configs "$profile_arg"
+	if [[ "$stow_passthrough" -eq 1 ]]; then
+		apply_configs "$profile_arg" "${stow_flags[@]}"
+	else
+		apply_configs "$profile_arg"
+	fi
 
-	# Link agent skills/commands to Cursor and OpenCode after stow has run
 	link_agent_configs
-
 	reload_hyprland
 	log_success "All tweaks applied successfully!"
 }

@@ -36,7 +36,7 @@ description: Instructions for updating system configuration. Use when modifying 
 - Dotfiles are stored in package directories (e.g., `default/`) using `dot-` prefix for home files and `dot-config/` for `~/.config`.
 - The Cursor skills path is stowed from `default/dot-cursor/skills/` to `~/.cursor/skills/`.
 - Omarchy files and scripts live at `~/.local/share/omarchy/`; read-only access is OK for understanding the system.
-- **Local-only generated files** (app lockfiles, package-manager plugins, etc.) must not live in dotfiles. Stow uses `--no-folding` so config dirs are symlinked file-by-file, not as a single tree symlink.
+- **Local-only generated files** (app lockfiles, package-manager plugins, etc.) must not live in dotfiles. Stow uses `--no-folding` so config dirs are symlinked file-by-file. Reset links with `dac -- -D`, then re-apply with `dac`.
 
 ## Examples
 

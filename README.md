@@ -43,6 +43,9 @@ Stows `default/` into `~`, then the optional profile overlay (`bengal`,
 repo, or abort). Also links agent skills/commands into `~/.cursor` and
 `~/.config/opencode`, and reloads Hyprland.
 
+Pass GNU Stow flags after `--` (e.g. `dac -- -D` to unstow, then `dac` to
+re-apply). `dar -- -D` unstows replica `dot-config` / `dot-agents` only.
+
 ### University servers (no sudo)
 
 ```bash

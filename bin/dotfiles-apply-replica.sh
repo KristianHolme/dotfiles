@@ -51,31 +51,68 @@ setup_julia_config() {
 	create_symlink_with_backup "$julia_config_source" "$julia_config_target" "Julia config"
 }
 
-# Stow a package from default/ into a target directory (--adopt helps merge
-# existing plain files; on failure retries without --adopt).
-# Note for dot-agents: target must be ~/.agents, not ~ (GNU stow does not map
-# the package name to .agents).
+# Stow or unstow a package from default/ into a target directory.
+# Remaining args are forwarded to stow (after -- from the CLI).
 stow_replica_package() {
 	local package="$1"
 	local target="$2"
+	shift 2
+	local -a stow_flags=("$@")
 	local stow_dir="$HOME/dotfiles/default"
+	local -a apply_flags=()
 
 	mkdir -p "$target"
 
+	if stow_flags_include -D "${stow_flags[@]}"; then
+		log_info "Unstowing default/$package from $target..."
+		stow -d "$stow_dir" -t "$target" --dotfiles "${stow_flags[@]}" "$package" 2>/dev/null || true
+		return 0
+	fi
+
+	if [[ ${#stow_flags[@]} -gt 0 ]]; then
+		merge_apply_stow_flags apply_flags "${stow_flags[@]}"
+		if ! stow_flags_include -S "${apply_flags[@]}" && ! stow_flags_include -R "${apply_flags[@]}"; then
+			apply_flags+=(-S)
+		fi
+	else
+		apply_flags=(--dotfiles --no-folding -S)
+	fi
+
 	log_info "Stowing default/$package into $target (first with --adopt if existing files conflict)..."
-	if stow -d "$stow_dir" -t "$target" --dotfiles --no-folding -S "$package" --adopt -v; then
+	if stow -d "$stow_dir" -t "$target" "${apply_flags[@]}" "$package" --adopt -v; then
 		log_success "Stowed $package into $target"
 		return 0
 	fi
 
 	log_warning "Stow with --adopt failed; retrying without --adopt"
-	if stow -d "$stow_dir" -t "$target" --dotfiles --no-folding -S "$package" -v; then
+	if stow -d "$stow_dir" -t "$target" "${apply_flags[@]}" "$package" -v; then
 		log_success "Stowed $package into $target"
 		return 0
 	fi
 
 	log_error "Failed to stow $package"
 	return 1
+}
+
+run_stow_passthrough() {
+	local -a stow_flags=("$@")
+
+	ensure_cmd stow
+
+	if stow_flags_include -D "${stow_flags[@]}"; then
+		stow_replica_package dot-config "$HOME/.config" "${stow_flags[@]}"
+		stow_replica_package dot-agents "$HOME/.agents" "${stow_flags[@]}"
+		return 0
+	fi
+
+	stow_replica_package dot-config "$HOME/.config" "${stow_flags[@]}" || {
+		log_error "dot-config stow failed; aborting"
+		exit 1
+	}
+	stow_replica_package dot-agents "$HOME/.agents" "${stow_flags[@]}" || {
+		log_error "dot-agents stow failed; aborting"
+		exit 1
+	}
 }
 
 ensure_bashrc_source() {
@@ -192,19 +229,31 @@ run_selected_steps() {
 
 main() {
 	local skip_menu=false
-	local pick_rc
+	local pick_rc=0
+	local stow_passthrough=0
+	local -a stow_flags=()
 
 	while [[ $# -gt 0 ]]; do
+		if [[ "$1" == "--" ]]; then
+			stow_passthrough=1
+			shift
+			stow_flags=("$@")
+			break
+		fi
 		case "$1" in
 		-h | --help)
 			cat <<EOF
-Usage: $0 [OPTIONS]
+Usage: $0 [OPTIONS] [-- STOW_ARGS...]
 
 Apply dotfiles on a restricted server (interactive menu by default).
 
 Options:
   --all       Run all steps; skip the gum menu
   -h, --help  Show this help
+
+Arguments after -- are passed to GNU Stow only (skips the menu), e.g.:
+  $0 -- -D       Unstow dot-config and dot-agents
+  $0 -- -D -n    Dry-run unstow
 
 Environment:
   OMARCHY_DIR, OMARCHY_REPO_URL
@@ -217,12 +266,18 @@ EOF
 			shift
 			;;
 		*)
-			log_error "Unknown option: $1"
+			log_error "Unknown option: $1 (stow flags must come after --)"
 			echo "Try: $0 --help" >&2
 			exit 1
 			;;
 		esac
 	done
+
+	if [[ "$stow_passthrough" -eq 1 ]]; then
+		run_stow_passthrough "${stow_flags[@]}"
+		log_info "Done."
+		exit 0
+	fi
 
 	if [[ "${DOTFILES_REPLICA_ALL:-}" == "1" ]]; then
 		skip_menu=true
