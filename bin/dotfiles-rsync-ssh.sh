@@ -249,14 +249,19 @@ mount_local_base_for_remote() {
 
 validate_filtered_directories() {
     local base rel abs base_real resolved_base mount_local_base=""
+    local check_local_dirs=false
 
     if [[ "$SYNC_PUSH" == true && "$SYNC_REMOTE" != true ]]; then
         base="$LOCAL_BASE"
         resolved_base="$LOCAL_BASE"
+        check_local_dirs=true
     else
         base="$REMOTE_BASE"
         mount_local_base="$(mount_local_base_for_remote || true)"
         resolved_base="${mount_local_base:-$REMOTE_BASE}"
+        if [[ -n "$mount_local_base" ]]; then
+            check_local_dirs=true
+        fi
     fi
 
     if [[ -d "$resolved_base" ]]; then
@@ -287,7 +292,7 @@ validate_filtered_directories() {
             exit 1
         fi
 
-        if [[ -d "$resolved_base" && ! -d "$abs" ]]; then
+        if [[ "$check_local_dirs" == true && ! -d "$abs" ]]; then
             echo "❌ Not a directory: $rel" >&2
             exit 1
         fi
