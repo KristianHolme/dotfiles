@@ -12,11 +12,12 @@ file in `bat`.)
 ```
 dotfiles/
 ├── hosts.toml          # Host/group/mount inventory (single source of truth)
+├── packages.toml       # Package/webapp/cargo/bin/gh/yazi/zotero lists (single source of truth)
 ├── bin/                # Utility scripts (on PATH via dot-bashrc)
 │   ├── lib-dotfiles.sh # Shared lib: logging, ensure_cmd, symlink helper
 │   ├── lib-install.sh  # Shared lib: GitHub releases, marcosnils/bin, juliaup, tpm
 │   ├── lib-hosts.sh    # Shared lib: hosts.toml accessors (tomlq)
-│   └── package-lists/  # Package/webapp lists for dotfiles-setup-packages.sh
+│   └── lib-packages.sh # Shared lib: packages.toml accessors (tomlq)
 ├── default/            # Base stow package (dot-config, dot-bashrc, dot-agents, ...)
 ├── bengal/ kaspi/ sibir/ sibir2/   # Host profile overlays (stowed on top of default)
 └── templates/latex/    # Templates for dotfiles-latex-init.sh
@@ -41,8 +42,9 @@ repo, or abort). Also links agent skills/commands into `~/.cursor` and
 ### University servers (no sudo)
 
 ```bash
-# 1. Install user-local CLI tools (bootstraps marcosnils/bin, then bin install;
-#    neovim AppImage is glibc-aware, stow built from source, juliaup, omarchy clone)
+# 1. Install user-local CLI tools (bootstraps marcosnils/bin, then bin install from
+#    packages.toml [bin.replica]; neovim AppImage is glibc-aware, stow built from source,
+#    juliaup, omarchy clone)
 dotfiles-setup-replica.sh             # alias: dsr
 
 # 2. Apply configs (gum menu: omarchy clone, julia config symlink,
@@ -58,10 +60,10 @@ GitHub API access: set `GITHUB_AUTH_TOKEN` (PAT, no scopes) or `gh auth login`.
 dotfiles-setup-packages.sh [--all]    # alias: dsp
 ```
 
-Gum menu of steps: remove default Omarchy webapps/packages, install packages
-from `bin/package-lists/`, gh extensions, marcosnils/bin, Television channels,
-Zotero plugins, LaTeX templates, tpm, Tailscale, Syncthing,
-juliaup.
+Gum menu of steps: remove default Omarchy webapps/packages, install from
+`packages.toml` (Arch packages, gh extensions, cargo crates, Yazi plugins),
+marcosnils/bin, Television channels, Zotero plugins, LaTeX templates, tpm,
+Tailscale, Syncthing, juliaup.
 
 ## Host inventory and remote access
 
@@ -95,7 +97,7 @@ project-area path on the server.
 | `dotfiles-scratch-nvim` | Floating terminal with nvim on a timestamped quicknote. |
 | `dotfiles-fix-browser-audio.sh` | Unmute/uncork PipeWire browser streams. |
 | `dotfiles-power-suspend.sh` | logind drop-in: power button suspends. |
-| `dotfiles-setup-zotero.sh` | Download Zotero plugins from GitHub releases. |
+| `dotfiles-setup-zotero.sh` | Download Zotero plugins from GitHub releases (`packages.toml` `[zotero.plugins]`). |
 | `dotfiles-firefly-backup.sh` / `dotfiles-firefly-restore.sh` | Firefly III files + MariaDB dump backup/restore (docker). |
 | `julia-setup.jl` | Install the global Julia dev packages. |
 | `jlreg` | Register Julia package in LocalRegistry, tag, GitHub release. |
@@ -113,6 +115,6 @@ project-area path on the server.
 - Hyprland `envs.conf` changes need a full Hyprland restart, not just reload.
 - Restore an Omarchy default config:
   `~/.local/share/omarchy/bin/omarchy-refresh-config hypr/bindings.conf`
-- Tree-sitter CLI is installed via cargo (`tree-sitter-cli` in `bin/package-lists/cargo-install.txt`).
+- Tree-sitter CLI is installed via cargo (`tree-sitter-cli` in `packages.toml`).
   On old-glibc servers where that build fails, install manually:
   `cargo install tree-sitter-cli --no-default-features`

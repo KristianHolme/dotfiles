@@ -3,32 +3,14 @@ set -Eeuo pipefail
 
 # Omarchy prune/install script
 # - Removes selected default webapps and packages
-# - Installs requested packages (lists under bin/package-lists/)
+# - Installs requested packages (packages.toml at repo root)
 # - Refreshes application launchers
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-install.sh"
 
-PACKAGE_LISTS_DIR="$SCRIPT_DIR/package-lists"
-
 OMARCHY_BIN="$HOME/.local/share/omarchy/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
-
-# Print one entry per line from a list file; skip empty lines and lines whose
-# first non-whitespace char is #.
-list_from_file() {
-    local file="$1"
-    if [[ ! -f "$file" ]]; then
-        log_error "Missing package list: $file"
-        exit 1
-    fi
-    local line
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        [[ -z "${line// /}" ]] && continue
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        printf '%s\n' "$line"
-    done <"$file"
-}
 
 # Return 0 if $1 is a line in newline-separated list $2.
 line_in_list() {
@@ -203,14 +185,15 @@ setup_github_cli_extensions() {
     fi
 
     local ext
-    for ext in dlvhdr/gh-dash dlvhdr/gh-enhance; do
+    while IFS= read -r ext; do
+        [[ -z "${ext// /}" ]] && continue
         if gh extension list 2>/dev/null | grep -qF "$ext"; then
             log_info "gh extension already installed: $ext"
         else
             log_info "Installing gh extension: $ext"
             gh extension install "$ext" || log_warning "Failed to install gh extension: $ext (non-critical)"
         fi
-    done
+    done < <(gh_extensions_list)
 }
 
 # https://github.com/marcosnils/bin — bootstrap via AUR bin-bin, self-install, then drop the package.
@@ -270,13 +253,12 @@ SETUP_STEPS=(
 )
 
 install_packages_from_gum() {
-    local list_file="$PACKAGE_LISTS_DIR/packages-install.txt"
     local -a pkg_lines=()
     local selected
 
-    mapfile -t pkg_lines < <(list_from_file "$list_file")
+    mapfile -t pkg_lines < <(packages_install_list)
     if [[ ${#pkg_lines[@]} -eq 0 ]]; then
-        log_warning "No packages listed in $list_file; skipping installs."
+        log_warning "No packages listed in $(packages_toml_path); skipping installs."
         return 0
     fi
 
@@ -301,14 +283,14 @@ step_remove_webapps() {
     local name
     while IFS= read -r name; do
         remove_webapp "$name"
-    done < <(list_from_file "$PACKAGE_LISTS_DIR/webapps-remove.txt")
+    done < <(webapps_remove_list)
 }
 
 step_remove_packages() {
     local pkg
     while IFS= read -r pkg; do
         remove_pkg "$pkg"
-    done < <(list_from_file "$PACKAGE_LISTS_DIR/packages-remove.txt")
+    done < <(packages_remove_list)
 }
 
 step_install_node() {
@@ -320,7 +302,7 @@ step_install_packages() {
         local pkg
         while IFS= read -r pkg; do
             install_pkg "$pkg"
-        done < <(list_from_file "$PACKAGE_LISTS_DIR/packages-install.txt")
+        done < <(packages_install_list)
     else
         install_packages_from_gum || return 1
     fi

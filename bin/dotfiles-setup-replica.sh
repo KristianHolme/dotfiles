@@ -5,14 +5,14 @@ set -Eeuo pipefail
 # - Bootstraps https://github.com/marcosnils/bin: download release binary to a
 #   temp path, run `bin install github.com/marcosnils/bin` (README flow; no PATH skip here), then
 #   use `bin install` for gh (skipped if gh is already on PATH), then require PAT or `gh auth login`,
-#   export token, then `bin install` for the rest unless each tool's CLI already exists on PATH
-#   (eza, zoxide, rg, lazygit, fzf, fd, starship, git-lfs, btop, gum, superfile, dust,
-#   television, bat, shfmt; bin-managed specs still skip via config when applicable).
+#   export token, then `bin install` for the rest (packages.toml [bin.replica]) unless each
+#   tool's CLI already exists on PATH (eza, zoxide, rg, lazygit, fzf, fd, starship, git-lfs,
+#   btop, gum, superfile, dust, television, bat, shfmt; bin-managed specs still skip via config).
 # - tomlq: pip install --user yq (kislyuk/yq; needs jq + python3; not marcos bin / mikefarah yq).
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); LazyVim starter, tpm, omarchy clone.
-# - yazi + ya from GitHub release zip; cargo crates from package-lists/cargo-install.txt; ya pkg plugins.
+# - yazi + ya from GitHub release zip; cargo crates from packages.toml; ya pkg plugins.
 #
 # PATH skip: distro or other installs satisfy the checker (e.g. bat but not Debian's batcat-only name).
 #
@@ -216,26 +216,11 @@ configure_git_lfs_hooks() {
 }
 
 replica_install_tools_with_bin() {
-    # spec:cli — CLI name is what `command -v` checks before `bin install` (spf for superfile, etc.).
-    local spec_cmd_pairs=(
-        github.com/eza-community/eza:eza
-        github.com/ajeetdsouza/zoxide:zoxide
-        github.com/BurntSushi/ripgrep:rg
-        github.com/jesseduffield/lazygit:lazygit
-        github.com/junegunn/fzf:fzf
-        github.com/sharkdp/fd:fd
-        github.com/bootandy/dust:dust
-        github.com/git-lfs/git-lfs:git-lfs
-        github.com/aristocratos/btop:btop
-        github.com/yorukot/superfile:spf
-        github.com/starship/starship:starship
-        github.com/charmbracelet/gum:gum
-        github.com/alexpasmantier/television:tv
-        github.com/sharkdp/bat:bat
-        github.com/mvdan/sh:shfmt
-    )
+    local -a pairs=()
+    mapfile -t pairs < <(bin_replica_install_list) || return 1
+
     local pair spec cmd
-    for pair in "${spec_cmd_pairs[@]}"; do
+    for pair in "${pairs[@]}"; do
         spec="${pair%%:*}"
         cmd="${pair##*:}"
         marcos_bin_install_if_missing_and_cmd_absent "$spec" "$cmd" || log_warning "bin install failed: $spec; continuing"
@@ -304,11 +289,19 @@ EOF
         exit 1
     fi
 
-    log_info "Installing GitHub CLI (gh) via bin (skipped if gh is already on PATH)"
-    if ! marcos_bin_install_if_missing_and_cmd_absent "github.com/cli/cli" gh; then
-        log_error "bin install github.com/cli/cli failed; cannot continue"
-        exit 1
-    fi
+    local -a prereqs=()
+    mapfile -t prereqs < <(bin_replica_prereq_list) || exit 1
+
+    local pair spec cmd
+    for pair in "${prereqs[@]}"; do
+        spec="${pair%%:*}"
+        cmd="${pair##*:}"
+        log_info "Installing prerequisite via bin ($cmd): $spec (skipped if already on PATH)"
+        if ! marcos_bin_install_if_missing_and_cmd_absent "$spec" "$cmd"; then
+            log_error "bin install $spec failed; cannot continue"
+            exit 1
+        fi
+    done
     marcos_bin_prepend_path
 
     if ! ensure_github_api_access; then

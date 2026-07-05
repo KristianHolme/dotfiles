@@ -1,0 +1,127 @@
+# Single source of truth for package/webapp/cargo/bin/gh/yazi/zotero install lists.
+# Consumed via bin/lib-packages.sh by dotfiles-setup-packages.sh, dotfiles-setup-replica.sh,
+# dotfiles-setup-zotero.sh, and bin/lib-install.sh.
+#
+# Omarchy Node dev env and Television channel setup are handled in
+# dotfiles-setup-packages.sh after the package install step.
+
+[packages]
+install = [
+    "zotero-bin",
+    "cursor-bin",
+    "diffnav",
+    "rsync",
+    "discord",
+    "starship",
+    "stow",
+    "git-lfs",
+    "bitwarden",
+    # "google-chrome",
+    "tmux",
+    "shfmt",
+    "texlive-meta",
+    # "tex-fmt",
+    "zathura",
+    "zathura-pdf-mupdf",
+    "xdg-desktop-portal-hyprland",
+    "mermaid-cli",
+    "anki",
+    "asciinema",
+    "pandoc-cli",
+    "slack-desktop-wayland",
+    "syncthing",
+    "parallel",
+    "trash-cli",
+    "uv",
+    "television",
+    "virt-viewer",
+    "openbsd-netcat",
+    "serpl",
+    "exiftool",
+    "tesseract",
+    "tesseract-data-eng",
+    "sshfs",
+    "cursor-cli",
+    "7zip",
+    "yazi",
+]
+remove = [
+    "1password-beta",
+    "1password-cli",
+    # "chromium",
+    # "typora",
+]
+
+[webapps]
+remove = [
+    "HEY",
+    "Basecamp",
+    "WhatsApp",
+    "Google Photos",
+    "ChatGPT",
+    "Figma",
+]
+
+[cargo]
+# Use "crate:command" when the binary name differs from the crate name.
+install = [
+    "mdv",
+    "tree-sitter-cli:tree-sitter",
+]
+
+[bin.replica]
+# spec:command — CLI checked before marcosnils/bin install on replica servers.
+# prereq runs before GitHub auth; failure aborts setup.
+prereq = [
+    "github.com/cli/cli:gh",
+]
+install = [
+    "github.com/eza-community/eza:eza",
+    "github.com/ajeetdsouza/zoxide:zoxide",
+    "github.com/BurntSushi/ripgrep:rg",
+    "github.com/jesseduffield/lazygit:lazygit",
+    "github.com/junegunn/fzf:fzf",
+    "github.com/sharkdp/fd:fd",
+    "github.com/bootandy/dust:dust",
+    "github.com/git-lfs/git-lfs:git-lfs",
+    "github.com/aristocratos/btop:btop",
+    "github.com/yorukot/superfile:spf",
+    "github.com/starship/starship:starship",
+    "github.com/charmbracelet/gum:gum",
+    "github.com/alexpasmantier/television:tv",
+    "github.com/sharkdp/bat:bat",
+    "github.com/mvdan/sh:shfmt",
+]
+
+[gh]
+extensions = [
+    "dlvhdr/gh-dash",
+    "dlvhdr/gh-enhance",
+]
+
+[yazi]
+# Plugin ids for ya pkg (owner/repo or owner/repo:subdir — no .yazi suffix).
+install = [
+    "WhoSowSee/mdv-previewer",
+    "yazi-rs/plugins:git",
+    "Lil-Dank/lazygit",
+    "uhs-robert/recycle-bin",
+]
+
+[zotero.plugins.better-bibtex]
+display_name = "Better BibTeX"
+github_repo = "retorquere/zotero-better-bibtex"
+search_pattern = "better-bibtex"
+extension_id = "better-bibtex@iris-advies.com"
+
+[zotero.plugins.reading-list]
+display_name = "Reading List"
+github_repo = "Dominic-DallOsto/zotero-reading-list"
+search_pattern = "reading-list"
+extension_id = "reading-list@dominic-dallosto.com"
+
+[zotero.plugins.arxiv-workflow]
+display_name = "arXiv Workflow"
+github_repo = "AllanChain/zotero-arxiv-workflow"
+search_pattern = "zotero-arxiv-workflow"
+extension_id = "arxiv@allanchain.github.com"

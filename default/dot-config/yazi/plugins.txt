@@ -1,7 +1,0 @@
-# One Yazi plugin id per line (ya pkg format). Empty lines and # comments ignored.
-# Use owner/repo or owner/repo:subdir — do NOT include the .yazi suffix (ya adds it).
-# Monorepo plugins: yazi-rs/plugins:piper — see https://yazi-rs.github.io/docs/cli/
-WhoSowSee/mdv-previewer
-yazi-rs/plugins:git
-Lil-Dank/lazygit
-uhs-robert/recycle-bin

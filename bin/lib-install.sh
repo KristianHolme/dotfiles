@@ -14,6 +14,8 @@ LIB_INSTALL_SH_SOURCED=1
 _LIB_INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib-dotfiles.sh
 source "$_LIB_INSTALL_DIR/lib-dotfiles.sh"
+# shellcheck source=lib-packages.sh
+source "$_LIB_INSTALL_DIR/lib-packages.sh"
 
 # Populate GITHUB_AUTH_TOKEN from gh when possible (marcosnils/bin and curl GitHub API use this).
 export_github_token_from_gh_if_needed() {
@@ -305,25 +307,14 @@ ensure_cargo() {
     return 0
 }
 
-# Install crates from package-lists/cargo-install.txt (crate or crate:command per line).
+# Install crates from packages.toml [cargo].install (crate or crate:command per entry).
 setup_cargo_crates() {
-    local list_file="${1:-$_LIB_INSTALL_DIR/package-lists/cargo-install.txt}"
-
-    if [[ ! -f "$list_file" ]]; then
-        log_info "No cargo install list at $list_file; skipping"
-        return 0
-    fi
-
     local -a entries=()
-    local line
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        [[ -z "${line// /}" ]] && continue
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        entries+=("$line")
-    done <"$list_file"
+
+    mapfile -t entries < <(cargo_install_list) || return 1
 
     if [[ ${#entries[@]} -eq 0 ]]; then
-        log_info "No crates listed in $list_file; skipping"
+        log_info "No crates listed in $(packages_toml_path); skipping"
         return 0
     fi
 
@@ -457,8 +448,6 @@ install_yazi_from_release() {
 }
 
 setup_yazi_plugins() {
-    local list_file="$_LIB_INSTALL_DIR/../default/dot-config/yazi/plugins.txt"
-
     if ! command -v mdv >/dev/null 2>&1; then
         log_warning "mdv not on PATH (install cargo crates first); mdv-previewer will not work"
     fi
@@ -468,21 +457,11 @@ setup_yazi_plugins() {
         return 0
     fi
 
-    if [[ ! -f "$list_file" ]]; then
-        log_info "No Yazi plugins list at $list_file; skipping"
-        return 0
-    fi
-
     local -a plugins=()
-    local line
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        [[ -z "${line// /}" ]] && continue
-        [[ "$line" =~ ^[[:space:]]*# ]] && continue
-        plugins+=("$line")
-    done <"$list_file"
+    mapfile -t plugins < <(yazi_plugins_list) || return 1
 
     if [[ ${#plugins[@]} -eq 0 ]]; then
-        log_info "No Yazi plugins listed in plugins.txt; skipping"
+        log_info "No Yazi plugins listed in $(packages_toml_path); skipping"
         return 0
     fi
 
