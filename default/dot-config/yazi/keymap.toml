@@ -19,6 +19,11 @@ run = "plugin lazygit"
 desc = "run lazygit"
 
 [[mgr.prepend_keymap]]
+on = ["g", "."]
+run = "cd ~/dotfiles"
+desc = "Go ~/dotfiles"
+
+[[mgr.prepend_keymap]]
 on = ["T"]
 run = "plugin recycle-bin"
 desc = "Open Recycle Bin menu"
