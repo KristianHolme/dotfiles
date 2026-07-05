@@ -309,7 +309,10 @@ select_directories() {
             remote_cache_file="dotfiles-yazi-choose-$$.paths"
 
             # Do not capture ssh -t stdout: a PTY pipe steals the terminal from yazi.
-            ssh -t "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" "$anchor_rel" "$remote_cache_file" <<'REMOTE' </dev/tty
+            # Do not redirect ssh stdin from /dev/tty here: that overrides the heredoc and
+            # leaves bash -s with no script (interactive remote shell). ssh -t allocates
+            # a remote PTY for yazi; the heredoc supplies the wrapper script on stdin.
+            ssh -t "$SOURCE_HOST" bash -s -- "$REMOTE_BASE" "$anchor_rel" "$remote_cache_file" <<'REMOTE'
 set -euo pipefail
 out="$HOME/.cache/$3"
 mkdir -p "$HOME/.cache"
