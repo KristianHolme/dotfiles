@@ -105,7 +105,14 @@ trap 'rm -f "$chooser_file"' EXIT
 # Hint on stderr only (stdout must stay clean for callers that capture paths).
 echo "Select directories in yazi (Enter to confirm; Space for multi-select)" >&2
 
-yazi "$start" --chooser-file "$chooser_file"
+# On many-core shared hosts (e.g. 256-core HPC login nodes) yazi's async runtime
+# spawns threads proportional to visible cores, which can blow past a per-user
+# nproc ulimit and crash/hang with EAGAIN. Cap visible cores for this TUI.
+yazi_cmd=(yazi "$start" --chooser-file "$chooser_file")
+if command -v taskset >/dev/null 2>&1 && command -v nproc >/dev/null 2>&1 && [[ "$(nproc)" -gt 16 ]]; then
+    yazi_cmd=(taskset -c 0-7 "${yazi_cmd[@]}")
+fi
+"${yazi_cmd[@]}"
 
 declare -a rel_paths=()
 declare -A seen=()
