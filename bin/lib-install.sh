@@ -51,7 +51,7 @@ ensure_replica_yq_via_bin() {
     else
         log_info "Installing go-yq via bin (required before packages.toml)"
     fi
-    bin install github.com/mikefarah/yq || {
+    marcos_bin_install_or_update_github github.com/mikefarah/yq yq || {
         log_error "Failed to bootstrap go-yq via bin"
         return 1
     }
@@ -711,6 +711,10 @@ marcos_bin_install_or_update_github() {
         log_info "bin update $binary_name"
         bin update "$binary_name" "${update_flags[@]}" || return 1
         return 0
+    fi
+    if [[ -e "$install_path" ]]; then
+        log_info "Removing unmanaged $binary_name at $install_path before bin install"
+        rm -f "$install_path"
     fi
     log_info "bin install $spec"
     bin install "$spec" || return 1

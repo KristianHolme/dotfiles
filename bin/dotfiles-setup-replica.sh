@@ -224,9 +224,14 @@ replica_install_tools_with_bin() {
     for pair in "${pairs[@]}"; do
         spec="${pair%%:*}"
         cmd="${pair##*:}"
-        # Python yq may still be on PATH; prefer mikefarah go-yq (also bootstrapped earlier).
-        if [[ "$cmd" == "yq" ]] && command -v yq >/dev/null 2>&1 && ! go_yq_available; then
-            marcos_bin_install_if_missing "$spec" || log_warning "bin install failed: $spec; continuing"
+        # Prefer mikefarah go-yq; replace legacy Python yq or other unmanaged binaries.
+        if [[ "$cmd" == "yq" ]]; then
+            if go_yq_available; then
+                log_info "go-yq already on PATH; skipping bin install ($spec)"
+                continue
+            fi
+            marcos_bin_install_or_update_github "$spec" "$cmd" \
+                || log_warning "bin install failed: $spec; continuing"
             continue
         fi
         marcos_bin_install_if_missing_and_cmd_absent "$spec" "$cmd" || log_warning "bin install failed: $spec; continuing"
