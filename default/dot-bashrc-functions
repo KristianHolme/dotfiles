@@ -129,6 +129,13 @@ function fmnt() {
     
     spf "${args[@]}"
 }
+
+# Pick and connect to a WiFi access point by BSSID
+# Usage: reconnect SSID
+function reconnect() {
+    "$HOME/dotfiles/bin/dotfiles-wifi-reconnect.sh" "$@"
+}
+
 spf() {
     export SPF_LAST_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/superfile/lastdir"
 
@@ -146,4 +153,62 @@ function y() {
 	IFS= read -r -d '' cwd < "$tmp"
 	[ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && builtin cd -- "$cwd"
 	command rm -f -- "$tmp"
+}
+
+# Convert PDF to PNG(s) using pdftoppm and magick
+# Usage: pdf2png [-c|--combined] file.pdf
+# Default: file-1.png, file-02.png, ... (one per page)
+# --combined: single file.png with all pages stacked vertically
+function pdf2png() {
+    local combined=0
+    local pdf=""
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -c|--combined) combined=1; shift ;;
+            -h|--help)
+                cat >&2 <<'EOF'
+Usage: pdf2png [-c|--combined] file.pdf
+
+Convert a PDF to PNG(s) in the same directory as the input file.
+
+  -c, --combined   Produce a single PNG with all pages stacked vertically
+  -h, --help       Show this help message
+EOF
+                return 0
+                ;;
+            -*) echo "pdf2png: unknown option: $1" >&2; return 1 ;;
+            *)
+                if [[ -n "$pdf" ]]; then
+                    echo "pdf2png: expected one PDF file" >&2
+                    return 1
+                fi
+                pdf="$1"
+                shift
+                ;;
+        esac
+    done
+
+    [[ -n "$pdf" ]] || { echo "pdf2png: missing PDF file" >&2; return 1; }
+    [[ -f "$pdf" ]] || { echo "pdf2png: file not found: $pdf" >&2; return 1; }
+    [[ "$pdf" =~ \.[Pp][Dd][Ff]$ ]] || { echo "pdf2png: not a PDF: $pdf" >&2; return 1; }
+    command -v pdftoppm >/dev/null || { echo "pdf2png: pdftoppm not found" >&2; return 1; }
+    command -v magick >/dev/null || { echo "pdf2png: magick not found" >&2; return 1; }
+
+    local dir base prefix
+    dir="$(dirname -- "$pdf")"
+    base="$(basename -- "${pdf%.*}")"
+    prefix="$dir/$base"
+
+    if [[ "$combined" -eq 1 ]]; then
+        local tmp pages
+        tmp="$(mktemp -d "${TMPDIR:-/tmp}/pdf2png.XXXXXX")"
+        pdftoppm -png "$pdf" "$tmp/page" || { rm -rf "$tmp"; return 1; }
+        pages=("$tmp"/page-*.png)
+        [[ -e "${pages[0]}" ]] || { echo "pdf2png: no pages rendered" >&2; rm -rf "$tmp"; return 1; }
+        magick "${pages[@]}" -append "$prefix.png" || { rm -rf "$tmp"; return 1; }
+        rm -rf "$tmp"
+    else
+        pdftoppm -png "$pdf" "$prefix"
+    fi
 }
