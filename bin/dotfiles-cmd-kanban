@@ -13,9 +13,9 @@ usage() {
     cat <<'EOF'
 Usage: dotfiles-cmd-kanban
 
-Open or toggle a local kanban board (kanban.html) as a borderless browser app on the
-Hyprland kanban special workspace. Creates kanban.html from dotfiles template if missing.
-Regenerates kanban-theme.css from the current Omarchy theme on each launch.
+Open or toggle ~/Documents/kanban.html as a borderless browser app on the Hyprland
+kanban special workspace. Regenerates kanban-theme.css from the current Omarchy theme
+on each launch.
 
 Environment:
   DOTFILES_KANBAN_DIR  Override Documents directory for kanban.html
@@ -32,43 +32,12 @@ fi
 kanban_dir="${DOTFILES_KANBAN_DIR:-${XDG_DOCUMENTS_DIR:-$HOME/Documents}}"
 kanban_file="$kanban_dir/kanban.html"
 theme_file="$kanban_dir/kanban-theme.css"
-template="${HOME}/dotfiles/templates/kanban/kanban.html"
 special_ws="kanban"
 window_title="Kanban"
 
-mkdir -p "$kanban_dir"
-
 if [[ ! -f $kanban_file ]]; then
-    if [[ ! -f $template ]]; then
-        echo "dotfiles-cmd-kanban: missing template: $template" >&2
-        exit 1
-    fi
-    cp "$template" "$kanban_file"
-elif ! grep -q 'loadOmarchyTheme' "$kanban_file" && [[ -f $template ]]; then
-    python3 - "$kanban_file" "$template" <<'PY'
-import re
-import sys
-from pathlib import Path
-
-existing, template = Path(sys.argv[1]), Path(sys.argv[2])
-old = existing.read_text()
-new = template.read_text()
-match = re.search(
-    r'(<script type="application/json" id="kanban-data">)(.*?)(</script>)',
-    old,
-    re.S,
-)
-if match:
-    data_block = match.group(2)
-    new = re.sub(
-        r'(<script type="application/json" id="kanban-data">)(.*?)(</script>)',
-        lambda m: m.group(1) + data_block + m.group(3),
-        new,
-        count=1,
-        flags=re.S,
-    )
-existing.write_text(new)
-PY
+    echo "dotfiles-cmd-kanban: missing $kanban_file" >&2
+    exit 1
 fi
 
 generate_kanban_theme() {
