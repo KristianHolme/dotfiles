@@ -45,10 +45,6 @@ Host freebio* bioint0* ml*
     SendEnv TERM
     SetEnv TERM=xterm-256color
 
-Host claw
-    User claw
-    Hostname claw
-
 Host nrec1
     User ubuntu
     HostName 2001:700:2:8201::1242

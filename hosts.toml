@@ -22,10 +22,6 @@ local_path = "/mnt/bengal"
 remote_path = "/home/kristian"
 local_path = "/mnt/bali"
 
-[machines.claw]
-remote_path = "/home/claw"
-local_path = "/mnt/claw"
-
 [machines.kaspi]
 remote_path = "/home/kristian"
 local_path = "/mnt/kaspi"
