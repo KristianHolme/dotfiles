@@ -15,7 +15,7 @@ usage() {
 Usage: $0 SSID
 
 Scan for access points matching SSID, pick one with gum, connect by BSSID.
-Current AP is marked with * in the list.
+Current AP is marked with *; other access points use - in the first column.
 EOF
 }
 
@@ -90,44 +90,35 @@ if ((${#AP_ROWS[@]} == 0)); then
 fi
 
 DISPLAY_LINES=()
-BSSIDS=()
-
-# gum trims leading ASCII spaces on menu items; use NBSP for inactive IN-USE column.
-INACTIVE_MARKER="$(printf '\302\240%.0s' {1..8})"
 
 for row in "${AP_ROWS[@]}"; do
     IFS=$'\034' read -r inuse bssid ssid mode chan rate signal bars security <<<"$row"
 
+    # gum trims leading whitespace; use a visible first column for inactive rows.
     if [[ "$inuse" == "*" ]]; then
         marker="*       "
     else
-        marker="$INACTIVE_MARKER"
+        marker="-       "
     fi
 
     DISPLAY_LINES+=("$(
         printf '%-8s%-19s%-13s%-7s%-6s%-13s%-8s%-8s  %s' \
             "$marker" "$bssid" "$ssid" "$mode" "$chan" "$rate" "$signal" "$bars" "$security"
     )")
-    BSSIDS+=("$bssid")
 done
 
 SELECTED=$(
     printf '%s\n' "${DISPLAY_LINES[@]}" | gum choose \
         --height "$((${#DISPLAY_LINES[@]} + 2))" \
-        --header "Select access point for $SSID (current AP marked with *)"
+        --header "Select access point for $SSID (* = current, - = other)"
 ) || true
 
 if [[ -z "$SELECTED" ]]; then
     exit 0
 fi
 
-SELECTED_BSSID=""
-for i in "${!DISPLAY_LINES[@]}"; do
-    if [[ "${DISPLAY_LINES[$i]}" == "$SELECTED" ]]; then
-        SELECTED_BSSID="${BSSIDS[$i]}"
-        break
-    fi
-done
+# gum may normalize whitespace on the returned line; extract BSSID instead of string match.
+SELECTED_BSSID=$(grep -oiE '([0-9A-F]{2}:){5}[0-9A-F]{2}' <<<"$SELECTED" | head -1)
 
 if [[ -z "$SELECTED_BSSID" ]]; then
     log_error "Could not resolve selected access point"
