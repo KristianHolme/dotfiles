@@ -26,6 +26,9 @@ keybind = super+control+shift+alt+arrow_up=resize_split:up,100
 keybind = super+control+shift+alt+arrow_left=resize_split:left,100
 keybind = super+control+shift+alt+arrow_right=resize_split:right,100
 keybind = global:super+ctrl+enter=toggle_quick_terminal
+# Hyprland universal clipboard (Super+C/V) when quick terminal layer is focused
+keybind = global:super+c=copy_to_clipboard
+keybind = global:super+v=paste_from_clipboard
 keybind = ctrl+shift+|=new_split:right
 keybind = ctrl+shift+-=new_split:down
 keybind = ctrl+alt+left=goto_split:left

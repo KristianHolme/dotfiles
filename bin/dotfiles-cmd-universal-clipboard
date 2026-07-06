@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+
+# Route Omarchy universal clipboard keybinds (Super+C/V/X) to the right target.
+#
+# Ghostty's quick terminal is a wl-layer-shell surface (namespace: quickterminal),
+# not a Hyprland window. Omarchy's sendshortcut ... activewindow therefore hits
+# the app underneath the overlay instead of the quick terminal.
+#
+# When the quick terminal layer is visible, prefer Ghostty global shortcuts
+# (copy_to_clipboard / paste_from_clipboard). Fall back to sendshortcut on the
+# quick terminal's pid when globals are not registered yet (before ghostty restart).
+
+set -euo pipefail
+
+action="${1:?usage: dotfiles-cmd-universal-clipboard copy|paste|cut}"
+
+ghostty_quick_terminal_open() {
+  hyprctl layers -j 2>/dev/null \
+    | jq -e '.. | objects | select(.namespace? == "quickterminal")' >/dev/null
+}
+
+ghostty_quick_terminal_pid() {
+  hyprctl layers -j 2>/dev/null \
+    | jq -r '.. | objects | select(.namespace? == "quickterminal") | .pid' \
+    | head -1
+}
+
+ghostty_global_for_action() {
+  local ghostty_action="$1"
+  hyprctl globalshortcuts 2>/dev/null \
+    | awk -v action="$ghostty_action" \
+      '$1 ~ /^com\.mitchellh\.ghostty:/ && $3 ~ ("^" action) { print $1; exit }'
+}
+
+send_activewindow() {
+  local mod="$1"
+  local key="$2"
+  hyprctl dispatch sendshortcut "${mod},${key},activewindow"
+}
+
+send_ghostty_pid() {
+  local mod="$1"
+  local key="$2"
+  local pid
+
+  pid="$(ghostty_quick_terminal_pid)"
+  if [[ -z "$pid" ]]; then
+    return 1
+  fi
+
+  hyprctl dispatch sendshortcut "${mod},${key},pid:${pid}"
+}
+
+dispatch_ghostty_global() {
+  local ghostty_action="$1"
+  local mod="$2"
+  local key="$3"
+  local global_id
+
+  global_id="$(ghostty_global_for_action "$ghostty_action")"
+  if [[ -n "$global_id" ]]; then
+    hyprctl dispatch global "$global_id"
+    return 0
+  fi
+
+  send_ghostty_pid "$mod" "$key"
+}
+
+if ghostty_quick_terminal_open; then
+  case "$action" in
+    copy) dispatch_ghostty_global copy_to_clipboard CTRL Insert ;;
+    paste) dispatch_ghostty_global paste_from_clipboard SHIFT Insert ;;
+    cut) send_ghostty_pid CTRL X ;;
+    *) echo "dotfiles-cmd-universal-clipboard: unknown action: $action" >&2; exit 1 ;;
+  esac
+else
+  case "$action" in
+    copy) send_activewindow CTRL Insert ;;
+    paste) send_activewindow SHIFT Insert ;;
+    cut) send_activewindow CTRL X ;;
+    *) echo "dotfiles-cmd-universal-clipboard: unknown action: $action" >&2; exit 1 ;;
+  esac
+fi
