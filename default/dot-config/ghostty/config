@@ -21,14 +21,16 @@ shell-integration-features = no-cursor,ssh-env,ssh-terminfo
 keybind = f11=toggle_fullscreen
 keybind = shift+insert=paste_from_clipboard
 keybind = control+insert=copy_to_clipboard
+# Super-modified variants: Hyprland universal clipboard injects ctrl/shift+insert
+# via wtype while Super is still physically held, so the merged event arrives as
+# super+ctrl/shift+insert (matters for the quick terminal layer surface).
+keybind = super+shift+insert=paste_from_clipboard
+keybind = super+control+insert=copy_to_clipboard
 keybind = super+control+shift+alt+arrow_down=resize_split:down,100
 keybind = super+control+shift+alt+arrow_up=resize_split:up,100
 keybind = super+control+shift+alt+arrow_left=resize_split:left,100
 keybind = super+control+shift+alt+arrow_right=resize_split:right,100
 keybind = global:super+ctrl+enter=toggle_quick_terminal
-# Hyprland universal clipboard (Super+C/V) when quick terminal layer is focused
-keybind = global:super+c=copy_to_clipboard
-keybind = global:super+v=paste_from_clipboard
 keybind = ctrl+shift+|=new_split:right
 keybind = ctrl+shift+-=new_split:down
 keybind = ctrl+alt+left=goto_split:left

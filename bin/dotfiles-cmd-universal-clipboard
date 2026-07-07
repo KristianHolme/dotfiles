@@ -1,35 +1,18 @@
 #!/usr/bin/env bash
 
-# Route Omarchy universal clipboard keybinds (Super+C/V/X) to the right target.
+# Omarchy universal clipboard helper (Super+C/V/X).
 #
-# Ghostty's quick terminal is a wl-layer-shell surface (namespace: quickterminal),
-# not a Hyprland window. Omarchy's sendshortcut ... activewindow therefore hits
-# the app underneath the overlay instead of the quick terminal.
-#
-# When the quick terminal layer is visible, prefer Ghostty global shortcuts
-# (copy_to_clipboard / paste_from_clipboard). Fall back to sendshortcut on the
-# quick terminal's pid when globals are not registered yet (before ghostty restart).
+# If the Ghostty quick terminal layer is open, inject ctrl/shift+insert with
+# wtype so the focused layer receives the key. Otherwise dispatch sendshortcut
+# to the active Hyprland window (Omarchy default).
 
 set -euo pipefail
 
 action="${1:?usage: dotfiles-cmd-universal-clipboard copy|paste|cut}"
 
-ghostty_quick_terminal_open() {
+quick_terminal_open() {
   hyprctl layers -j 2>/dev/null \
     | jq -e '.. | objects | select(.namespace? == "quickterminal")' >/dev/null
-}
-
-ghostty_quick_terminal_pid() {
-  hyprctl layers -j 2>/dev/null \
-    | jq -r '.. | objects | select(.namespace? == "quickterminal") | .pid' \
-    | head -1
-}
-
-ghostty_global_for_action() {
-  local ghostty_action="$1"
-  hyprctl globalshortcuts 2>/dev/null \
-    | awk -v action="$ghostty_action" \
-      '$1 ~ /^com\.mitchellh\.ghostty:/ && $3 ~ ("^" action) { print $1; exit }'
 }
 
 send_activewindow() {
@@ -38,39 +21,23 @@ send_activewindow() {
   hyprctl dispatch sendshortcut "${mod},${key},activewindow"
 }
 
-send_ghostty_pid() {
+inject_seat() {
   local mod="$1"
   local key="$2"
-  local pid
 
-  pid="$(ghostty_quick_terminal_pid)"
-  if [[ -z "$pid" ]]; then
+  if ! command -v wtype >/dev/null; then
+    notify-send "Universal clipboard" "Install wtype to use Super+C/V in the quick terminal." -u normal -t 5000
     return 1
   fi
 
-  hyprctl dispatch sendshortcut "${mod},${key},pid:${pid}"
+  wtype -M "$mod" -k "$key" -m "$mod"
 }
 
-dispatch_ghostty_global() {
-  local ghostty_action="$1"
-  local mod="$2"
-  local key="$3"
-  local global_id
-
-  global_id="$(ghostty_global_for_action "$ghostty_action")"
-  if [[ -n "$global_id" ]]; then
-    hyprctl dispatch global "$global_id"
-    return 0
-  fi
-
-  send_ghostty_pid "$mod" "$key"
-}
-
-if ghostty_quick_terminal_open; then
+if quick_terminal_open; then
   case "$action" in
-    copy) dispatch_ghostty_global copy_to_clipboard CTRL Insert ;;
-    paste) dispatch_ghostty_global paste_from_clipboard SHIFT Insert ;;
-    cut) send_ghostty_pid CTRL X ;;
+    copy) inject_seat ctrl Insert ;;
+    paste) inject_seat shift Insert ;;
+    cut) true ;;
     *) echo "dotfiles-cmd-universal-clipboard: unknown action: $action" >&2; exit 1 ;;
   esac
 else
