@@ -103,7 +103,6 @@ project-area path on the server.
 | `dotfiles-youtube-audio.sh` | yt-dlp audio download + LocalSend share. |
 | `dotfiles-cmd-ocr` | OCR a screen region (grim/slurp/tesseract), copy to clipboard. |
 | `dotfiles-scratch-nvim` | Floating terminal with nvim on a timestamped quicknote. |
-| `dotfiles-cmd-kanban` | Daily kanban board (`~/Documents/kanban.html`) as a Chromium PWA on special workspace kanban (SUPER+ALT+K). |
 | `dotfiles-fix-browser-audio.sh` | Unmute/uncork PipeWire browser streams. |
 | `dotfiles-power-suspend.sh` | logind drop-in: power button suspends. |
 | `dotfiles-setup-zotero.sh` | Download Zotero plugins from GitHub releases (`packages.toml` `[zotero.plugins]`). |
