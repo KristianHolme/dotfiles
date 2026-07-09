@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# Launch an app or focus an existing window by exact class match only.
+# Unlike omarchy-launch-or-focus, this does not match window titles.
+
+if (($# == 0)); then
+    echo "Usage: dotfiles-cmd-launch-or-focus-class <window-class> [launch-command]" >&2
+    exit 1
+fi
+
+CLASS="$1"
+LAUNCH_COMMAND="${2:-"uwsm-app -- $CLASS"}"
+
+WINDOW_ADDRESS=$(hyprctl clients -j | jq -r --arg c "$CLASS" '.[] | select(.class == $c) | .address' | head -n1)
+
+if [[ -n $WINDOW_ADDRESS ]]; then
+    hyprctl dispatch focuswindow "address:$WINDOW_ADDRESS"
+else
+    eval exec setsid $LAUNCH_COMMAND
+fi
