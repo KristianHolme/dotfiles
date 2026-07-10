@@ -50,8 +50,8 @@ re-apply). `dar -- -D` unstows replica `dot-config` / `dot-agents` only.
 
 ```bash
 # 1. Install user-local CLI tools (bootstraps marcosnils/bin, then bin install from
-#    packages.toml [bin.replica]; neovim AppImage is glibc-aware, stow built from source,
-#    juliaup, omarchy clone)
+#    packages.toml [bin.replica]; uv tool install from [uv.replica] (e.g. trash-cli);
+#    neovim AppImage is glibc-aware, stow built from source, juliaup, omarchy clone)
 dotfiles-setup-replica.sh             # alias: dsr
 
 # 2. Apply configs (gum menu: omarchy clone, julia config symlink,
@@ -116,7 +116,8 @@ project-area path on the server.
   go-yq (mikefarah) for TOML inventory scripts (legacy tomlq fallback), `sshfs` for mounts, `rsync`.
 - University servers: `curl`, `tar`, `git`, `jq`; no sudo needed.
   `dotfiles-setup-replica.sh` bootstraps go-yq via marcosnils/bin before reading
-  `packages.toml`, then installs the rest from `[bin.replica]`.
+  `packages.toml`, then installs from `[bin.replica]` and `[uv.replica]` (e.g. trash-cli via
+  `uv tool install`).
   Optional `GITHUB_AUTH_TOKEN` for API rate limits.
 
 ## Notes

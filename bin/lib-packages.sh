@@ -23,6 +23,9 @@
 #   [cargo]
 #   install = ["crate", "crate:command", ...]
 #
+#   [uv.replica]
+#   install = ["package", "package:command", ...]
+#
 #   [bin.replica]
 #   prereq  = ["spec:command", ...]
 #   install = ["spec:command", ...]
@@ -119,6 +122,10 @@ webapps_remove_list() {
 
 cargo_install_list() {
     _packages_json | jq -r '.cargo.install[]?'
+}
+
+uv_replica_install_list() {
+    _packages_json | jq -r '.uv.replica.install[]?'
 }
 
 bin_replica_prereq_list() {

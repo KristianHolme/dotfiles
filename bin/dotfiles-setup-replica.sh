@@ -13,6 +13,7 @@ set -Eeuo pipefail
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); LazyVim starter, tpm, omarchy clone.
+# - uv tool install for Python CLIs (packages.toml [uv.replica], e.g. trash-cli/trash-put).
 # - yazi + ya from GitHub release zip; cargo crates from packages.toml; ya pkg plugins.
 #
 # PATH skip: distro or other installs satisfy the checker (e.g. bat but not Debian's batcat-only name).
@@ -338,6 +339,7 @@ EOF
     fi
 
     replica_install_tools_with_bin
+    setup_uv_replica_tools || log_warning "uv tool setup failed; continuing"
     install_yazi_from_release || log_warning "yazi release install failed; continuing"
     setup_cargo_crates || log_warning "cargo crate setup failed; continuing"
     setup_yazi_plugins || log_warning "Yazi plugin setup failed; continuing"

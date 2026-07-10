@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Installation/bootstrap helpers for dotfiles setup scripts:
-# GitHub API + release downloads, marcosnils/bin, juliaup, omarchy, tpm,
+# GitHub API + release downloads, marcosnils/bin, juliaup, uv, omarchy, tpm,
 # bashrc bootstrap. Sourced only by the setup/apply scripts that install
 # things; everyday utilities only need lib-dotfiles.sh.
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib-install.sh"
@@ -396,6 +396,75 @@ setup_cargo_crates() {
             fi
         else
             log_warning "cargo install $crate failed (non-critical)"
+        fi
+    done
+}
+
+# Bootstrap uv via the official standalone installer (replica servers, no sudo).
+ensure_uv() {
+    if command -v uv >/dev/null 2>&1; then
+        return 0
+    fi
+
+    ensure_cmd curl
+    log_info "Installing uv via official installer..."
+    UV_NO_MODIFY_PATH=1 curl -fsSL https://astral.sh/uv/install.sh | bash || {
+        log_error "uv installation failed"
+        return 1
+    }
+
+    marcos_bin_prepend_path
+    if ! command -v uv >/dev/null 2>&1; then
+        log_error "uv not on PATH after install"
+        return 1
+    fi
+
+    log_success "uv ready -> $(command -v uv)"
+    return 0
+}
+
+# Install Python CLI tools from packages.toml [uv.replica].install (package or package:command).
+setup_uv_replica_tools() {
+    local -a entries=()
+
+    mapfile -t entries < <(uv_replica_install_list) || return 1
+
+    if [[ ${#entries[@]} -eq 0 ]]; then
+        log_info "No uv tools listed in $(packages_toml_path); skipping"
+        return 0
+    fi
+
+    if ! ensure_uv; then
+        log_warning "uv unavailable; cannot install tools"
+        return 1
+    fi
+
+    local entry pkg cmd
+    for entry in "${entries[@]}"; do
+        if [[ "$entry" == *:* ]]; then
+            pkg="${entry%%:*}"
+            cmd="${entry##*:}"
+        else
+            pkg="$entry"
+            cmd="$entry"
+        fi
+
+        marcos_bin_prepend_path
+        if command -v "$cmd" >/dev/null 2>&1; then
+            log_info "$cmd already on PATH; skipping uv tool install $pkg"
+            continue
+        fi
+
+        log_info "Installing $pkg via uv tool (binary: $cmd)..."
+        if uv tool install "$pkg"; then
+            marcos_bin_prepend_path
+            if command -v "$cmd" >/dev/null 2>&1; then
+                log_success "Installed $cmd -> $(command -v "$cmd")"
+            else
+                log_warning "$cmd not on PATH after uv tool install $pkg"
+            fi
+        else
+            log_warning "uv tool install $pkg failed (non-critical)"
         fi
     done
 }
