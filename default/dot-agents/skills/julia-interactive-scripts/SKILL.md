@@ -11,15 +11,28 @@ Scripts are for **interactive REPL work** (include / run section-by-section), no
 
 Use `##` to split setup, plot, save, etc. so blocks can be re-run independently in the IDE/REPL.
 
-Put the **first** `##` immediately after all import/activation lines — imports load in one block, then sections start.
+Imports and activation stay **above** the first `##` — load packages in one block, then sections start.
 
-Numbered sections (`## 1) …`, `## 2.5) …`) are fine in `examples/` when the script is a tutorial with multiple demos.
+### Script layout
+
+Keep a consistent section order:
+
+1. **Imports** — `using`, `@quickactivate`, etc. (no `##`)
+2. **Utilities** — helper functions reused within the file (first `##`)
+3. **Constants** — fixed values used by later sections (second `##`, when present)
+4. **Usage** — setup, compute, plot, save, etc. (remaining `##` sections)
+
+Put utility functions in section 2, not scattered through usage sections. Put constants in section 3 so they sit just above the sections that use them — not mixed into imports or buried after setup code.
+
+Numbered sections (`## 1) …`, `## 2.5) …`) are fine in `examples/` when the script is a tutorial with multiple demos; use them for usage sections (4+), not for utilities or constants.
 
 ## Top-level flow
 
-Assign parameters and compute at script scope (`ny = 64`, `params = …`, `y_correct = …`).
+Assign parameters and compute at script scope in usage sections (`ny = 64`, `params = …`, `y_correct = …`).
 
-Avoid helper functions unless the logic is genuinely reused within the same file. When functions are needed, follow [julia-code](../julia-code/SKILL.md) (explicit `return`, Runic formatting).
+Avoid helper functions unless the logic is genuinely reused within the same file. When functions are needed, define them in the utilities section (section 2) and follow [julia-code](../julia-code/SKILL.md) (explicit `return`, Runic formatting).
+
+Declare constants (`const NY = 64`, `const COLORS = …`) in the constants section (section 3) when they are fixed configuration shared by multiple usage sections.
 
 ## Brief context at top
 
@@ -80,7 +93,7 @@ using MyPackage, CairoMakie
 
 ## Templates
 
-**DrWatson workflow** — setup, display, save:
+**DrWatson workflow** — utilities, constants, setup, display, save:
 
 ```julia
 # one-line description of what the script does
@@ -88,11 +101,20 @@ using DrWatson
 @quickactivate :ProjectName
 using CairoMakie
 ##
+# utilities
+function summarize(x)
+    return mean(x), std(x)
+end
+##
+# constants
+const NY = 64
+const FIGSIZE = (800, 600)
+##
 # setup: params, derived quantities, arrays
-ny = 64
+ny = NY
 ...
 ## plot
-fig = Figure(...)
+fig = Figure(size = FIGSIZE)
 display(fig)
 ##
 path = plotsdir("my_plot.png")
@@ -127,6 +149,7 @@ Inline struct/policy definitions in `examples/` are fine when they illustrate AP
 - Saving figures without `display` first
 - Putting one-off experiment logic in `src/` instead of `scripts/` or `_research/`
 - Defining many small helpers for code used once in the same file
+- Putting utility functions or constants in usage sections instead of sections 2 and 3
 - Requiring DrWatson/`@quickactivate` in `examples/` when plain `using` suffices
 - Ad-hoc save paths in DrWatson projects instead of `plotsdir` / `datadir`
 - Forcing a save section in display-only demos
