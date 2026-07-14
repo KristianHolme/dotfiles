@@ -13,7 +13,7 @@ set -Eeuo pipefail
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); LazyVim starter, tpm, omarchy clone.
-# - uv tool install for Python CLIs (packages.toml [uv.replica], e.g. trash-cli/trash-put).
+# - uv tool install for Python CLIs (packages.toml [uv.replica], e.g. trash-cli/trash-list).
 # - yazi + ya from GitHub release zip; cargo crates from packages.toml; ya pkg plugins.
 #
 # PATH skip: distro or other installs satisfy the checker (e.g. bat but not Debian's batcat-only name).
@@ -359,7 +359,9 @@ EOF
 
     clone_or_update_omarchy "$OMARCHY_DIR" "$OMARCHY_REPO_URL"
 
-    log_success "Done. Restart your shell or: source ~/.bashrc"
+    ensure_bash_profile_user_path
+
+    log_success "Done. Restart your shell or: source ~/.bash_profile"
 }
 
 main "$@"

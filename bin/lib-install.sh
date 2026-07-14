@@ -145,7 +145,38 @@ EOF
 }
 
 # Ensure login shells (SSH, etc.) load ~/.bashrc — required on many RHEL/university images.
+# Also prepends user-local bin to PATH in the profile (yazi/plugins need this even when bashrc returns early).
+ensure_bash_profile_user_path() {
+    local profile_path="${1:-$HOME/.bash_profile}"
+    local path_line='export PATH="$HOME/.local/bin:$HOME/dotfiles/bin:$PATH"'
+
+    if [[ -f "$profile_path" ]] && grep -qF '.local/bin:$HOME/dotfiles/bin' "$profile_path" 2>/dev/null; then
+        return 0
+    fi
+
+    if [[ ! -f "$profile_path" ]]; then
+        log_info "Creating $profile_path with user-local PATH"
+        cat >"$profile_path" <<EOF
+# ~/.bash_profile: executed by bash(1) for login shells.
+# Created by dotfiles (ensure_bash_profile_user_path)
+
+$path_line
+EOF
+        return 0
+    fi
+
+    log_info "Adding user-local PATH to $profile_path"
+    local tmp
+    tmp="$(mktemp)"
+    {
+        printf '%s\n' "$path_line"
+        cat "$profile_path"
+    } >"$tmp"
+    mv "$tmp" "$profile_path"
+}
+
 ensure_bash_profile_sources_bashrc() {
+    ensure_bash_profile_user_path "${1:-$HOME/.bash_profile}"
     local profile_path="${1:-$HOME/.bash_profile}"
     local bashrc_path="${2:-$HOME/.bashrc}"
     local source_line="[[ -f $bashrc_path ]] && . $bashrc_path"
@@ -161,6 +192,7 @@ ensure_bash_profile_sources_bashrc() {
 # ~/.bash_profile: executed by bash(1) for login shells.
 # Created by dotfiles (ensure_bash_profile_sources_bashrc)
 
+export PATH="\$HOME/.local/bin:\$HOME/dotfiles/bin:\$PATH"
 $source_line
 EOF
         return 0
@@ -423,6 +455,20 @@ ensure_uv() {
     return 0
 }
 
+# True when a uv.replica command is present and works (recycle-bin checks trash-list --version).
+uv_replica_cmd_available() {
+    local cmd="$1"
+    command -v "$cmd" >/dev/null 2>&1 || return 1
+    case "$cmd" in
+    trash-list | trash-put | trash-empty | trash-restore | trash-rm)
+        "$cmd" --version >/dev/null 2>&1
+        ;;
+    *)
+        return 0
+        ;;
+    esac
+}
+
 # Install Python CLI tools from packages.toml [uv.replica].install (package or package:command).
 setup_uv_replica_tools() {
     local -a entries=()
@@ -439,6 +485,9 @@ setup_uv_replica_tools() {
         return 1
     fi
 
+    local tool_bin_dir="${INSTALL_DIR:-$HOME/.local/bin}"
+    export UV_TOOL_BIN_DIR="$tool_bin_dir"
+
     local entry pkg cmd
     for entry in "${entries[@]}"; do
         if [[ "$entry" == *:* ]]; then
@@ -450,7 +499,7 @@ setup_uv_replica_tools() {
         fi
 
         marcos_bin_prepend_path
-        if command -v "$cmd" >/dev/null 2>&1; then
+        if uv_replica_cmd_available "$cmd"; then
             log_info "$cmd already on PATH; skipping uv tool install $pkg"
             continue
         fi
@@ -458,10 +507,10 @@ setup_uv_replica_tools() {
         log_info "Installing $pkg via uv tool (binary: $cmd)..."
         if uv tool install "$pkg"; then
             marcos_bin_prepend_path
-            if command -v "$cmd" >/dev/null 2>&1; then
+            if uv_replica_cmd_available "$cmd"; then
                 log_success "Installed $cmd -> $(command -v "$cmd")"
             else
-                log_warning "$cmd not on PATH after uv tool install $pkg"
+                log_warning "$cmd not working on PATH after uv tool install $pkg"
             fi
         else
             log_warning "uv tool install $pkg failed (non-critical)"

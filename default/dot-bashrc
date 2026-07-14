@@ -1,8 +1,8 @@
-# If not running interactively, don't do anything (leave this at the top of this file)
-[[ $- != *i* ]] && return
-
-# User-local tools (replica hosts may not have omarchy on PATH yet)
+# User-local tools (replica hosts; must run before interactive-only return below)
 export PATH="$HOME/.local/bin:$HOME/dotfiles/bin:$PATH"
+
+# If not running interactively, don't do anything (leave this near the top of this file)
+[[ $- != *i* ]] && return
 
 # Omarchy aliases/functions when present (optional on replica servers)
 _omarchy_rc="$HOME/.local/share/omarchy/default/bash/rc"

@@ -71,6 +71,12 @@ install = [
     "tree-sitter-cli:tree-sitter",
 ]
 
+[uv.replica]
+# package:command — CLI checked before uv tool install on replica servers.
+install = [
+    "trash-cli:trash-list",
+]
+
 [bin.replica]
 # spec:command — CLI checked before marcosnils/bin install on replica servers.
 # prereq runs before GitHub auth; failure aborts setup.
