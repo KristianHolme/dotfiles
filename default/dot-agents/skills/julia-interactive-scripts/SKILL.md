@@ -19,20 +19,20 @@ Keep a consistent section order:
 
 1. **Imports** — `using`, `@quickactivate`, etc. (no `##`)
 2. **Utilities** — helper functions reused within the file (first `##`)
-3. **Constants** — fixed values used by later sections (second `##`, when present)
+3. **Constants** — truly immutable values only (second `##`, rare; skip when nothing qualifies)
 4. **Usage** — setup, compute, plot, save, etc. (remaining `##` sections)
 
-Put utility functions in section 2, not scattered through usage sections. Put constants in section 3 so they sit just above the sections that use them — not mixed into imports or buried after setup code.
+Put utility functions in section 2, not scattered through usage sections. Put `const` values in section 3 only when they are obviously never meant to change — not mixed into imports or buried after setup code.
 
 Numbered sections (`## 1) …`, `## 2.5) …`) are fine in `examples/` when the script is a tutorial with multiple demos; use them for usage sections (4+), not for utilities or constants.
 
 ## Top-level flow
 
-Assign parameters and compute at script scope in usage sections (`ny = 64`, `params = …`, `y_correct = …`).
+Assign parameters and compute at script scope in usage sections (`ny = 64`, `figsize = (800, 600)`, `params = …`, `y_correct = …`). Use plain assignments for values you might tweak while iterating — grid sizes, colors, spacing, figure size, etc.
 
-Avoid helper functions unless the logic is genuinely reused within the same file. When functions are needed, define them in the utilities section (section 2) and follow [julia-code](../julia-code/SKILL.md) (explicit `return`, Runic formatting).
+Avoid helper functions unless the logic is genuinely reused within the same file. When functions are needed, define them in the utilities section (section 2) and follow [julia-code](../julia-code/SKILL.md) (explicit `return`, Runic formatting). Put tunable defaults in keyword arguments (`function plot_result(data; color = :steelblue, linewidth = 2)`) so callers can override without editing the function body.
 
-Declare constants (`const NY = 64`, `const COLORS = …`) in the constants section (section 3) when they are fixed configuration shared by multiple usage sections.
+Reserve `const` (section 3) for values that are clearly and permanently fixed — e.g. a physical dimension baked into the model, a file extension that the script always uses, a literal that would be nonsensical to change. Do **not** use `const` for visual or experimental knobs the user might adjust between REPL runs.
 
 ## Brief context at top
 
@@ -93,7 +93,7 @@ using MyPackage, CairoMakie
 
 ## Templates
 
-**DrWatson workflow** — utilities, constants, setup, display, save:
+**DrWatson workflow** — utilities, setup, display, save:
 
 ```julia
 # one-line description of what the script does
@@ -105,16 +105,20 @@ using CairoMakie
 function summarize(x)
     return mean(x), std(x)
 end
-##
-# constants
-const NY = 64
-const FIGSIZE = (800, 600)
+
+function plot_field(u; figsize = (800, 600), colormap = :viridis)
+    fig = Figure(size = figsize)
+    ax = Axis(fig[1, 1])
+    heatmap!(ax, u; colormap = colormap)
+    return fig
+end
 ##
 # setup: params, derived quantities, arrays
-ny = NY
+ny = 64
+figsize = (800, 600)
 ...
 ## plot
-fig = Figure(size = FIGSIZE)
+fig = plot_field(u; figsize = figsize)
 display(fig)
 ##
 path = plotsdir("my_plot.png")
@@ -149,7 +153,9 @@ Inline struct/policy definitions in `examples/` are fine when they illustrate AP
 - Saving figures without `display` first
 - Putting one-off experiment logic in `src/` instead of `scripts/` or `_research/`
 - Defining many small helpers for code used once in the same file
-- Putting utility functions or constants in usage sections instead of sections 2 and 3
+- Putting utility functions in usage sections instead of section 2
+- Using `const` for colors, sizes, spacing, or other values you'd tweak while iterating
+- Burying tunable defaults inside function bodies instead of keyword arguments
 - Requiring DrWatson/`@quickactivate` in `examples/` when plain `using` suffices
 - Ad-hoc save paths in DrWatson projects instead of `plotsdir` / `datadir`
 - Forcing a save section in display-only demos
