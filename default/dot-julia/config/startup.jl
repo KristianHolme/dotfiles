@@ -6,6 +6,9 @@ catch e
 end
 
 atreplinit() do repl
+    # Skip in Cursor/VS Code Julia REPL: VSCodeServer invalidates OhMyREPL's
+    # typing path, causing ~6s first-keystroke compile (vs ~0.1s in bare julia).
+    get(ENV, "JULIA_VSCODE_REPL", "") == "1" && return
     try
         @eval using OhMyREPL
     catch e
