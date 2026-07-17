@@ -669,6 +669,123 @@ setup_yazi_plugins() {
     fi
 }
 
+# Parse packages.toml theme entry "url" or "url#branch" into repo URL and optional branch.
+# Sets globals _OMARCHY_THEME_URL and _OMARCHY_THEME_BRANCH (branch empty if omitted).
+omarchy_theme_parse_entry() {
+    local entry="$1"
+    _OMARCHY_THEME_BRANCH=""
+    if [[ "$entry" == *\#* ]]; then
+        _OMARCHY_THEME_URL="${entry%%#*}"
+        _OMARCHY_THEME_BRANCH="${entry#*#}"
+    else
+        _OMARCHY_THEME_URL="$entry"
+    fi
+    # Drop optional .git suffix noise from branch side; URL may keep or omit .git
+    _OMARCHY_THEME_BRANCH="${_OMARCHY_THEME_BRANCH%%.git}"
+}
+
+# Derive Omarchy theme directory name from a git repo URL (matches omarchy-theme-install).
+omarchy_theme_name_from_url() {
+    local repo_url="$1"
+    local repo_path="${repo_url%%#*}"
+    # Strip user@host: prefix from scp-style SSH URLs so basename sees just the path
+    if [[ $repo_path != *"://"* && $repo_path == *:*/* ]]; then
+        repo_path="${repo_path#*:}"
+    fi
+    basename "$repo_path" .git | sed -E 's/^omarchy-//; s/-theme$//' | tr '[:upper:]' '[:lower:]'
+}
+
+# Clone or update one Omarchy theme repo at $theme_path from $url (optional $branch).
+omarchy_theme_install_or_update() {
+    local theme_name="$1"
+    local theme_path="$2"
+    local url="$3"
+    local branch="${4:-}"
+    local -a clone_args=(clone)
+
+    if [[ -n "$branch" ]]; then
+        clone_args+=(-b "$branch")
+    fi
+    clone_args+=("$url" "$theme_path")
+
+    if [[ -d "$theme_path/.git" ]]; then
+        log_info "Updating Omarchy theme: $theme_name${branch:+ (@$branch)}"
+        git -C "$theme_path" remote set-url origin "$url" || true
+        if [[ -n "$branch" ]]; then
+            git -C "$theme_path" fetch origin "$branch" || {
+                log_warning "Theme fetch failed: $theme_name"
+                return 1
+            }
+            git -C "$theme_path" checkout "$branch" || {
+                log_warning "Theme checkout failed: $theme_name ($branch)"
+                return 1
+            }
+            git -C "$theme_path" pull --ff-only origin "$branch" || {
+                log_warning "Theme update failed: $theme_name"
+                return 1
+            }
+        else
+            git -C "$theme_path" pull --ff-only || {
+                log_warning "Theme update failed: $theme_name"
+                return 1
+            }
+        fi
+        return 0
+    fi
+
+    if [[ -d "$theme_path" ]]; then
+        log_info "Removing non-git theme dir before reinstall: $theme_name"
+        rm -rf "$theme_path"
+    fi
+
+    log_info "Installing Omarchy theme: $theme_name ($url${branch:+ #$branch})"
+    if ! git "${clone_args[@]}"; then
+        log_warning "Failed to clone theme: $theme_name"
+        rm -rf "$theme_path"
+        return 1
+    fi
+    return 0
+}
+
+# Clone third-party Omarchy themes from packages.toml [omarchy.themes].install.
+# Does not call omarchy-theme-set (leaves the active theme unchanged).
+setup_omarchy_themes() {
+    local themes_dir="${OMARCHY_THEMES_DIR:-$HOME/.config/omarchy/themes}"
+    local -a entries=()
+    mapfile -t entries < <(omarchy_themes_install_list) || return 1
+
+    if [[ ${#entries[@]} -eq 0 ]]; then
+        log_info "No Omarchy themes listed in $(packages_toml_path); skipping"
+        return 0
+    fi
+
+    if ! command -v git >/dev/null 2>&1; then
+        log_warning "git not on PATH; skipping Omarchy theme installs"
+        return 0
+    fi
+
+    mkdir -p "$themes_dir"
+
+    local entry theme_name theme_path
+    for entry in "${entries[@]}"; do
+        [[ -z "${entry// /}" ]] && continue
+        omarchy_theme_parse_entry "$entry"
+        theme_name="$(omarchy_theme_name_from_url "$_OMARCHY_THEME_URL")"
+        if [[ -z "$theme_name" ]]; then
+            log_warning "Could not derive theme name from URL: $entry"
+            continue
+        fi
+        theme_path="$themes_dir/$theme_name"
+
+        if [[ -L "$theme_path" ]]; then
+            log_info "Skip theme (bundled symlink): $theme_name"
+            continue
+        fi
+
+        omarchy_theme_install_or_update "$theme_name" "$theme_path" "$_OMARCHY_THEME_URL" "$_OMARCHY_THEME_BRANCH" || true
+    done
+}
+
 #######################################
 # Marcosnils/bin (https://github.com/marcosnils/bin)
 # Shared by dotfiles-setup-replica.sh, dotfiles-setup-packages.sh, etc.

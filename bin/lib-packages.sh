@@ -36,6 +36,9 @@
 #   [yazi]
 #   install = ["owner/repo", "owner/repo:subdir", ...]
 #
+#   [omarchy.themes]
+#   install = ["https://github.com/owner/omarchy-name-theme", "https://github.com/owner/repo#branch", ...]
+#
 #   [zotero.plugins.<key>]
 #   display_name = "..."
 #   github_repo = "owner/repo"
@@ -142,6 +145,10 @@ gh_extensions_list() {
 
 yazi_plugins_list() {
     _packages_json | jq -r '.yazi.install[]?'
+}
+
+omarchy_themes_install_list() {
+    _packages_json | jq -r '.omarchy.themes.install[]?'
 }
 
 zotero_plugin_keys() {

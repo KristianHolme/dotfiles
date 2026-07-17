@@ -246,6 +246,7 @@ SETUP_STEPS=(
     'Install packages:step_install_packages'
     'Setup cargo crates:step_setup_cargo_crates'
     'Setup Yazi plugins:step_setup_yazi_plugins'
+    'Install Omarchy themes:step_setup_omarchy_themes'
     'Install GitHub CLI extensions:step_install_gh_extensions'
     'Setup marcosnils/bin:step_setup_marcosnils_bin'
     'Setup Television:step_setup_television'
@@ -325,6 +326,10 @@ step_setup_cargo_crates() {
 
 step_setup_yazi_plugins() {
     setup_yazi_plugins
+}
+
+step_setup_omarchy_themes() {
+    setup_omarchy_themes || log_warning "Omarchy theme setup failed; continuing"
 }
 
 step_install_gh_extensions() {
