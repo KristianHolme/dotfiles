@@ -4,9 +4,9 @@ Host *
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
 
-Host saga
+Host saga betzy olivia
     User kholme
-    Hostname saga.sigma2.no
+    Hostname %h.sigma2.no
     ForwardAgent yes
     setEnv TERM=xterm-256color
     ControlMaster auto
@@ -23,15 +23,8 @@ Host atalanta
     SendEnv TERM
     SetEnv TERM=xterm-256color
 
-Host nam-shub-01
-    Hostname nam-shub-01
-    ProxyJump uio
-    user kholme
-    SendEnv TERM
-    SetEnv TERM=xterm-256color
-
-Host nam-shub-02
-    Hostname nam-shub-02
+Host nam-shub*
+    Hostname %h
     ProxyJump uio
     user kholme
     SendEnv TERM
@@ -51,3 +44,14 @@ Host freebio* bioint0* ml*
     ProxyJump uio
     SendEnv TERM
     SetEnv TERM=xterm-256color
+
+Host nrec1
+    User ubuntu
+    HostName 2001:700:2:8201::1242
+
+Host fox
+    Hostname fox.educloud.no
+    User ec-kholme
+    setEnv TERM=xterm-256color
+    ControlMaster auto
+    ControlPath ~/.ssh/controlsock-%h-%p

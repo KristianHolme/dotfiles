@@ -21,7 +21,7 @@ Use these as the authority for what counts as a violation. Cite guideline identi
 
 ## Feedback Structure
 
-Split feedback into two sections:
+Unless the user asks for a specific feedback format, split feedback into two sections:
 
 ### 1. Technical
 
@@ -29,6 +29,8 @@ Split feedback into two sections:
 - LaTeX issues (citation style `\citep` vs `\citet`, punctuation around equations, consistency, indentation)
 - Formatting (figures/tables placement, captions, references in text)
 - Mechanics (spellcheck, figure fonts, etc.)
+- punctuation rules, including correct usage of "i.e.," and "e.g.,"
+- consistency in placement of footnotes
 
 ### 2. Writing
 
@@ -41,20 +43,20 @@ Split feedback into two sections:
 
 For **every** place a guideline is violated, report:
 
-| Field | Requirement |
-|-------|-------------|
-| **Location** | Line number(s) preferred; otherwise section + short position description |
-| **Excerpt** | Short verbatim quote of the offending text (1–3 sentences max) |
-| **Guideline** | Which rule is violated (e.g. "F:S2 – short sentences", "Stanford: avoid nonreferential 'this'") |
-| **Suggestion** | Concrete correction or rewrite |
+| Field          | Requirement                                                                                     |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| **Location**   | Line number(s) preferred; otherwise section + short position description                        |
+| **Excerpt**    | Short verbatim quote of the offending text (1–3 sentences max)                                  |
+| **Guideline**  | Which rule is violated (e.g. "F:S2 – short sentences", "Stanford: avoid nonreferential 'this'") |
+| **Suggestion** | Concrete correction or rewrite                                                                  |
 
 Example:
 
 ```markdown
-- **Location:** Line 42  
-- **Excerpt:** "Our method is very effective and we have shown that it can be applied in a variety of different scenarios."  
-- **Guideline:** F:S0 (avoid strong/vague adjectives like "very"); F:S2 (one idea per sentence).  
-- **Suggestion:** "Our method is effective in the settings we tested. We show that it applies to scenarios X and Y."  
+- **Location:** Line 42
+- **Excerpt:** "Our method is very effective and we have shown that it can be applied in a variety of different scenarios."
+- **Guideline:** F:S0 (avoid strong/vague adjectives like "very"); F:S2 (one idea per sentence).
+- **Suggestion:** "Our method is effective in the settings we tested. We show that it applies to scenarios X and Y."
 ```
 
 ## Workflow

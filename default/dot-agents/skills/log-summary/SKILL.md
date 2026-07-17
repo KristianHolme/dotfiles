@@ -1,15 +1,15 @@
 ---
 name: log-summary
-description: Summarize conversations and create Obsidian notes in ~/Documents/AwesomeVault/Agent-summaries. NEVER apply automatically - only activate when manually invoked via /log-summary command, never activate automatically.
+description: Summarize conversations and create Obsidian notes in ~/Vaults/AwesomeVault/Agent-summaries. NEVER apply automatically - only activate when manually invoked via /log-summary command, never activate automatically.
 ---
 
 # Log Summary
 
-Create concise but useful Obsidian notes summarizing conversations. Notes are stored in `~/Documents/AwesomeVault/Agent-summaries/`.
+Create concise but useful Obsidian notes summarizing conversations. Notes are stored in `~/Vaults/AwesomeVault/Agent-summaries/`.
 
 ## File Creation
 
-1. Create a new markdown file in `~/Documents/AwesomeVault/Agent-summaries/`
+1. Create a new markdown file in `~/Vaults/AwesomeVault/Agent-summaries/`
 2. Use kebab-case filename based on the main topic (e.g., `fixing-hyprland-crash.md`)
 3. Include YAML frontmatter with metadata
 4. Write concise but useful content based on conversation type

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# Launch Zotero or focus the main library window.
+# Skips picker/dialog windows (Citation Dialog, Warning, Progress, etc.).
+
+LAUNCH_COMMAND="${1:-"uwsm-app -- zotero"}"
+
+# Auxiliary Zotero windows to ignore when focusing the main app.
+DIALOG_TITLES='^(Citation Dialog|Warning|Progress|LLM-for-Zotero)$'
+
+address=$(hyprctl clients -j | jq -r --arg dialogs "$DIALOG_TITLES" '
+    [.[] | select(.class == "Zotero")
+        | select(.title | test($dialogs) | not)
+        | select(.title | test(" - Zotero$"))]
+    | sort_by(.focusHistoryID)
+    | .[0].address // empty
+')
+
+if [[ -n $address ]]; then
+    hyprctl dispatch focuswindow "address:$address"
+else
+    eval exec setsid $LAUNCH_COMMAND
+fi

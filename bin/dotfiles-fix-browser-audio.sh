@@ -5,19 +5,10 @@
 #
 # Usage: dotfiles-fix-browser-audio.sh
 
-set -euo pipefail
+set -Eeuo pipefail
 
-# Source common library if available
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$SCRIPT_DIR/lib-dotfiles.sh" ]]; then
-    source "$SCRIPT_DIR/lib-dotfiles.sh"
-else
-    # Fallback logging if library not available
-    log_info() { echo "[INFO] $*"; }
-    log_success() { echo "[SUCCESS] $*"; }
-    log_warning() { echo "[WARNING] $*"; }
-    log_error() { echo "[ERROR] $*"; }
-fi
+source "$SCRIPT_DIR/lib-dotfiles.sh"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     cat <<EOF

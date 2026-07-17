@@ -1,33 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Server monitor: tmux session with one window per selected SSH server, each running btop.
 # Usage: ./dotfiles-server-monitor.sh
-# Uses gum to multi-select servers; abacus*, bioint*, nam-shub*, ml* are selected by default.
-# When run in Ghostty, the tab title is set to "session-monitor".
+# Host inventory comes from hosts.toml (lib-hosts.sh); group members are selected by default.
+# When run in Ghostty, the tab title is set to "server-monitor".
 
-set -e
+set -Eeuo pipefail
 
-SERVERS=(
-    "atalanta"
-    "abacus-as"
-    "abacus-min"
-    "nam-shub-01"
-    "nam-shub-02"
-    "bioint01"
-    "bioint02"
-    "bioint03"
-    "bioint04"
-    "saga"
-    "ml1"
-    "ml2"
-    "ml3"
-    "ml4"
-    "ml6"
-    "ml7"
-    "bengal"
-    "kaspi"
-    "sibir"
-)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib-dotfiles.sh"
+source "$SCRIPT_DIR/lib-hosts.sh"
 
 SESSION_NAME="server-monitor"
 TAB_TITLE=$SESSION_NAME
@@ -37,32 +19,33 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 Usage: $0
 
 Tmux session with one window per SSH host; pick hosts with gum (Space, Enter).
-Default selection: abacus*, bioint*, nam-shub*, ml*. Omits current hostname.
+Hosts come from hosts.toml; group members are preselected. Omits current hostname.
 EOF
     exit 0
 fi
 
-if ! command -v gum &>/dev/null; then
-    echo "Error: gum is not installed. Please install it first:"
-    echo "  Arch: sudo pacman -S gum"
-    echo "  Other: https://github.com/charmbracelet/gum#installation"
-    exit 1
-fi
+ensure_cmd gum tmux
 
-CURRENT_HOST="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "")"
+CURRENT_HOST="$(hosts_local_hostname)"
 FILTERED_SERVERS=()
-for s in "${SERVERS[@]}"; do
+while IFS= read -r s; do
+    [[ -z "$s" ]] && continue
     if [[ "${s,,}" != "${CURRENT_HOST,,}" ]]; then
         FILTERED_SERVERS+=("$s")
     fi
-done
+done < <(hosts_all_machines)
 
-# Default selection: abacus*, bioint*, nam-shub*, ml*
+# Default selection: members of any group in hosts.toml (the compute clusters)
+GROUP_MEMBERS="$(
+    while IFS= read -r g; do
+        hosts_group_machines "$g"
+    done < <(hosts_groups) | sort -u
+)"
 DEFAULT_SELECTED=()
 for s in "${FILTERED_SERVERS[@]}"; do
-    case "$s" in
-    abacus-* | bioint* | nam-shub-* | ml*) DEFAULT_SELECTED+=("$s") ;;
-    esac
+    if grep -qx "$s" <<<"$GROUP_MEMBERS"; then
+        DEFAULT_SELECTED+=("$s")
+    fi
 done
 
 # Comma-separated for gum --selected
@@ -78,7 +61,7 @@ fi
 SELECTED_RAW=$(printf '%s\n' "${FILTERED_SERVERS[@]}" | gum choose \
     --no-limit \
     --height="$((${#FILTERED_SERVERS[@]} + 2))" \
-    --header "Select servers (Space toggle, Enter confirm). Default: abacus*, bioint*, nam-shub*, ml*" \
+    --header "Select servers (Space toggle, Enter confirm). Group members preselected." \
     ${SELECTED_DEFAULT:+--selected="$SELECTED_DEFAULT"} \
     --ordered)
 

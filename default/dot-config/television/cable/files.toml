@@ -1,10 +1,15 @@
 [metadata]
 name = "files"
-description = "A channel to select files and directories"
+description = "Files (cycle source with Ctrl+S: default / hidden / include gitignored / hidden+gitignored)"
 requirements = ["fd", "bat", "trash-put"]
 
 [source]
-command = ["fd -t f", "fd -t f -H"]
+command = [
+    "fd -t f",
+    "fd -t f -H",
+    "fd -t f --no-ignore",
+    "fd -t f -H --no-ignore",
+]
 
 [preview]
 command = "bat -n --color=always '{}'"
@@ -12,7 +17,6 @@ env = { BAT_THEME = "ansi" }
 
 [keybindings]
 shortcut = "f1"
-enter = "actions:edit"
 ctrl-e = "actions:edit"
 f12 = "actions:edit"
 alt-d = ["actions:delete", "reload_source"]

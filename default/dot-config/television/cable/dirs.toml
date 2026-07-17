@@ -1,0 +1,28 @@
+[metadata]
+name = "dirs"
+description = "Directories (cycle source with Ctrl+S: default / hidden / include gitignored / hidden+gitignored)"
+requirements = ["fd"]
+
+[source]
+command = [
+    "fd -t d",
+    "fd -t d --hidden",
+    "fd -t d --no-ignore",
+    "fd -t d --hidden --no-ignore",
+]
+
+[preview]
+command = "ls -la --color=always '{}'"
+
+[keybindings]
+shortcut = "f2"
+
+[actions.cd]
+description = "Open a shell in the selected directory"
+command = "cd '{}' && $SHELL"
+mode = "execute"
+
+[actions.goto_parent_dir]
+description = "Re-opens tv in the parent directory"
+command = "tv dirs .."
+mode = "execute"

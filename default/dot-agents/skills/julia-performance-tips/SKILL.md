@@ -53,6 +53,10 @@ Essential performance optimization guidelines for Julia code. Reference: <https:
 - **`@time`** - measure time and allocations (ignore first run, it's compilation)
 - **`@code_warntype`** - find type instabilities (red = non-concrete types)
 - **`@allocated`** - measure memory allocations
+- **`@code_typed`** - typed IR from inference (next step when `@code_warntype` is not enough detail)
+- **`@code_llvm`** - LLVM IR for a call (inlining, other compiler optimizations)
+- **`@code_native`** - native assembly for a call (e.g. verify vectorization)
+- **BenchmarkTools.jl** - `@btime` / `@benchmark` for microbenchmarks with warmup, GC handling, and statistics; complements `@time`
 - **Profiling** - use Profile.jl or ProfileView.jl for bottlenecks
 - **JET.jl** - static analysis for performance issues
 - **`--track-allocation=user`** - find allocation sources

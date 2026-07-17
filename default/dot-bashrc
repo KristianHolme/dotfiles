@@ -1,26 +1,32 @@
-# If not running interactively, don't do anything (leave this at the top of this file)
+# User-local tools (replica hosts; must run before interactive-only return below)
+export PATH="$HOME/.local/bin:$HOME/dotfiles/bin:$PATH"
+
+# If not running interactively, don't do anything (leave this near the top of this file)
 [[ $- != *i* ]] && return
 
-# All the default Omarchy aliases and functions
-# (don't mess with these directly, just overwrite them here!)
-source ~/.local/share/omarchy/default/bash/rc
+# Omarchy aliases/functions when present (optional on replica servers)
+_omarchy_rc="$HOME/.local/share/omarchy/default/bash/rc"
+if [[ -f "$_omarchy_rc" ]]; then
+    # shellcheck source=/dev/null
+    source "$_omarchy_rc"
+else
+    echo "dot-bashrc: omarchy rc not found at $_omarchy_rc (run dotfiles-apply-replica omarchy step)" >&2
+fi
+unset _omarchy_rc
+
+# gum colors from Omarchy theme (bin/lib-gum.sh)
+_lib_gum="$HOME/dotfiles/bin/lib-gum.sh"
+if [[ -f "$_lib_gum" ]]; then
+    # shellcheck source=/dev/null
+    source "$_lib_gum"
+    omarchy_gum_env_load
+fi
+unset _lib_gum
 
 # Source custom functions
-source ~/dotfiles/default/dot-bashrc-functions
+[[ -f "$HOME/dotfiles/default/dot-bashrc-functions" ]] && source "$HOME/dotfiles/default/dot-bashrc-functions"
 
-# >>> juliaup initialize >>>
 
-# !! Contents within this block are managed by juliaup !!
-
-case ":$PATH:" in
-*:$HOME/.juliaup/bin:*) ;;
-
-*)
-    export PATH=$HOME/.juliaup/bin${PATH:+:${PATH}}
-    ;;
-esac
-
-# <<< juliaup initialize <<<
 
 # Aliases
 alias j='julia'
@@ -37,23 +43,23 @@ unalias ls
 unalias lsa
 alias l='eza -lh --group-directories-first --icons=auto'
 alias la='l -a'
-alias y='yazi'
+alias f='spf'
+alias q='qmd query'
+alias ghd='gh dash'
+alias tvn='nvim "$(tv)"'
+alias dotfiles-help='bat ~/dotfiles/README.md'
 
-export PATH="$HOME/dotfiles/bin:$PATH"
 export PATH="$HOME/.julia/bin:$PATH"
-# export PATH="$HOME/.local/bin:$PATH" #i think omarchy adds this
 
 if [[ "$USER" == "kristian" ]]; then
     # Add dotfiles scripts to PATH
     alias ca='agent'
     alias dac='$HOME/dotfiles/bin/dotfiles-apply-config.sh'
     alias dsp='$HOME/dotfiles/bin/dotfiles-setup-packages.sh'
-    alias dfb='$HOME/dotfiles/bin/dotfiles-firefly-backup.sh'
-    alias dfr='$HOME/dotfiles/bin/dotfiles-firefly-restore.sh'
-    alias dss='$HOME/dotfiles/bin/dotfiles-setup-ssh.sh'
     alias drs='$HOME/dotfiles/bin/dotfiles-rsync-ssh.sh'
     alias dst='$HOME/dotfiles/bin/dotfiles-ssh-tmux.sh'
     alias tb='tensorboard --logdir'
+    alias viewclaw='virt-viewer -c qemu+ssh://kristian@bengal/system claw'
 else
     alias dsr='dotfiles-setup-replica.sh'
     alias dar='dotfiles-apply-replica.sh'
@@ -94,10 +100,36 @@ if [[ -n "$SSH_AUTH_SOCK" ]] && command -v ssh-add &>/dev/null; then
 fi
 
 
-# starship prompt
-eval "$(starship init bash)"
+# starship prompt (omarchy init also runs this when omarchy rc is present)
+if [[ "${TERM:-}" != "dumb" ]] && command -v starship &>/dev/null; then
+    eval "$(starship init bash)"
+fi
 
 [[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
+[[ -f ~/.config/uwsm/default ]] && source ~/.config/uwsm/default
+
+if command -v tv &>/dev/null; then
+    eval "$(tv init bash)"
+fi
+
+
+# >>> juliaup initialize >>>
+
+# !! Contents within this block are managed by juliaup !!
+
+case ":$PATH:" in
+    *:/home/kristian/.juliaup/bin:*)
+        ;;
+
+    *)
+        export PATH=/home/kristian/.juliaup/bin${PATH:+:${PATH}}
+        ;;
+esac
+# Tab completion for juliaup and julia channel selection
+[ -f "/home/kristian/.julia/juliaup/completions/bash.sh" ] && source "/home/kristian/.julia/juliaup/completions/bash.sh"
+
+# <<< juliaup initialize <<<
+
 # zoxide - must be initialized last
 if command -v zoxide &>/dev/null; then
     eval "$(zoxide init bash)"

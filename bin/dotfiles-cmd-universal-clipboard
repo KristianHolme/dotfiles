@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# Omarchy universal clipboard helper (Super+C/V/X).
+#
+# If the Ghostty quick terminal layer is open, inject ctrl/shift+insert with
+# wtype so the focused layer receives the key. Otherwise dispatch sendshortcut
+# to the active Hyprland window (Omarchy default).
+
+set -euo pipefail
+
+action="${1:?usage: dotfiles-cmd-universal-clipboard copy|paste|cut}"
+
+quick_terminal_open() {
+  hyprctl layers -j 2>/dev/null \
+    | jq -e '.. | objects | select(.namespace? == "quickterminal")' >/dev/null
+}
+
+send_activewindow() {
+  local mod="$1"
+  local key="$2"
+  hyprctl dispatch sendshortcut "${mod},${key},activewindow"
+}
+
+inject_seat() {
+  local mod="$1"
+  local key="$2"
+
+  if ! command -v wtype >/dev/null; then
+    notify-send "Universal clipboard" "Install wtype to use Super+C/V in the quick terminal." -u normal -t 5000
+    return 1
+  fi
+
+  wtype -M "$mod" -k "$key" -m "$mod"
+}
+
+if quick_terminal_open; then
+  case "$action" in
+    copy) inject_seat ctrl Insert ;;
+    paste) inject_seat shift Insert ;;
+    cut) true ;;
+    *) echo "dotfiles-cmd-universal-clipboard: unknown action: $action" >&2; exit 1 ;;
+  esac
+else
+  case "$action" in
+    copy) send_activewindow CTRL Insert ;;
+    paste) send_activewindow SHIFT Insert ;;
+    cut) send_activewindow CTRL X ;;
+    *) echo "dotfiles-cmd-universal-clipboard: unknown action: $action" >&2; exit 1 ;;
+  esac
+fi

@@ -15,12 +15,21 @@ resize-overlay = never
 # Cursor stlying
 cursor-style = "block"
 cursor-style-blink = false
-shell-integration-features = no-cursor
+shell-integration-features = no-cursor,ssh-env,ssh-terminfo
 
 # Keyboard bindings
 keybind = f11=toggle_fullscreen
 keybind = shift+insert=paste_from_clipboard
 keybind = control+insert=copy_to_clipboard
+# Send Shift+Enter as CSI-u so TUIs can distinguish it from Enter.
+keybind = shift+enter=csi:13;2u
+# Legacy encoding sends Alt+Shift+Enter the same as Alt+Enter; send CSI-u so tmux can match M-S-Enter.
+keybind = alt+shift+enter=csi:13;4u
+# Super-modified variants: Hyprland universal clipboard injects ctrl/shift+insert
+# via wtype while Super is still physically held, so the merged event arrives as
+# super+ctrl/shift+insert (matters for the quick terminal layer surface).
+keybind = super+shift+insert=paste_from_clipboard
+keybind = super+control+insert=copy_to_clipboard
 keybind = super+control+shift+alt+arrow_down=resize_split:down,100
 keybind = super+control+shift+alt+arrow_up=resize_split:up,100
 keybind = super+control+shift+alt+arrow_left=resize_split:left,100

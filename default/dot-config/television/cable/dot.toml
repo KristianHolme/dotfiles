@@ -3,7 +3,7 @@ name = "dot"
 description = "Scripts in ~/dotfiles/bin"
 
 [source]
-command = "find \"$HOME/dotfiles/bin\" -maxdepth 1 -type f ! -name 'lib-dotfiles.sh' -print | sort"
+command = "find \"$HOME/dotfiles/bin\" -maxdepth 1 -type f ! -name 'lib-*.sh' -print | sort"
 
 [preview]
 command = "sh -c 'case \"$1\" in *.jl) bat -n --color=always \"$1\" ;; *) \"$1\" --help 2>&1 || bat -n --color=always \"$1\" ;; esac' _ '{}'"

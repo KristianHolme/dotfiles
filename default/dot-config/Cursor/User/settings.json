@@ -2,8 +2,12 @@
   "window.commandCenter": true,
   "cursor.composer.shouldChimeAfterChatFinishes": true,
   "terminal.integrated.commandsToSkipShell": [
-    "language-julia.interrupt"
+    "language-julia.interrupt",
+    "workbench.action.terminal.focus",
+    "workbench.action.focusActiveEditorGroup",
+    "workbench.action.terminal.toggleTerminal"
   ],
+  "terminal.integrated.focusAfterOpen": false,
   "julia.symbolCacheDownload": true,
   "julia.enableCrashReporter": true,
   "julia.numTestProcesses": 6,
@@ -25,9 +29,7 @@
   "customLocalFormatters.formatters": [
     {
       "command": "julia --project=@runic --startup-file=no -e 'using Runic; exit(Runic.main(ARGS))'",
-      "languages": [
-        "julia"
-      ]
+      "languages": ["julia"]
     }
   ],
   "[julia]": {
@@ -38,16 +40,15 @@
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
     "files.trimTrailingWhitespace": true,
-    "editor.rulers": [
-      92
-    ],
+    "editor.rulers": [92],
     "files.eol": "\n"
   },
   "remote.SSH.remotePlatform": {
-    "bengal": "linux"
+    "bengal": "linux",
+    "ml7": "linux"
   },
   "python.terminal.activateEnvironment": false,
-  "workbench.colorTheme": "Tokyo Night",
+  "workbench.colorTheme": "flexoki-light",
   "remote.autoForwardPortsSource": "hybrid",
   "git.suggestSmartCommit": false,
   "editor.cursorSurroundingLines": 8,
@@ -63,5 +64,10 @@
     "path": "/home/kristian/.julia/bin/jetls",
     "threads": "auto"
   },
-  "terminal.integrated.scrollback": 10000
+  "terminal.integrated.scrollback": 10000,
+  "workbench.navigationControl.enabled": false,
+  "window.titleBarStyle": "native",
+  "julia.additionalArgs": [],
+  "julia.editor": "nvim",
+  "julia.inlayHints.static.variableTypes.enabled": false
 }

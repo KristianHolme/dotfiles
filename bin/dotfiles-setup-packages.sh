@@ -1,16 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
 # Omarchy prune/install script
 # - Removes selected default webapps and packages
-# - Installs requested packages
+# - Installs requested packages (packages.toml at repo root)
 # - Refreshes application launchers
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib-dotfiles.sh"
+source "$SCRIPT_DIR/lib-install.sh"
 
 OMARCHY_BIN="$HOME/.local/share/omarchy/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
+
+# Return 0 if $1 is a line in newline-separated list $2.
+line_in_list() {
+    local needle="$1"
+    local haystack="$2"
+    grep -qxF "$needle" <<<"$haystack"
+}
 
 remove_webapp() {
     local name="$1"
@@ -36,12 +43,17 @@ remove_pkg() {
 
 install_pkg() {
     local pkg="$1"
-    if pkg_installed "$pkg"; then
-        log_info "Already installed: $pkg"
-    else
-        log_info "Installing package: $pkg"
-        yay -Sy --noconfirm "$pkg"
+    log_info "Installing package: $pkg"
+    yay -S --needed --noconfirm "$pkg"
+}
+
+install_pkgs() {
+    local -a pkgs=("$@")
+    if [[ ${#pkgs[@]} -eq 0 ]]; then
+        return 0
     fi
+    log_info "Installing packages: ${pkgs[*]}"
+    yay -S --needed --noconfirm "${pkgs[@]}"
 }
 
 install_latex_template() {
@@ -88,17 +100,6 @@ refresh_latex_database() {
     fi
 }
 
-setup_tmux_tpm() {
-    # Setup tmux plugin manager (tpm)
-    if [ ! -d "$HOME/.config/tmux/plugins/tpm" ]; then
-        log_info "Installing tmux plugin manager..."
-        mkdir -p "$HOME/.tmux/plugins"
-        git clone https://github.com/tmux-plugins/tpm "$HOME/.config/tmux/plugins/tpm"
-    else
-        log_info "tpm already installed at $HOME/.config/tmux/plugins/tpm; skipping clone"
-    fi
-}
-
 setup_tailscale() {
     # Install and configure Tailscale
     log_info "Setting up Tailscale..."
@@ -113,8 +114,11 @@ setup_tailscale() {
         log_info "Starting Tailscale connection..."
         sudo tailscale up
 
-        # Ask if user wants to enable SSH using gum
-        if command -v gum >/dev/null 2>&1; then
+        # Ask if user wants to enable SSH using gum (skipped in unattended --all runs)
+        if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]]; then
+            log_info "Unattended mode; skipping Tailscale SSH prompt"
+            log_info "To enable SSH later, run: tailscale set --ssh"
+        elif command -v gum >/dev/null 2>&1; then
             if gum confirm "Enable Tailscale SSH access to this machine?"; then
                 log_info "Enabling Tailscale SSH..."
                 tailscale set --ssh
@@ -175,98 +179,285 @@ setup_television() {
     tv update-channels || log_warning "tv update-channels failed (non-critical)"
 }
 
-main() {
-    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-        cat <<EOF
-Usage: $0
-
-Prune selected Omarchy webapps/packages and install the package set used on this machine
-(yay, interactive where needed). No arguments.
-EOF
-        exit 0
+setup_github_cli_extensions() {
+    if ! command -v gh >/dev/null 2>&1; then
+        log_warning "gh not on PATH; skipping GitHub CLI extensions"
+        return 0
     fi
 
-    ensure_cmd yay
+    if ! gh auth status -h github.com >/dev/null 2>&1; then
+        log_info "gh not authenticated for github.com; run 'gh auth login' for full API access (extensions can still be installed)"
+    fi
 
-    # 1) Remove webapps
-    remove_webapp "HEY"
-    remove_webapp "Basecamp"
-    remove_webapp "WhatsApp"
-    remove_webapp "Google Photos"
-    remove_webapp "ChatGPT"
-    remove_webapp "Figma"
+    local ext
+    while IFS= read -r ext; do
+        [[ -z "${ext// /}" ]] && continue
+        if gh extension list 2>/dev/null | grep -qF "$ext"; then
+            log_info "gh extension already installed: $ext"
+        else
+            log_info "Installing gh extension: $ext"
+            gh extension install "$ext" || log_warning "Failed to install gh extension: $ext (non-critical)"
+        fi
+    done < <(gh_extensions_list)
+}
 
-    # 2) Remove packages
-    remove_pkg 1password-beta || true
-    remove_pkg 1password-cli || true
-    #remove_pkg chromium || true
-    #remove_pkg typora || true
+# https://github.com/marcosnils/bin — bootstrap via AUR bin-bin, self-install, then drop the package.
+setup_marcosnils_bin() {
+    INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
-    # 3) Install packages
-    install_pkg zotero-bin
+    if command -v bin >/dev/null 2>&1 && ! pkg_installed bin-bin; then
+        log_info "marcosnils/bin already on PATH; skipping AUR bootstrap"
+        ensure_marcos_bin_config_default_path || true
+        return 0
+    fi
 
-    # Setup Zotero extensions if Zotero was installed successfully
+    if ! pkg_installed bin-bin; then
+        log_info "Installing bin-bin (AUR) to bootstrap marcosnils/bin"
+        install_pkg bin-bin
+    fi
+
+    if ! command -v bin >/dev/null 2>&1; then
+        log_error "bin not on PATH after installing bin-bin"
+        return 1
+    fi
+
+    ensure_marcos_bin_config_default_path || true
+
+    log_info "Installing marcosnils/bin via bin (self-manage)"
+    bin install github.com/marcosnils/bin || {
+        log_error "marcosnils/bin self-install failed"
+        return 1
+    }
+
+    if pkg_installed bin-bin; then
+        log_info "Removing AUR bootstrap package bin-bin"
+        remove_pkg bin-bin
+    fi
+
+    log_success "marcosnils/bin ready"
+}
+
+# Single source of truth: menu label and bash function name gum returns (label:function).
+# Order here is the safe execution order; gum selection order is ignored.
+SETUP_STEPS=(
+    'Remove webapps:step_remove_webapps'
+    'Remove packages:step_remove_packages'
+    'Install Node dev env:step_install_node'
+    'Install packages:step_install_packages'
+    'Setup cargo crates:step_setup_cargo_crates'
+    'Setup Yazi plugins:step_setup_yazi_plugins'
+    'Install Omarchy themes:step_setup_omarchy_themes'
+    'Install GitHub CLI extensions:step_install_gh_extensions'
+    'Setup marcosnils/bin:step_setup_marcosnils_bin'
+    'Setup Television:step_setup_television'
+    'Zotero setup:step_setup_zotero'
+    'LaTeX templates:step_latex_templates'
+    'Setup tmux TPM:step_setup_tmux_tpm'
+    'Setup Tailscale:step_setup_tailscale'
+    'Setup Syncthing:step_setup_syncthing'
+    'Setup Julia (juliaup):step_setup_julia'
+)
+
+install_packages_from_gum() {
+    local -a pkg_lines=()
+    local selected
+
+    mapfile -t pkg_lines < <(packages_install_list)
+    if [[ ${#pkg_lines[@]} -eq 0 ]]; then
+        log_warning "No packages listed in $(packages_toml_path); skipping installs."
+        return 0
+    fi
+
+    if ! selected=$(
+        printf '%s\n' "${pkg_lines[@]}" | gum choose --no-limit --selected='*' \
+            --header="Select packages to install (tab toggles, enter confirms)"
+    ); then
+        return 1
+    fi
+    if [[ -z "${selected//[$'\t\r\n ']/}" ]]; then
+        log_info "No packages selected; skipping package installs."
+        return 0
+    fi
+
+    local -a selected_pkgs=()
+    while IFS= read -r pkg || [[ -n "$pkg" ]]; do
+        [[ -z "${pkg// /}" ]] && continue
+        selected_pkgs+=("$pkg")
+    done <<<"$selected"
+
+    install_pkgs "${selected_pkgs[@]}"
+}
+
+step_remove_webapps() {
+    local name
+    while IFS= read -r name; do
+        remove_webapp "$name"
+    done < <(webapps_remove_list)
+}
+
+step_remove_packages() {
+    local pkg
+    while IFS= read -r pkg; do
+        if [[ "$pkg" == "yq" ]] && ! go_yq_available; then
+            log_warning "Skipping removal of yq until go-yq is available"
+            continue
+        fi
+        remove_pkg "$pkg"
+    done < <(packages_remove_list)
+}
+
+step_install_node() {
+    omarchy-install-dev-env node
+}
+
+step_install_packages() {
+    if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]]; then
+        local -a pkgs=()
+        mapfile -t pkgs < <(packages_install_list)
+        install_pkgs "${pkgs[@]}"
+    else
+        install_packages_from_gum || return 1
+    fi
+}
+
+step_setup_cargo_crates() {
+    setup_cargo_crates || log_warning "cargo crate setup failed; continuing"
+}
+
+step_setup_yazi_plugins() {
+    setup_yazi_plugins
+}
+
+step_setup_omarchy_themes() {
+    setup_omarchy_themes || log_warning "Omarchy theme setup failed; continuing"
+}
+
+step_install_gh_extensions() {
+    setup_github_cli_extensions
+}
+
+step_setup_marcosnils_bin() {
+    setup_marcosnils_bin || log_warning "marcosnils/bin setup failed; continuing"
+}
+
+step_setup_television() {
+    setup_television
+}
+
+step_setup_zotero() {
     if pkg_installed zotero-bin; then
         log_info "Setting up Zotero extensions..."
         "$HOME/dotfiles/bin/dotfiles-setup-zotero.sh" || log_info "Zotero setup failed (non-critical)"
     fi
+}
 
-    install_pkg cursor-bin
-    install_pkg rsync
-    install_pkg discord
-    install_pkg starship
-    install_pkg stow
-    install_pkg git-lfs
-    install_pkg bitwarden
-    # install_pkg google-chrome
-    install_pkg tmux
-    install_pkg yazi
-    install_pkg shfmt
-    # Install LaTeX packages
-    install_pkg texlive-meta
-    # TODO: remove if not necessary
-    # install_pkg tex-fmt
-    install_pkg zathura
-    install_pkg zathura-pdf-mupdf
-    #node required for something vimtex related?
-    omarchy-install-dev-env node
-    install_pkg xdg-desktop-portal-hyprland
-    install_pkg mermaid-cli
-    install_pkg anki
-    install_pkg asciinema
-    install_pkg mini-text
-    install_pkg pandoc-cli
-    install_pkg slack-desktop-wayland
-    install_pkg syncthing
-    install_pkg parallel
-    setup_television
-    install_pkg trash-cli
-    install_pkg uv
-    install_pkg television
-
-    # 4) Install LaTeX templates
+step_latex_templates() {
     install_latex_template \
         "UiO Beamer Theme" \
         "https://www.mn.uio.no/ifi/tjenester/it/hjelp/latex/uiobeamer.zip" \
         "$HOME/texmf/tex/latex/beamer/uiobeamer" \
         "$HOME/texmf/tex/latex/beamer/uiobeamer/beamerthemeUiO.sty"
-
-    # Setup development environment tools
     refresh_latex_database
-    setup_tmux_tpm
+}
 
-    # Network and connectivity setup
+step_setup_tmux_tpm() {
+    install_tpm
+}
+
+step_setup_tailscale() {
     setup_tailscale
+}
+
+step_setup_syncthing() {
     setup_syncthing
+}
 
-    # Install tree-sitter from GitHub releases (Arch package is outdated)
-    install_tree_sitter "$HOME/.local/bin" || log_warning "tree-sitter installation failed; continuing"
+step_setup_julia() {
+    install_juliaup_and_setup "$HOME/dotfiles/bin/julia-setup.jl"
+}
 
-    # Install tools via curl installers
-    install_via_curl "Julia (juliaup)" "juliaup" "https://install.julialang.org" "source ~/.bashrc && ~/dotfiles/bin/julia-setup.jl"
-    install_via_curl "cursor-cli" "cursor-agent" "https://cursor.com/install"
+all_main_step_keys() {
+    local entry
+    for entry in "${SETUP_STEPS[@]}"; do
+        printf '%s\n' "${entry#*:}"
+    done
+}
 
-    # 5) Refresh desktop database (user apps)
+pick_main_steps() {
+    local selected=""
+    if ! selected=$(
+        printf '%s\n' "${SETUP_STEPS[@]}" | gum choose --no-limit --selected='*' --label-delimiter=':' \
+            --header="Select setup steps (tab toggles, enter confirms)"
+    ); then
+        return 1
+    fi
+    if [[ -z "${selected//[$'\t\r\n ']/}" ]]; then
+        log_error "No setup steps selected; aborting."
+        return 1
+    fi
+    printf '%s' "$selected"
+}
+
+run_selected_steps() {
+    local steps="$1" entry fn
+    for entry in "${SETUP_STEPS[@]}"; do
+        fn="${entry#*:}"
+        line_in_list "$fn" "$steps" || continue
+        if ! declare -F "$fn" >/dev/null; then
+            log_error "Missing step function: $fn"
+            return 1
+        fi
+        "$fn"
+    done
+}
+
+main() {
+    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+        cat <<EOF
+Usage: $0 [--all]
+
+Prune selected Omarchy webapps/packages and install the package set used on this machine
+(yay). By default, uses gum to select which steps (and which packages) to run.
+
+  --all   Run every step and install all packages from the list; no menus (non-interactive).
+EOF
+        exit 0
+    fi
+
+    DOTFILES_SETUP_UNATTENDED=0
+    if [[ "${1:-}" == "--all" ]]; then
+        DOTFILES_SETUP_UNATTENDED=1
+        shift
+    fi
+
+    if [[ -n "${1:-}" ]]; then
+        log_error "Unknown argument: $1"
+        exit 1
+    fi
+
+    ensure_cmd yay
+
+    if ! ensure_toml_parser_arch; then
+        exit 1
+    fi
+
+    local steps=""
+
+    if [[ "$DOTFILES_SETUP_UNATTENDED" == "1" ]]; then
+        steps=$(all_main_step_keys) || {
+            log_error "Failed to build step list"
+            exit 1
+        }
+    else
+        ensure_cmd gum
+        if ! steps=$(pick_main_steps); then
+            log_error "Setup step selection cancelled or failed."
+            exit 1
+        fi
+    fi
+
+    run_selected_steps "$steps"
+
     update-desktop-database ~/.local/share/applications/ || true
 
     log_info "Done."

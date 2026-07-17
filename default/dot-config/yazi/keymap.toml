@@ -1,0 +1,29 @@
+[[mgr.prepend_keymap]]
+on = "<S-Left>"
+run = "plugin preview-resize grow"
+desc = "Grow preview pane"
+
+[[mgr.prepend_keymap]]
+on = "<S-Right>"
+run = "plugin preview-resize shrink"
+desc = "Shrink preview pane"
+
+[[mgr.prepend_keymap]]
+on = "R"
+run = "plugin preview-resize reset"
+desc = "Reset pane ratios to default"
+
+[[mgr.prepend_keymap]]
+on = ["g", "l"]
+run = "plugin lazygit"
+desc = "run lazygit"
+
+[[mgr.prepend_keymap]]
+on = ["g", "."]
+run = "cd ~/dotfiles"
+desc = "Go ~/dotfiles"
+
+[[mgr.prepend_keymap]]
+on = ["T"]
+run = "plugin recycle-bin"
+desc = "Open Recycle Bin menu"

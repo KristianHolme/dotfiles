@@ -41,7 +41,7 @@ end
 
 try
     using Pkg
-    Pkg.Registry.add(url = "git@github.com:KristianHolme/KristianHolmeRegistry")
+    Pkg.Registry.add(url = "https://github.com/KristianHolme/KristianHolmeRegistry")
 catch e
     @warn "Error installing personal registry" exception = (e, catch_backtrace())
 end

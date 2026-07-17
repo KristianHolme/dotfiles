@@ -1,0 +1,58 @@
+\documentclass{article}
+
+\usepackage{v0/arxiv}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{lipsum}         % placeholder text
+\usepackage{graphicx}       % include graphics
+\usepackage{amsmath}        % advanced math
+\usepackage{natbib}         % bibliography
+
+% For journal submission with line numbers (uncomment):
+%\usepackage{lineno}
+%\linenumbers
+
+% Inline red text for comments/markup
+\usepackage{xcolor}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+
+% Author markup commands
+% Note: \check is a TeX accent command; use \checkme to avoid conflicts
+\newcommand{\todo}[1]{\textcolor{green!50!black}{\large \textbf{TODO:}~#1}}
+\newcommand{\rephrase}[1]{\textcolor{magenta!60!black}{\textbf{REPHRASE:}~#1}}
+\newcommand{\elaborate}[1]{\textcolor{blue!70!black}{\textbf{ELABORATE:}~#1}}
+\newcommand{\checkme}[1]{\textcolor{red!80!black}{\textbf{CHECK:}~#1}}
+\newcommand{\needcite}[1]{\textcolor{cyan!60!black}{[citation needed]~#1}}
+\newcommand{\word}[1]{\textcolor{orange}{\textbf{WORD}#1}}
+\newcommand{\note}[1]{\textcolor{purple!70!black}{\textbf{NOTE:}~#1}}
+
+\title{PROJECT_NAME}
+\author{
+  Author Name\\
+  Affiliation\\
+  email@example.com
+}
+%\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\end{abstract}
+
+\section{Introduction}
+\section{Methodology}
+\section{Results}
+
+\bibliographystyle{unsrt}
+\bibliography{XXX-bib}
+
+\end{document}
