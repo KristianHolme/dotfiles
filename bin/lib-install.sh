@@ -669,6 +669,70 @@ setup_yazi_plugins() {
     fi
 }
 
+# Derive Omarchy theme directory name from a git repo URL (matches omarchy-theme-install).
+omarchy_theme_name_from_url() {
+    local repo_url="$1"
+    local repo_path="$repo_url"
+    # Strip user@host: prefix from scp-style SSH URLs so basename sees just the path
+    if [[ $repo_path != *"://"* && $repo_path == *:*/* ]]; then
+        repo_path="${repo_path#*:}"
+    fi
+    basename "$repo_path" .git | sed -E 's/^omarchy-//; s/-theme$//' | tr '[:upper:]' '[:lower:]'
+}
+
+# Clone third-party Omarchy themes from packages.toml [omarchy.themes].install.
+# Does not call omarchy-theme-set (leaves the active theme unchanged).
+setup_omarchy_themes() {
+    local themes_dir="${OMARCHY_THEMES_DIR:-$HOME/.config/omarchy/themes}"
+    local -a urls=()
+    mapfile -t urls < <(omarchy_themes_install_list) || return 1
+
+    if [[ ${#urls[@]} -eq 0 ]]; then
+        log_info "No Omarchy themes listed in $(packages_toml_path); skipping"
+        return 0
+    fi
+
+    if ! command -v git >/dev/null 2>&1; then
+        log_warning "git not on PATH; skipping Omarchy theme installs"
+        return 0
+    fi
+
+    mkdir -p "$themes_dir"
+
+    local url theme_name theme_path
+    for url in "${urls[@]}"; do
+        [[ -z "${url// /}" ]] && continue
+        theme_name="$(omarchy_theme_name_from_url "$url")"
+        if [[ -z "$theme_name" ]]; then
+            log_warning "Could not derive theme name from URL: $url"
+            continue
+        fi
+        theme_path="$themes_dir/$theme_name"
+
+        if [[ -L "$theme_path" ]]; then
+            log_info "Skip theme (bundled symlink): $theme_name"
+            continue
+        fi
+
+        if [[ -d "$theme_path/.git" ]]; then
+            log_info "Updating Omarchy theme: $theme_name"
+            git -C "$theme_path" pull --ff-only || log_warning "Theme update failed: $theme_name"
+            continue
+        fi
+
+        if [[ -d "$theme_path" ]]; then
+            log_info "Removing non-git theme dir before reinstall: $theme_name"
+            rm -rf "$theme_path"
+        fi
+
+        log_info "Installing Omarchy theme: $theme_name ($url)"
+        if ! git clone "$url" "$theme_path"; then
+            log_warning "Failed to clone theme: $theme_name"
+            rm -rf "$theme_path"
+        fi
+    done
+}
+
 #######################################
 # Marcosnils/bin (https://github.com/marcosnils/bin)
 # Shared by dotfiles-setup-replica.sh, dotfiles-setup-packages.sh, etc.

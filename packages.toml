@@ -1,4 +1,4 @@
-# Single source of truth for package/webapp/cargo/bin/gh/yazi/zotero install lists.
+# Single source of truth for package/webapp/cargo/bin/gh/yazi/zotero/omarchy-theme install lists.
 # Consumed via bin/lib-packages.sh by dotfiles-setup-packages.sh, dotfiles-setup-replica.sh,
 # dotfiles-setup-zotero.sh, and bin/lib-install.sh.
 #
@@ -115,6 +115,15 @@ install = [
     "yazi-rs/plugins:git",
     "Lil-Dank/lazygit",
     "uhs-robert/recycle-bin",
+]
+
+[omarchy.themes]
+# Third-party Omarchy theme git repo URLs (cloned into ~/.config/omarchy/themes).
+# Naming matches omarchy-theme-install (strip omarchy- prefix and -theme suffix).
+# Install does not switch the active theme.
+install = [
+    "https://github.com/euandeas/omarchy-flexoki-dark-theme",
+    "https://github.com/euandeas/omarchy-flexoki-light-theme",
 ]
 
 [zotero.plugins.better-bibtex]
