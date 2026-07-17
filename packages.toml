@@ -120,10 +120,10 @@ install = [
 [omarchy.themes]
 # Third-party Omarchy theme git repo URLs (cloned into ~/.config/omarchy/themes).
 # Naming matches omarchy-theme-install (strip omarchy- prefix and -theme suffix).
-# Install does not switch the active theme.
+# Optional "#branch" selects a non-default branch. Install does not switch the active theme.
 install = [
-    "https://github.com/euandeas/omarchy-flexoki-dark-theme",
-    "https://github.com/euandeas/omarchy-flexoki-light-theme",
+    "https://github.com/KristianHolme/omarchy-flexoki-dark-theme#fix-flexoki-roles",
+    "https://github.com/KristianHolme/omarchy-flexoki-light-theme#kh/fixes",
 ]
 
 [zotero.plugins.better-bibtex]

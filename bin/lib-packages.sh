@@ -37,7 +37,7 @@
 #   install = ["owner/repo", "owner/repo:subdir", ...]
 #
 #   [omarchy.themes]
-#   install = ["https://github.com/owner/omarchy-name-theme", ...]
+#   install = ["https://github.com/owner/omarchy-name-theme", "https://github.com/owner/repo#branch", ...]
 #
 #   [zotero.plugins.<key>]
 #   display_name = "..."
