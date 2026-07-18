@@ -191,6 +191,12 @@ else
 fi
 rc=$?
 set -e
+
+# Replicas lack the desktop install symlink; point btop at Omarchy's btop.theme.
+if declare -F ensure_btop_omarchy_theme >/dev/null 2>&1; then
+	ensure_btop_omarchy_theme || true
+fi
+
 exit "$rc"
 REMOTE
 	then

@@ -202,6 +202,7 @@ run_selected_steps() {
 
 	if task_is_selected "$TASK_OMARCHY" "$selection"; then
 		clone_or_update_omarchy "$OMARCHY_DIR" "$OMARCHY_REPO_URL"
+		ensure_btop_omarchy_theme || true
 	fi
 
 	if task_is_selected "$TASK_JULIA_CONFIG" "$selection"; then

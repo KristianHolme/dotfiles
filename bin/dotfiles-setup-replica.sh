@@ -358,6 +358,7 @@ EOF
     install_tpm || log_warning "tpm installation failed; continuing"
 
     clone_or_update_omarchy "$OMARCHY_DIR" "$OMARCHY_REPO_URL"
+    ensure_btop_omarchy_theme || true
 
     ensure_bash_profile_user_path
 

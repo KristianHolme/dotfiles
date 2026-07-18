@@ -786,6 +786,42 @@ setup_omarchy_themes() {
     done
 }
 
+# Point btop at the Omarchy-generated theme (desktop install does this; replicas need it too).
+# Safe to call repeatedly after omarchy theme set / refresh.
+ensure_btop_omarchy_theme() {
+    local theme_src="${HOME}/.config/omarchy/current/theme/btop.theme"
+    local themes_dir="${HOME}/.config/btop/themes"
+    local link="${themes_dir}/current.theme"
+    local conf="${HOME}/.config/btop/btop.conf"
+
+    if [[ ! -f "$theme_src" ]]; then
+        log_info "No Omarchy btop.theme yet; skip btop theme link"
+        return 0
+    fi
+
+    mkdir -p "$themes_dir"
+    ln -snf "$theme_src" "$link"
+    log_info "Linked btop theme -> $link"
+
+    mkdir -p "$(dirname "$conf")"
+    if [[ -f "$conf" ]]; then
+        if grep -qE '^[[:space:]]*color_theme[[:space:]]*=' "$conf"; then
+            sed -i -E 's|^[[:space:]]*color_theme[[:space:]]*=.*|color_theme = "current"|' "$conf"
+        else
+            printf '\ncolor_theme = "current"\n' >>"$conf"
+        fi
+    else
+        printf 'color_theme = "current"\n' >"$conf"
+    fi
+
+    if command -v omarchy-restart-btop >/dev/null 2>&1; then
+        omarchy-restart-btop >/dev/null 2>&1 || true
+    else
+        pkill -SIGUSR2 btop >/dev/null 2>&1 || true
+    fi
+    return 0
+}
+
 #######################################
 # Marcosnils/bin (https://github.com/marcosnils/bin)
 # Shared by dotfiles-setup-replica.sh, dotfiles-setup-packages.sh, etc.
