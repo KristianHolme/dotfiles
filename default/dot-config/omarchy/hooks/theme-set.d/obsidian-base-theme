@@ -1,0 +1,28 @@
+#!/bin/bash
+# Sync Obsidian UI chrome (light/dark base theme) with Omarchy light.mode.
+# Upstream PR basecamp/omarchy#6227 was closed in favor of CSS-only sync;
+# Claudian and other UI bits still need appearance.json "theme".
+
+set -euo pipefail
+
+current_theme_dir="${HOME}/.config/omarchy/current/theme"
+obsidian_json="${HOME}/.config/obsidian/obsidian.json"
+
+[[ -f $obsidian_json ]] || exit 0
+command -v jq >/dev/null 2>&1 || exit 0
+
+if [[ -f $current_theme_dir/light.mode ]]; then
+	obsidian_base_theme="moonstone"
+else
+	obsidian_base_theme="obsidian"
+fi
+
+jq -r '.vaults | values[].path' "$obsidian_json" 2>/dev/null | while read -r vault_path; do
+	[[ -d $vault_path/.obsidian ]] || continue
+
+	appearance_file="$vault_path/.obsidian/appearance.json"
+	[[ -f $appearance_file ]] || echo '{}' >"$appearance_file"
+
+	tmp=$(mktemp)
+	jq --arg theme "$obsidian_base_theme" '.theme = $theme' "$appearance_file" >"$tmp" && mv "$tmp" "$appearance_file"
+done
