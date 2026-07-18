@@ -1,0 +1,15 @@
+#!/bin/bash
+# Push the new theme to hosts with active SSH sessions (non-blocking).
+
+set -euo pipefail
+
+mkdir -p "${HOME}/.cache/dotfiles"
+log="${HOME}/.cache/dotfiles/remote-theme-sync.log"
+sync="${HOME}/dotfiles/bin/dotfiles-theme-sync-remote.sh"
+
+[[ -x $sync ]] || exit 0
+
+{
+	echo "---- $(date -Iseconds) theme-set hook (theme=${1:-unknown}) ----"
+	"$sync"
+} >>"$log" 2>&1 &

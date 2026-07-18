@@ -1,0 +1,13 @@
+#!/bin/bash
+# Reload tmux so it picks up the newly generated theme colors.
+
+set -euo pipefail
+
+theme="${HOME}/.config/omarchy/current/theme/tmux.conf"
+
+[[ -f "$theme" ]] || exit 0
+
+# Process name is "tmux: server", not "tmux", so don't use `pgrep -x tmux`.
+if tmux info &>/dev/null; then
+  tmux source-file "$theme"
+fi

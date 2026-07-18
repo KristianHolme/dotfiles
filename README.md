@@ -88,7 +88,8 @@ project-area path on the server.
 
 | Script | Purpose |
 | --- | --- |
-| `dotfiles-ssh-tmux.sh` (`dst`) | Pick a host with gum, SSH in, attach/create tmux session. Starts a background ControlMaster first for hosts configured with one (2FA hosts). |
+| `dotfiles-ssh-tmux.sh` (`dst`) | Pick a host with gum, SSH in, attach/create tmux session. Starts a background ControlMaster first for hosts configured with one (2FA hosts). Syncs the local Omarchy theme to that host before attach. |
+| `dotfiles-theme-sync-remote.sh` | Push the current Omarchy theme to active SSH hosts (ControlMaster or live `ssh`). Installs `[omarchy.themes]` from `packages.toml` on the remote first. Full `omarchy theme set` if Hyprland is running; otherwise `OMARCHY_THEME_SKIP_BACKGROUND=1`. Also run from the `theme-set.d/remote-theme-sync` hook (background, log: `~/.cache/dotfiles/remote-theme-sync.log`). |
 | `dotfiles-rsync-ssh.sh` (`drs`) | Pick host, browse folders, rsync selections. Pull (default): remote → `~/Code`. Push: `drs --push host`. Remote copy: `drs --remote source target path`. Examples: `drs fox DRL_Sphere`, `drs ml3`, `drs --push nam-shub-01`, `drs --remote fox ml3 DRL_Sphere/data`. |
 | `dotfiles-mounts.sh` | SSHFS mount manager (TUI and CLI). Plain user `sshfs` mounts of the filesystems in `hosts.toml`; sudo only to prepare `/mnt` mountpoints. `-l` lists status, `-e`/`-d` enable/disable. |
 | `dotfiles-server-monitor.sh` | tmux session with one `btop` window per selected host; group members preselected. |
@@ -129,3 +130,11 @@ project-area path on the server.
 - Tree-sitter CLI is installed via cargo (`tree-sitter-cli` in `packages.toml`).
   On old-glibc servers where that build fails, install manually:
   `cargo install tree-sitter-cli --no-default-features`
+- **Remove when Omarchy Quattro ships:** temporary *local* tmux theme sync
+  workaround — `default/dot-config/omarchy/themed/tmux.conf.tpl`,
+  `default/dot-config/omarchy/hooks/theme-set.d/tmux`, and the generated-theme
+  `source-file` block in `default/dot-config/tmux/tmux.conf`. Quattro already
+  has `omarchy-theme-set-tmux` (parallel with terminal restart); drop those after
+  upgrading so we do not fight upstream. Keep
+  `dotfiles-theme-sync-remote.sh` and `hooks/theme-set.d/remote-theme-sync`
+  (remote fan-out is still ours).
