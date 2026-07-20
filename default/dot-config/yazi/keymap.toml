@@ -14,6 +14,16 @@ run = "plugin preview-resize reset"
 desc = "Reset pane ratios to default"
 
 [[mgr.prepend_keymap]]
+on = "+"
+run = "plugin zoom 1"
+desc = "Zoom in preview image"
+
+[[mgr.prepend_keymap]]
+on = "-"
+run = "plugin zoom -1"
+desc = "Zoom out preview image"
+
+[[mgr.prepend_keymap]]
 on = ["g", "l"]
 run = "plugin lazygit"
 desc = "run lazygit"

@@ -1,6 +1,6 @@
-# Single source of truth for package/webapp/cargo/bin/gh/yazi/zotero/omarchy-theme install lists.
+# Single source of truth for package/webapp/cargo/bin/gh/yazi/zotero/omarchy-theme/julia install lists.
 # Consumed via bin/lib-packages.sh by dotfiles-setup-packages.sh, dotfiles-setup-replica.sh,
-# dotfiles-setup-zotero.sh, and bin/lib-install.sh.
+# dotfiles-setup-zotero.sh, and bin/lib-install.sh. Julia sections are read by bin/julia-setup.jl.
 #
 # Omarchy Node dev env and Television channel setup are handled in
 # dotfiles-setup-packages.sh after the package install step.
@@ -115,6 +115,7 @@ install = [
     "yazi-rs/plugins:git",
     "Lil-Dank/lazygit",
     "uhs-robert/recycle-bin",
+    "yazi-rs/plugins:zoom",
 ]
 
 [omarchy.themes]
@@ -124,6 +125,40 @@ install = [
 install = [
     "https://github.com/euandeas/omarchy-flexoki-dark-theme",
     "https://github.com/euandeas/omarchy-flexoki-light-theme",
+]
+
+[julia.packages]
+install = [
+    "Revise",
+    "BenchmarkTools",
+    "Cthulhu",
+    "Debugger",
+    "DrWatson",
+    "JET",
+    "PkgTemplates",
+    "ProgressMeter",
+    "OhMyREPL",
+    "Infiltrator",
+    "ArtifactUtils",
+    "ExplicitImports",
+    "PreferenceTools",
+    "LocalRegistry",
+    "LiveServer",
+    "AirspeedVelocity",
+    "About",
+]
+
+[julia.apps]
+# Bare name → Pkg.Apps.add(name)
+# "url#rev" → Pkg.Apps.add(; url, rev)
+install = [
+    "Runic",
+    "https://github.com/aviatesk/JETLS.jl#release",
+]
+
+[julia.registries]
+install = [
+    "https://github.com/KristianHolme/KristianHolmeRegistry",
 ]
 
 [zotero.plugins.better-bibtex]

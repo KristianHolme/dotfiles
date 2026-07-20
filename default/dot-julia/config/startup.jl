@@ -5,6 +5,12 @@ catch e
     @warn "Error initializing Revise" exception = (e, catch_backtrace())
 end
 
+try
+    using About
+catch e
+    @warn "Error initializing About" exception = (e, catch_backtrace())
+end
+
 atreplinit() do repl
     # Skip in Cursor/VS Code Julia REPL: VSCodeServer invalidates OhMyREPL's
     # typing path, causing ~6s first-keystroke compile (vs ~0.1s in bare julia).

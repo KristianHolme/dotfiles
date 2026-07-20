@@ -39,6 +39,15 @@
 #   [omarchy.themes]
 #   install = ["https://github.com/owner/omarchy-name-theme", "https://github.com/owner/repo#branch", ...]
 #
+#   [julia.packages]   # read by bin/julia-setup.jl (no bash accessors)
+#   install = ["PkgName", ...]
+#
+#   [julia.apps]
+#   install = ["AppName", "https://github.com/owner/App.jl#rev", ...]
+#
+#   [julia.registries]
+#   install = ["https://github.com/owner/Registry", ...]
+#
 #   [zotero.plugins.<key>]
 #   display_name = "..."
 #   github_repo = "owner/repo"
