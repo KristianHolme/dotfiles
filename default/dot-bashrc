@@ -53,7 +53,7 @@ export PATH="$HOME/.julia/bin:$PATH"
 
 if [[ "$USER" == "kristian" ]]; then
     # Add dotfiles scripts to PATH
-    alias ca='agent'
+    alias ca='cursor-agent'
     alias dac='$HOME/dotfiles/bin/dotfiles-apply-config.sh'
     alias dsp='$HOME/dotfiles/bin/dotfiles-setup-packages.sh'
     alias drs='$HOME/dotfiles/bin/dotfiles-rsync-ssh.sh'
