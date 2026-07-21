@@ -17,7 +17,7 @@ Usage: $0
 Pick an SSH host with gum filter, connect with tmux session management.
 Server list comes from hosts.toml (set HOSTS_TOML to override).
 After ControlMaster is up, syncs the local Omarchy theme to that host
-(dotfiles-theme-sync-remote.sh) before attaching tmux.
+(dotfiles-theme-sync-remote.sh) in the background, then attaches tmux.
 EOF
     exit 0
 fi
@@ -48,11 +48,15 @@ echo
 
 ensure_ssh_controlmaster "$SELECTED"
 
-# Align remote Omarchy theme with this machine before attaching tmux
+# Align remote Omarchy theme in the background so connect isn't blocked
 if [[ -x "$SCRIPT_DIR/dotfiles-theme-sync-remote.sh" ]]; then
-	echo "🎨 Syncing Omarchy theme to $SELECTED..."
-	"$SCRIPT_DIR/dotfiles-theme-sync-remote.sh" --host "$SELECTED" ||
-		log_warning "Theme sync to $SELECTED failed; continuing connect"
+	mkdir -p "${HOME}/.cache/dotfiles"
+	log="${HOME}/.cache/dotfiles/remote-theme-sync.log"
+	echo "🎨 Syncing Omarchy theme to $SELECTED in background..."
+	{
+		echo "---- $(date -Iseconds) dst connect (host=$SELECTED) ----"
+		"$SCRIPT_DIR/dotfiles-theme-sync-remote.sh" --host "$SELECTED"
+	} >>"$log" 2>&1 &
 	echo
 fi
 
