@@ -178,3 +178,9 @@ display_name = "arXiv Workflow"
 github_repo = "AllanChain/zotero-arxiv-workflow"
 search_pattern = "zotero-arxiv-workflow"
 extension_id = "arxiv@allanchain.github.com"
+
+[zotero.plugins.settings-sync]
+display_name = "Zotero Settings Sync"
+github_repo = "gaviiiinnnn/zotero-settings-sync"
+search_pattern = "zotero-settings-sync"
+extension_id = "zotero-settings-sync@gaviiiinnnn.github.io"
