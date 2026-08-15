@@ -18,8 +18,7 @@ dotfiles/
 │   ├── lib-install.sh  # Shared lib: GitHub releases, marcosnils/bin, juliaup, tpm
 │   ├── lib-hosts.sh    # Shared lib: hosts.toml accessors (go-yq / jq)
 │   └── lib-packages.sh # Shared lib: packages.toml accessors (go-yq / jq)
-├── default/            # Base stow package (dot-config, dot-bashrc, dot-agents, ...)
-├── bengal/ kaspi/ sibir/ sibir2/   # Host profile overlays (stowed on top of default)
+├── default/            # Stow package (dot-config, dot-bashrc, dot-agents, ...)
 └── templates/latex/    # Templates for dotfiles-latex-init.sh
 ```
 
@@ -38,10 +37,14 @@ tree-folded into a single symlink (which would let app-managed files like Yazi
 dotfiles-apply-config.sh [PROFILE]    # alias: dac
 ```
 
-Stows `default/` into `~`, then the optional profile overlay (`bengal`,
-`kaspi`, ...). Conflicts are resolved interactively with `gum` (adopt into the
-repo, or abort). Also links agent skills/commands into `~/.cursor` and
-`~/.config/opencode`, and reloads Hyprland.
+Stows `default/` into `~`. Conflicts are resolved interactively with `gum`
+(adopt into the repo, or abort). Also links agent skills/commands into
+`~/.cursor` and `~/.config/opencode`, and reloads Hyprland.
+
+Host-specific Hyprland (monitors, scale, workspace pins) is in
+`default/dot-config/hypr/monitors.lua`: it reads `/etc/hostname` and the
+connected displays. `dac` still accepts an optional profile overlay if you add
+a top-level package later.
 
 Pass GNU Stow flags after `--` (e.g. `dac -- -D` to unstow, then `dac` to
 re-apply). `dar -- -D` unstows replica `dot-config` / `dot-agents` only.
@@ -124,17 +127,13 @@ project-area path on the server.
 
 ## Notes
 
-- Hyprland `envs.conf` changes need a full Hyprland restart, not just reload.
-- Restore an Omarchy default config:
-  `~/.local/share/omarchy/bin/omarchy-refresh-config hypr/bindings.conf`
+- Hyprland env changes (`hl.env`) need a full Hyprland restart, not just reload.
+- After Hyprland Lua edits: `hyprctl reload` then `hyprctl configerrors`.
+- Restore an Omarchy default Lua file: `omarchy refresh config hypr/bindings.lua`
 - Tree-sitter CLI is installed via cargo (`tree-sitter-cli` in `packages.toml`).
   On old-glibc servers where that build fails, install manually:
   `cargo install tree-sitter-cli --no-default-features`
-- **Remove when Omarchy Quattro ships:** temporary *local* tmux theme sync
-  workaround — `default/dot-config/omarchy/themed/tmux.conf.tpl`,
-  `default/dot-config/omarchy/hooks/theme-set.d/tmux`, and the generated-theme
-  `source-file` block in `default/dot-config/tmux/tmux.conf`. Quattro already
-  has `omarchy-theme-set-tmux` (parallel with terminal restart); drop those after
-  upgrading so we do not fight upstream. Keep
-  `dotfiles-theme-sync-remote.sh` and `hooks/theme-set.d/remote-theme-sync`
-  (remote fan-out is still ours).
+- Local tmux status colors still come from `themed/tmux.conf.tpl` + the
+  `theme-set.d/tmux` hook. Quattro's `omarchy-theme-set-tmux` paints pane/window
+  colors; keep the workaround for the status bar. Remote fan-out remains
+  `dotfiles-theme-sync-remote.sh` and `hooks/theme-set.d/remote-theme-sync`.

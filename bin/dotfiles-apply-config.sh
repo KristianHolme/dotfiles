@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Apply dotfiles with GNU Stow: default package to ~, then optional profile overlay
+# (Hyprland host layouts are in default Lua; profile dirs are optional).
 
 set -Eeuo pipefail
 
@@ -14,7 +15,8 @@ usage() {
 Usage: $0 [-h] [PROFILE] [-- STOW_ARGS...]
 
 Apply dotfiles with GNU Stow: default package to ~, then optional profile overlay
-(e.g. bengal, kaspi, sibir) if that top-level package exists in the repo.
+if that top-level package exists in the repo. Host-specific Hyprland now lives in
+default Lua (hostname + connected displays), so a profile is usually unnecessary.
 
 Arguments after -- are passed to GNU Stow (e.g. unstow: $0 -- -D, dry-run: $0 -- -D -n).
 EOF
@@ -262,12 +264,6 @@ post_reload_fixups() {
 	sleep 0.5
 	check_and_fix_monitors || true
 
-	if command -v omarchy-restart-waybar &>/dev/null; then
-		log_info "Restarting waybar to ensure it appears on all monitors..."
-		sleep 2
-		omarchy-restart-waybar >/dev/null 2>&1 || true
-		sleep 1
-	fi
 }
 
 reload_hyprland() {
@@ -300,6 +296,16 @@ reload_hyprland() {
 	fi
 
 	post_reload_fixups
+
+	local errors
+	errors=$(hyprctl configerrors 2>/dev/null || true)
+	if [[ -n "$errors" && "$errors" != "[]" && "$errors" != "ok" ]]; then
+		log_warning "hyprctl configerrors:"
+		echo "$errors"
+	else
+		log_success "hyprctl configerrors: clean"
+	fi
+
 	log_success "Reloaded Hyprland configuration"
 }
 
