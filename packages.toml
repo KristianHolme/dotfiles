@@ -1,4 +1,4 @@
-# Single source of truth for package/webapp/cargo/bin/gh/yazi/zotero/omarchy-theme/julia install lists.
+# Single source of truth for package/webapp/cargo/bin/gh/yazi/zotero/omarchy-theme/omarchy-plugin/julia install lists.
 # Consumed via bin/lib-packages.sh by dotfiles-setup-packages.sh, dotfiles-setup-replica.sh,
 # dotfiles-setup-zotero.sh, and bin/lib-install.sh. Julia sections are read by bin/julia-setup.jl.
 #
@@ -9,6 +9,7 @@
 install = [
     "zotero-bin",
     "cursor-bin",
+    "ai-usagebar-bin",
     "diffnav",
     "rsync",
     "discord",
@@ -125,6 +126,14 @@ install = [
 install = [
     "https://github.com/euandeas/omarchy-flexoki-dark-theme",
     "https://github.com/euandeas/omarchy-flexoki-light-theme",
+]
+
+[omarchy.plugins]
+# Third-party Omarchy shell plugin git repo URLs (cloned into ~/.config/omarchy/plugins).
+# Placement and enablement live in default/dot-config/omarchy/shell.json — setup does not --enable.
+# Install-if-missing only; existing clones are left alone.
+install = [
+    "https://github.com/akitaonrails/ai-usagebar.git",
 ]
 
 [julia.packages]

@@ -786,6 +786,84 @@ setup_omarchy_themes() {
     done
 }
 
+# Normalize a git remote URL for comparison (scheme/user/.git/case ignored).
+omarchy_plugin_normalize_url() {
+    local url="$1"
+    url="${url%%#*}"
+    url="${url%/}"
+    url="${url%.git}"
+    if [[ "$url" == git@* ]]; then
+        url="${url#git@}"
+        url="${url/:/\/}"
+    fi
+    url="${url#https://}"
+    url="${url#http://}"
+    url="${url#ssh://}"
+    printf '%s' "${url,,}"
+}
+
+# Return 0 if any checkout under $1 has origin matching $2.
+omarchy_plugin_already_installed() {
+    local plugins_dir="$1"
+    local want
+    want="$(omarchy_plugin_normalize_url "$2")"
+    [[ -n "$want" && -d "$plugins_dir" ]] || return 1
+
+    local dir remote
+    shopt -s nullglob
+    for dir in "$plugins_dir"/*/; do
+        [[ -d "$dir/.git" ]] || continue
+        remote="$(git -C "$dir" remote get-url origin 2>/dev/null || true)"
+        [[ -n "$remote" ]] || continue
+        if [[ "$(omarchy_plugin_normalize_url "$remote")" == "$want" ]]; then
+            shopt -u nullglob
+            return 0
+        fi
+    done
+    shopt -u nullglob
+    return 1
+}
+
+# Clone third-party Omarchy shell plugins from packages.toml [omarchy.plugins].install.
+# Uses `omarchy plugin add --yes` (no --enable). Existing clones are left alone.
+setup_omarchy_plugins() {
+    local plugins_dir="${OMARCHY_PLUGINS_DIR:-$HOME/.config/omarchy/plugins}"
+    local -a entries=()
+    mapfile -t entries < <(omarchy_plugins_install_list) || return 1
+
+    if [[ ${#entries[@]} -eq 0 ]]; then
+        log_info "No Omarchy plugins listed in $(packages_toml_path); skipping"
+        return 0
+    fi
+
+    if ! command -v omarchy >/dev/null 2>&1 && ! command -v omarchy-plugin-add >/dev/null 2>&1; then
+        log_warning "omarchy plugin add not on PATH; skipping Omarchy plugin installs"
+        return 0
+    fi
+
+    if ! command -v git >/dev/null 2>&1; then
+        log_warning "git not on PATH; skipping Omarchy plugin installs"
+        return 0
+    fi
+
+    mkdir -p "$plugins_dir"
+
+    local entry
+    for entry in "${entries[@]}"; do
+        [[ -z "${entry// /}" ]] && continue
+        if omarchy_plugin_already_installed "$plugins_dir" "$entry"; then
+            log_info "Omarchy plugin already installed: $entry"
+            continue
+        fi
+        log_info "Installing Omarchy plugin: $entry"
+        if command -v omarchy >/dev/null 2>&1; then
+            omarchy plugin add "$entry" --yes || log_warning "Failed to add Omarchy plugin: $entry"
+        else
+            omarchy-plugin-add "$entry" --yes || log_warning "Failed to add Omarchy plugin: $entry"
+        fi
+    done
+}
+
 # Point btop at the Omarchy-generated theme (desktop install does this; replicas need it too).
 # Safe to call repeatedly after omarchy theme set / refresh.
 ensure_btop_omarchy_theme() {

@@ -12,7 +12,7 @@ file in `bat`.)
 ```
 dotfiles/
 ├── hosts.toml          # Host/group/mount inventory (single source of truth)
-├── packages.toml       # Package/webapp/cargo/bin/gh/yazi/omarchy-theme/zotero lists (single source of truth)
+├── packages.toml       # Package/webapp/cargo/bin/gh/yazi/omarchy-theme/omarchy-plugin/zotero lists (single source of truth)
 ├── bin/                # Utility scripts (on PATH via dot-bashrc)
 │   ├── lib-dotfiles.sh # Shared lib: logging, ensure_cmd, symlink helper
 │   ├── lib-install.sh  # Shared lib: GitHub releases, marcosnils/bin, juliaup, tpm
@@ -72,7 +72,7 @@ dotfiles-setup-packages.sh [--all]    # alias: dsp
 
 Gum menu of steps: remove default Omarchy webapps/packages, install from
 `packages.toml` (Arch packages, gh extensions, cargo crates, Yazi plugins,
-third-party Omarchy themes), marcosnils/bin, Television channels, Zotero plugins,
+third-party Omarchy themes and shell plugins), marcosnils/bin, Television channels, Zotero plugins,
 LaTeX templates, tpm, Tailscale, Syncthing, juliaup. Ensures go-yq is installed
 via yay before any step that reads `packages.toml` (safe when migrating from
 Python `yq`).

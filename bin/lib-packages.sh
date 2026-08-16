@@ -39,6 +39,9 @@
 #   [omarchy.themes]
 #   install = ["https://github.com/owner/omarchy-name-theme", "https://github.com/owner/repo#branch", ...]
 #
+#   [omarchy.plugins]
+#   install = ["https://github.com/owner/plugin.git", ...]
+#
 #   [julia.packages]   # read by bin/julia-setup.jl (no bash accessors)
 #   install = ["PkgName", ...]
 #
@@ -158,6 +161,10 @@ yazi_plugins_list() {
 
 omarchy_themes_install_list() {
     _packages_json | jq -r '.omarchy.themes.install[]?'
+}
+
+omarchy_plugins_install_list() {
+    _packages_json | jq -r '.omarchy.plugins.install[]?'
 }
 
 zotero_plugin_keys() {
