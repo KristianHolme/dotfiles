@@ -30,7 +30,7 @@ o.bind(
 o.bind(
     "SUPER + less",
     "Obsidian",
-    home .. "/dotfiles/bin/dotfiles-cmd-launch-or-focus-class md.Obsidian 'uwsm-app -- obsidian'"
+    home .. "/dotfiles/bin/dotfiles-cmd-launch-or-focus-class md.obsidian.Obsidian 'uwsm-app -- obsidian'"
 )
 o.bind(
     "SUPER + Z",

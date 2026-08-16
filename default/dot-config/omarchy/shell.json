@@ -15,6 +15,9 @@
         },
         {
           "id": "omarchy.workspaces"
+        },
+        {
+          "id": "omarchy.active-window"
         }
       ],
       "center": [
@@ -26,6 +29,7 @@
           "format": "dddd HH:mm",
           "formatAlt": "d MMMM 'W'ww yyyy",
           "verticalFormat": "HH\n—\nmm",
+          "weekStartDay": "monday",
           "birthYear": 0,
           "lifeExpectancy": 100
         },
@@ -36,6 +40,12 @@
           "id": "omarchy.weather"
         },
         {
+          "id": "omarchy.microphone"
+        },
+        {
+          "id": "omarchy.media"
+        },
+        {
           "id": "omarchy.system-update"
         }
       ],
@@ -44,10 +54,10 @@
           "id": "omarchy.tray"
         },
         {
-          "id": "omarchy.tailscale"
+          "id": "akitaonrails.ai-usagebar"
         },
         {
-          "id": "omarchy.agents"
+          "id": "omarchy.tailscale"
         },
         {
           "id": "omarchy.bluetooth"

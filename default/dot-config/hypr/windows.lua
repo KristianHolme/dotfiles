@@ -8,7 +8,7 @@ o.window({ class = "^org\\.dotfiles\\.quicknotes$" }, { float = true, center = t
 
 o.window({ class = "^cursor$" }, { workspace = "2" })
 
-o.window({ class = "^md\\.Obsidian$" }, { workspace = "name:O" })
+o.window({ class = "^md\\.obsidian\\.Obsidian$" }, { workspace = "name:O" })
 
 o.window({ title = ".*julia Plots.*" }, { tag = "+opaque" })
 

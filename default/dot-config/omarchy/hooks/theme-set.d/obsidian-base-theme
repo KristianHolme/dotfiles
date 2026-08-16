@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-current_theme_dir="${HOME}/.config/omarchy/current/theme"
+current_theme_dir="${HOME}/.local/state/omarchy/current/theme"
 obsidian_json="${HOME}/.config/obsidian/obsidian.json"
 
 [[ -f $obsidian_json ]] || exit 0

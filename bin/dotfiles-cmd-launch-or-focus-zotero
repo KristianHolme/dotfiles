@@ -18,7 +18,7 @@ address=$(hyprctl clients -j | jq -r --arg dialogs "$DIALOG_TITLES" '
 ')
 
 if [[ -n $address ]]; then
-    hyprctl dispatch focuswindow "address:$address"
+    hyprctl dispatch "hl.dsp.focus({ window = \"address:$address\" })"
 else
     eval exec setsid $LAUNCH_COMMAND
 fi
