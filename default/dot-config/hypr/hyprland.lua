@@ -15,11 +15,3 @@ require("hypr.autostart")
 require("hypr.windows")
 
 require("default.hypr.toggles")
-
--- Hyprland's color-management pipeline dithered 8-bit HDMI on the
--- Samsung U32E850 and showed up as strobing (worse when dimmed).
-hl.config({
-    render = {
-        cm_enabled = false,
-    },
-})
