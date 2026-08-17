@@ -12,7 +12,8 @@ o.bind(
 )
 
 -- Quattro default here is nautilus in the current directory.
-hl.unbind("SUPER + SHIFT + ALT + F")
+-- Unbind must match Omarchy's string exactly (modifier order matters).
+hl.unbind("SUPER + ALT + SHIFT + F")
 o.bind(
     "SUPER + SHIFT + ALT + F",
     "File manager (floating)",
