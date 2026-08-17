@@ -11,49 +11,30 @@ local function hostname()
     return (name:gsub("%s+$", ""))
 end
 
-local function monitor_text(monitor)
-    local parts = {}
-    for _, key in ipairs({ "description", "desc", "name", "output", "make", "model" }) do
-        local value = monitor[key]
-        if type(value) == "string" and value ~= "" then
-            parts[#parts + 1] = value
-        end
-    end
-    return table.concat(parts, " ")
-end
-
-local function connected_monitors()
-    local ok, monitors = pcall(hl.get_monitors)
-    if ok and type(monitors) == "table" and #monitors > 0 then
-        return monitors
-    end
-
-    local handle = io.popen("hyprctl monitors all -j 2>/dev/null")
+-- Do not call hyprctl from this file: config load runs during `hyprctl reload`
+-- and an IPC round-trip deadlocks the compositor. Do not walk hl.get_monitors()
+-- either: the keybindings menu stubs `hl` with a table whose __index never
+-- returns nil, so ipairs() would allocate forever. DRM EDIDs see every plugged
+-- display, including ones currently mirroring.
+local function display_inventory()
+    local handle = io.popen(
+        "for d in /sys/class/drm/card*-*; do"
+            .. ' [ -f "$d/status" ] || continue;'
+            .. ' [ "$(cat "$d/status")" = connected ] || continue;'
+            .. ' strings "$d/edid" 2>/dev/null;'
+            .. " printf '\\n';"
+            .. " done"
+    )
     if not handle then
-        return {}
+        return ""
     end
-    local json = handle:read("*a") or ""
+    local inventory = handle:read("*a") or ""
     handle:close()
-
-    local parsed = {}
-    for desc, name in json:gmatch('"description"%s*:%s*"(.-)".-"name"%s*:%s*"(.-)"') do
-        parsed[#parsed + 1] = { description = desc, name = name }
-    end
-    if #parsed == 0 then
-        for name, desc in json:gmatch('"name"%s*:%s*"(.-)".-"description"%s*:%s*"(.-)"') do
-            parsed[#parsed + 1] = { description = desc, name = name }
-        end
-    end
-    return parsed
+    return inventory
 end
 
 local function has_monitor(needle)
-    for _, monitor in ipairs(connected_monitors()) do
-        if monitor_text(monitor):find(needle, 1, true) then
-            return true
-        end
-    end
-    return false
+    return display_inventory():find(needle, 1, true) ~= nil
 end
 
 local function pin_workspaces(spec)
@@ -94,28 +75,36 @@ elseif host == "kaspi" then
 elseif host == "sibir" then
     hl.env("GDK_SCALE", "1")
 
+    -- Always declare known desks first so a catch-all mirror cannot steal them
+    -- on hotplug before layout detection runs.
+    hl.monitor({
+        output = "desc:Dell Inc. DELL U2424HE",
+        mode = "1920x1080@60",
+        position = "0x-96",
+        scale = 1,
+        transform = 3,
+    })
+    hl.monitor({
+        output = "desc:Samsung Electric Company U32E850",
+        mode = "3840x2160@60",
+        position = "1080x0",
+        scale = 1.25,
+    })
+    hl.monitor({
+        output = "desc:Samsung Electric Company C27JG5x H4ZNA00154",
+        mode = "2560x1440@60",
+        position = "0x0",
+        scale = 1,
+    })
+
     if has_monitor("DELL U2424HE") and has_monitor("U32E850") then
         -- Office desk: portrait Dell + Samsung 4K + laptop
-        hl.monitor({
-            output = "desc:Dell Inc. DELL U2424HE",
-            mode = "1920x1080@120",
-            position = "0x-96",
-            scale = 1,
-            transform = 3,
-        })
-        hl.monitor({
-            output = "desc:Samsung Electric Company U32E850",
-            mode = "3840x2160@60",
-            position = "1080x0",
-            scale = 1.25,
-        })
         hl.monitor({
             output = "desc:BOE 0x0AFE",
             mode = "2560x1440@60",
             position = "4152x0",
             scale = 2,
         })
-        hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 
         pin_workspaces({
             { id = 1, monitor = "desc:Samsung Electric Company U32E850", persistent = true, default = true },
@@ -137,13 +126,6 @@ elseif host == "sibir" then
             position = "-1600x0",
             scale = 1.6,
         })
-        hl.monitor({
-            output = "desc:Samsung Electric Company C27JG5x H4ZNA00154",
-            mode = "2560x1440@60",
-            position = "0x0",
-            scale = 1,
-        })
-        hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
 
         pin_workspaces({
             { id = 1, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true, default = true },
@@ -158,8 +140,13 @@ elseif host == "sibir" then
             { id = 10, monitor = "desc:BOE 0x0AFE", persistent = true, default = true },
         })
     else
-        -- Laptop only: scale the panel and mirror anything else
-        hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = 1.333333 })
+        -- Laptop only: scale the panel and mirror unknown extras (projectors)
+        hl.monitor({
+            output = "desc:BOE 0x0AFE",
+            mode = "preferred",
+            position = "auto",
+            scale = 1.333333,
+        })
         hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1, mirror = "eDP-1" })
     end
 else
