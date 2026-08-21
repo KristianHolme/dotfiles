@@ -45,7 +45,8 @@
   },
   "remote.SSH.remotePlatform": {
     "bengal": "linux",
-    "ml7": "linux"
+    "ml7": "linux",
+    "abacus-min": "linux"
   },
   "python.terminal.activateEnvironment": false,
   "workbench.colorTheme": "flexoki-light",
