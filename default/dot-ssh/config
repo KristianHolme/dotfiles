@@ -15,6 +15,7 @@ Host saga betzy olivia
 Host uio
     Hostname login.math.uio.no
     user kholme
+    AddressFamily inet
 
 Host atalanta
     Hostname atalanta
