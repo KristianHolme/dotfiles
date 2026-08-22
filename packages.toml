@@ -113,11 +113,14 @@ install = [
 
 [omarchy.plugins]
 # Third-party Omarchy shell plugin git repo URLs (cloned into ~/.config/omarchy/plugins).
-# Placement and enablement live in default/dot-config/omarchy/shell.json — setup does not --enable.
+# Setup adds with `omarchy plugin add --enable` so new plugins come in enabled: bar widgets
+# take the section already committed in default/dot-config/omarchy/shell.json (or the
+# manifest default), non-bar plugins are appended to plugins[] in shell.json.
 # Install-if-missing only; existing clones are left alone.
 install = [
     "https://github.com/akitaonrails/ai-usagebar.git",
     "https://github.com/robzolkos/omarchy-github.git",
+    "https://github.com/Shavanced/omarchy-notification-center-plugin",
 ]
 
 [julia.packages]

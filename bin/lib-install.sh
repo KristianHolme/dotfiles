@@ -825,7 +825,9 @@ omarchy_plugin_already_installed() {
 }
 
 # Clone third-party Omarchy shell plugins from packages.toml [omarchy.plugins].install.
-# Uses `omarchy plugin add --yes` (no --enable). Existing clones are left alone.
+# Adds with `--enable` so freshly added plugins come in enabled; bar widgets already
+# placed in shell.json keep that placement, other plugins get a plugins[] entry there.
+# Install-if-missing only; existing clones are left alone.
 setup_omarchy_plugins() {
     local plugins_dir="${OMARCHY_PLUGINS_DIR:-$HOME/.config/omarchy/plugins}"
     local -a entries=()
@@ -857,9 +859,9 @@ setup_omarchy_plugins() {
         fi
         log_info "Installing Omarchy plugin: $entry"
         if command -v omarchy >/dev/null 2>&1; then
-            omarchy plugin add "$entry" --yes || log_warning "Failed to add Omarchy plugin: $entry"
+            omarchy plugin add "$entry" --yes --enable || log_warning "Failed to add Omarchy plugin: $entry"
         else
-            omarchy-plugin-add "$entry" --yes || log_warning "Failed to add Omarchy plugin: $entry"
+            omarchy-plugin-add "$entry" --yes --enable || log_warning "Failed to add Omarchy plugin: $entry"
         fi
     done
 }
