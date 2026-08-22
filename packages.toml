@@ -120,7 +120,6 @@ install = [
 install = [
     "https://github.com/akitaonrails/ai-usagebar.git",
     "https://github.com/robzolkos/omarchy-github.git",
-    "https://github.com/Shavanced/omarchy-notification-center-plugin",
 ]
 
 [julia.packages]
