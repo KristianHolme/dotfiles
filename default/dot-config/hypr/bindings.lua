@@ -43,6 +43,34 @@ o.bind("SUPER + SHIFT + backslash", "Passwords", { launch = "bitwarden-desktop" 
 o.bind("SUPER + ALT + RETURN", "Tmux", { omarchy = "terminal-tmux" })
 o.bind("SUPER + SHIFT + D", "Docker", { tui = "lazydocker" })
 
+-- Agent console: the Omarchy Quake console (half-screen drop-down that
+-- launches the default agent), toggled with SUPER + | (the pipe key).
+-- On the Norwegian layout the pipe is the top-left key, XKB name `bar` (not
+-- `grave`), so it is bound as SUPER + bar. SUPER + A also toggles it.
+hl.unbind("SUPER + S")
+hl.unbind("SUPER + grave")
+o.bind("SUPER + bar", "Agent console", hl.dsp.workspace.toggle_special("scratchpad"))
+o.bind("SUPER + A", "Agent console", hl.dsp.workspace.toggle_special("scratchpad"))
+
+-- Move the focused window into the agent console.
+o.bind("SUPER + ALT + bar", "Move to agent console", hl.dsp.window.move({ workspace = "special:scratchpad", follow = false }))
+
+-- Restored Omarchy 3.x-style fullscreen scratchpad, separate from the agent
+-- console. A second, fullscreen special workspace (special:restored).
+-- SUPER+S toggles it; SUPER+ALT+S moves the focused window into it.
+hl.workspace_rule({
+  workspace = "special:restored",
+  gaps_in = 0,
+  gaps_out = { top = 0, right = 0, bottom = 0, left = 0 },
+  no_border = true,
+})
+o.bind("SUPER + S", "Fullscreen scratchpad", hl.dsp.workspace.toggle_special("restored"))
+
+-- Override the Omarchy default: SUPER+ALT+S previously moved to the agent
+-- console; this user wants it to move into the fullscreen scratchpad instead.
+hl.unbind("SUPER + ALT + S")
+o.bind("SUPER + ALT + S", "Move to fullscreen scratchpad", hl.dsp.window.move({ workspace = "special:restored", follow = false }))
+
 o.bind("SUPER + SHIFT + G", "Grok", { webapp = "https://grok.com" })
 o.bind("SUPER + SHIFT + ALT + G", "Perplexity", { webapp = "https://perplexity.com" })
 o.bind("SUPER + SHIFT + C", "Calendar", { webapp = "https://calendar.google.com/", focus = true })
