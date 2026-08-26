@@ -121,6 +121,9 @@ install = [
     "https://github.com/akitaonrails/ai-usagebar.git",
     "https://github.com/robzolkos/omarchy-github.git",
     "https://github.com/KristianHolme/ntfy-panel.git",
+    "https://github.com/Elevate08/qs-bitwarden-cli.git",
+    "https://github.com/jankeesvw/omarchy-downloads.git",
+    "https://github.com/jankeesvw/omarchy-notification-center.git",
 ]
 
 [julia.packages]
