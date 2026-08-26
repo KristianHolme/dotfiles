@@ -32,6 +32,8 @@ Compute at script scope in usage sections. Use plain assignments for values that
 
 Avoid helper functions unless the logic is genuinely reused within the same file. When functions are needed, define them in the utilities section (section 2) and follow [julia-code](../julia-code/SKILL.md) (explicit `return`, Runic formatting). Put tunable defaults in keyword arguments (`function plot_result(data; color = :steelblue, linewidth = 2)`) so callers can override without editing the function body.
 
+**`@everywhere` is top-level only.** It expands to a `toplevel` expression. Putting `@everywhere using Foo` or `@everywhere function foo()` inside a helper causes `syntax: "toplevel" expression not at top level`. After knobs, `addprocs` in a usage section, then `@everywhere` at that same top-level section — not wrapped in `load_worker_code()`.
+
 **Call-site knobs go inline.** When overriding helper kwargs (figure size, colors, spacing, markersize, etc.), pass them directly in the call — do **not** declare locals and then forward them:
 
 ```julia
@@ -161,6 +163,7 @@ Inline struct/policy definitions in `examples/` are fine when they illustrate AP
 ## Anti-patterns
 
 - Wrapping the whole script in `main()` / `run_analysis()` called at the end
+- Wrapping `@everywhere` in a function (`load_on_workers()`, etc.)
 - Saving figures without `display` first
 - Putting one-off experiment logic in `src/` instead of `scripts/` or `_research/`
 - Defining many small helpers for code used once in the same file

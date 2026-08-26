@@ -204,6 +204,11 @@ Apply the SciML Style Guide for Julia. Source references:
 - Do not shadow functions; use distinct names or extend intentionally.
 - Export only stable, documented API symbols.
 
+#### Distributed
+
+- `@everywhere` must appear at true top level, not inside a `function`. It expands to a `toplevel` expression; wrapping `@everywhere function foo()` in a helper yields `syntax: "toplevel" expression not at top level`.
+- `addprocs` first, then `@everywhere using Foo` / method definitions in a usage section of a script (not a `load_worker_code()` wrapper).
+
 #### Documentation and Tests
 
 - Use Documenter.jl and concise docstrings for public APIs.
