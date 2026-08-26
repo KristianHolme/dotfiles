@@ -42,6 +42,7 @@ o.bind("SUPER + SHIFT + backslash", "Passwords", { launch = "bitwarden-desktop" 
 
 o.bind("SUPER + ALT + RETURN", "Tmux", { omarchy = "terminal-tmux" })
 o.bind("SUPER + SHIFT + D", "Docker", { tui = "lazydocker" })
+o.bind("SUPER + D", "Downloads", "omarchy-shell shell toggle jankeesvw.downloads")
 
 -- Agent console: the Omarchy Quake console (half-screen drop-down that
 -- launches the default agent), toggled with SUPER + | (the pipe key).

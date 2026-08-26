@@ -54,6 +54,12 @@
           "id": "omarchy.tray"
         },
         {
+          "id": "jankeesvw.downloads"
+        },
+        {
+          "id": "io.github.elevate08.qs-bitwarden-cli"
+        },
+        {
           "id": "kristianholme.ntfy"
         },
         {
@@ -79,6 +85,9 @@
         },
         {
           "id": "omarchy.power"
+        },
+        {
+          "id": "jankeesvw.notification-center"
         }
       ]
     }
