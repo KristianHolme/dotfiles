@@ -108,7 +108,6 @@ install = [
 # Optional "#branch" selects a non-default branch. Install does not switch the active theme.
 install = [
     "https://github.com/euandeas/omarchy-flexoki-dark-theme",
-    "https://github.com/euandeas/omarchy-flexoki-light-theme",
 ]
 
 [omarchy.plugins]
@@ -120,7 +119,7 @@ install = [
 install = [
     "https://github.com/akitaonrails/ai-usagebar.git",
     "https://github.com/robzolkos/omarchy-github.git",
-    "https://github.com/KristianHolme/ntfy-panel.git",
+    "https://github.com/KristianHolme/omarchy-ntfy.git",
     "https://github.com/Elevate08/qs-bitwarden-cli.git",
     "https://github.com/jankeesvw/omarchy-downloads.git",
     "https://github.com/jankeesvw/omarchy-notification-center.git",
