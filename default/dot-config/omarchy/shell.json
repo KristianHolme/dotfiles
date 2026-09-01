@@ -26,7 +26,7 @@
         },
         {
           "id": "omarchy.clock",
-          "format": "dddd HH:mm",
+          "format": "yyyy-MM-dd HH:mm",
           "formatAlt": "d MMMM 'W'ww yyyy",
           "verticalFormat": "HH\n—\nmm",
           "weekStartDay": "monday",
@@ -57,7 +57,10 @@
           "id": "jankeesvw.downloads"
         },
         {
-          "id": "io.github.elevate08.qs-bitwarden-cli"
+          "id": "io.github.elevate08.qs-bitwarden-cli",
+          "autoLockMinutes": 60,
+          "clearClipboardSec": 300,
+          "pinUnlock": true
         },
         {
           "id": "kristianholme.ntfy"
