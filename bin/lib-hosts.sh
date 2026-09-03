@@ -15,6 +15,7 @@
 #   [machines.<alias>]               # SSH alias as in ~/.ssh/config
 #   remote_path = "/home/..."        # optional; together with local_path => mountable
 #   local_path  = "/mnt/..."
+#   login_node  = "login-1"          # optional; dst hops here for a stable tmux host
 #
 #   [groups.<name>]                  # set of machines sharing a filesystem
 #   machines    = ["a", "b", ...]
@@ -107,6 +108,12 @@ hosts_groups() {
 # All [machines.*] keys, sorted.
 hosts_standalone_machines() {
     _hosts_json | jq -r '.machines // {} | keys[]' | sort
+}
+
+# Pinned login node for dst (empty if unset). Short name used for an intra-cluster hop.
+hosts_login_node() {
+    local alias="$1"
+    _hosts_json | jq -r --arg a "$alias" '.machines[$a].login_node // empty'
 }
 
 # Members of a single group.

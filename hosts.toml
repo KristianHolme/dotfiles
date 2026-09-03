@@ -4,6 +4,10 @@
 #
 # Jump hosts live in ~/.ssh/config (ProxyJump), not here. Every alias used
 # below must resolve via ssh on its own.
+#
+# Optional login_node: short name of a specific login node (e.g. login-1).
+# Used only by dst so tmux lands on a stable node; raw `ssh <alias>`
+# still hits the VIP / round-robin hostname.
 
 [defaults]
 sync_root = "Code"
@@ -30,6 +34,7 @@ local_path = "/mnt/kaspi"
 remote_path = "/cluster/home/kholme"
 local_path = "/mnt/saga"
 sync_root = "/cluster/projects/nn9886k/kholme/Code"
+login_node = "login-4"
 
 [machines.nrec1]
 remote_path = "/home/ubuntu"
@@ -39,6 +44,7 @@ local_path = "/mnt/nrec1"
 remote_path = "/fp/homes01/u01/ec-kholme"
 local_path = "/mnt/fox"
 sync_root = "/fp/projects01/ec12/ec-kholme/Code"
+login_node = "login-1"
 
 # ---- Groups: machines sharing a filesystem. mount_via picks the SSH alias. ----
 

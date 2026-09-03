@@ -16,8 +16,10 @@ Usage: $0
 
 Pick an SSH host with gum filter, connect with tmux session management.
 Server list comes from hosts.toml (set HOSTS_TOML to override).
-After ControlMaster is up, syncs the local Omarchy theme to that host
-(dotfiles-theme-sync-remote.sh) in the background, then attaches tmux.
+If the machine has login_node set, hop there after the VIP so tmux is
+always on that node. After ControlMaster is up, syncs the local Omarchy
+theme to that host (dotfiles-theme-sync-remote.sh) in the background,
+then attaches tmux.
 EOF
     exit 0
 fi
@@ -41,8 +43,13 @@ if [ -z "$SELECTED" ]; then
     exit 0
 fi
 
+LOGIN_NODE="$(hosts_login_node "$SELECTED")"
+
 echo "🚀 Connecting to $SELECTED..."
 echo "   - Will attach to existing tmux session or create new one"
+if [[ -n "$LOGIN_NODE" ]]; then
+	echo "   - Pinned login node: $LOGIN_NODE"
+fi
 echo "   - Use Ctrl+D or 'exit' to disconnect"
 echo
 
@@ -63,7 +70,21 @@ fi
 # Connect with SSH and handle tmux sessions
 # -t forces pseudo-terminal allocation (needed for tmux)
 # Attach or create named session with UTF-8 env and UTF-8 client
-ssh "$SELECTED" -t 'printf "\033]0;%s\007" "$(hostname -s)"; tmux -u new-session -A -s main'
+# login_node: VIP may land anywhere; hop so tmux always lives on that node.
+TMUX_CMD='printf "\033]0;%s\007" "$(hostname -s)"; tmux -u new-session -A -s main'
+if [[ -z "$LOGIN_NODE" ]]; then
+	ssh "$SELECTED" -t "$TMUX_CMD"
+else
+	ssh "$SELECTED" -t "target=$(printf '%q' "$LOGIN_NODE")
+short=\$(hostname -s)
+if [[ \"\$short\" == \"\$target\" || \"\$short\" == \"\$target\".* ]]; then
+  printf \"\\033]0;%s\\007\" \"\$short\"
+  exec tmux -u new-session -A -s main
+fi
+echo \"Landed on \$short; hopping to \$target...\"
+exec ssh -t \"\$target\" $(printf '%q' "$TMUX_CMD")
+"
+fi
 
 echo
 echo "✅ Disconnected from $SELECTED"
