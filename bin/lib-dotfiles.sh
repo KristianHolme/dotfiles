@@ -15,6 +15,13 @@ if [[ ! "${-}" =~ e ]]; then
     set -Eeuo pipefail
 fi
 
+_LIB_DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib-gum.sh
+source "$_LIB_DOTFILES_DIR/lib-gum.sh"
+omarchy_gum_env_load
+unset _LIB_DOTFILES_DIR
+
+
 # Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'

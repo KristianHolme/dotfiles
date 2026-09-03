@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # gum CLI theme helpers for Omarchy.
-# Sourced from ~/.bashrc and dotfiles scripts:
+# Sourced from ~/.bashrc and lib-dotfiles.sh:
 #   source "$HOME/dotfiles/bin/lib-gum.sh"
 #   omarchy_gum_env_load
 
@@ -10,15 +10,13 @@ if [[ -n "${LIB_GUM_SH_SOURCED:-}" ]]; then
 fi
 LIB_GUM_SH_SOURCED=1
 
-# Load GUM_* exports from the active Omarchy theme (Hyprland-format gum.env.conf).
-# Hyprland injects these for new app spawns; long-lived Ghostty keeps stale env.
-# Re-source ~/.bashrc after changing theme.
+# Export GUM_* from the active theme. Hyprland injects gum_env.lua at login
+# only; omarchy-restart-gum re-reads
+# ~/.local/state/omarchy/current/theme/gum_env.lua so a theme switch is
+# visible in already-open terminals. No-op when Omarchy is not installed.
 omarchy_gum_env_load() {
-    local conf="${HOME}/.config/omarchy/current/theme/gum.env.conf"
-    [[ -f "$conf" ]] || return 0
-
-    while IFS= read -r line; do
-        [[ "$line" =~ ^env[[:space:]]*=[[:space:]]*([^,]+),(.+)$ ]] || continue
-        export "${BASH_REMATCH[1]// /}=${BASH_REMATCH[2]// /}"
-    done <"$conf"
+    if command -v omarchy-restart-gum >/dev/null 2>&1; then
+        # shellcheck source=/dev/null
+        source omarchy-restart-gum
+    fi
 }

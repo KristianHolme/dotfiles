@@ -18,7 +18,10 @@ set -Eeuo pipefail
 #
 # PATH skip: distro or other installs satisfy the checker (e.g. bat but not Debian's batcat-only name).
 #
-# Idempotent: safe to re-run; bin and neovim update when upstream releases change.
+# Idempotent: safe to re-run. Pass --upgrade to check for updates and upgrade
+# bin-managed tools, uv, cargo crates, rustup, stow (prefix install), juliaup,
+# tpm, and Cursor CLI when already installed. Neovim, yazi, yazi plugins, and
+# omarchy already version-check on every run.
 #
 # Config via env vars (override as needed):
 #   INSTALL_DIR - where to place binaries (default: ~/.local/bin); also bin's default
@@ -29,6 +32,7 @@ set -Eeuo pipefail
 #   BIN_CONFIG          - optional path to bin's config.json (see marcosnils/bin)
 #   DEBUG               - set to 1 for verbose debug output
 #   CURL_TIMEOUT        - timeout for curl operations in seconds (default: 30 for API, 120 for downloads)
+#   DOTFILES_SETUP_UPGRADE - set to 1 for the same effect as --upgrade
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-install.sh"
@@ -174,15 +178,24 @@ install_lazyvim() {
 }
 
 install_stow() {
-    if command -v stow >/dev/null 2>&1; then
-        log_info "stow already installed; skipping"
-        return 0
-    fi
-    local prefix="" tmp="" src=""
+    local prefix="" tmp="" src="" stow_bin="" current_ver="" latest_ver=""
     prefix="${STOW_PREFIX:-$(dirname "$INSTALL_DIR")}"
+    stow_bin=$(command -v stow 2>/dev/null || true)
+
+    if [[ -n "$stow_bin" ]]; then
+        if ! dotfiles_setup_upgrade_enabled; then
+            log_info "stow already installed; skipping"
+            return 0
+        fi
+        if [[ "$stow_bin" != "$prefix/bin/stow" && "$stow_bin" != "$INSTALL_DIR/stow" ]]; then
+            log_info "stow on PATH is not the replica prefix install ($stow_bin); skipping rebuild"
+            return 0
+        fi
+    fi
+
     tmp=$(mktemp -d)
     trap 't="${tmp:-}"; [[ -n "$t" ]] && rm -rf "$t"' RETURN
-    log_info "Downloading and building stow (latest)"
+    log_info "Downloading stow (latest)"
     local timeout="${CURL_TIMEOUT:-120}"
     curl --max-time "$timeout" -fsSL https://ftp.gnu.org/gnu/stow/stow-latest.tar.gz -o "$tmp/stow.tar.gz" || {
         log_error "Failed to download stow"
@@ -193,6 +206,18 @@ install_stow() {
     if [[ -z "$src" ]]; then
         log_error "Failed to locate stow source directory"
         return 1
+    fi
+
+    latest_ver=$(basename "$src" | first_version_from_output || true)
+    if [[ -n "$stow_bin" ]]; then
+        current_ver=$(stow --version 2>/dev/null | first_version_from_output || true)
+        if [[ -n "$current_ver" && -n "$latest_ver" ]] && ver_ge "$current_ver" "$latest_ver"; then
+            log_info "stow already up to date ($current_ver)"
+            return 0
+        fi
+        log_info "stow ${current_ver:-unknown} older than $latest_ver; rebuilding"
+    else
+        log_info "Building stow ${latest_ver:-latest}"
     fi
 
     (
@@ -241,6 +266,10 @@ replica_install_tools_with_bin() {
 
 maybe_install_cursor_cli() {
     if command -v cursor >/dev/null 2>&1; then
+        if dotfiles_setup_upgrade_enabled; then
+            log_info "Updating Cursor CLI via official installer"
+            curl -fsSL https://cursor.com/install | bash || log_warning "Cursor CLI update failed; continuing"
+        fi
         return 0
     fi
     if ! command -v gum >/dev/null 2>&1; then
@@ -256,14 +285,23 @@ maybe_install_cursor_cli() {
 }
 
 main() {
-    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-        cat <<EOF
-Usage: $0
+    DOTFILES_SETUP_UPGRADE="${DOTFILES_SETUP_UPGRADE:-0}"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+        -h | --help)
+            cat <<EOF
+Usage: $0 [--upgrade]
 
 Install user-local CLI tools and omarchy (no sudo) using marcosnils/bin for
 GitHub release binaries. Binaries go to INSTALL_DIR (default ~/.local/bin).
 
 Each listed tool skips bin install if its CLI is already on PATH (except bin bootstrap).
+
+  --upgrade, -u   Check for updates and upgrade installed tools: bin-managed
+                  binaries, uv (self + replica tools), rustup, cargo crates,
+                  prefix-built stow, juliaup, tpm, and Cursor CLI if present.
+                  Neovim, yazi, yazi plugins, and omarchy already version-check
+                  on every run. Does not overwrite an existing LazyVim config.
 
 Authentication: after gh is available (preinstalled or via bin), set GITHUB_AUTH_TOKEN (PAT, no
 scopes) or run gh auth login so the token is exported for bin and curl API calls.
@@ -273,7 +311,22 @@ Installs cargo crates and Yazi plugins (ya pkg) after bin tools.
 
 See header comments for INSTALL_DIR, OMARCHY_DIR, OMARCHY_REPO_URL, etc.
 EOF
-        exit 0
+            exit 0
+            ;;
+        --upgrade | -u)
+            DOTFILES_SETUP_UPGRADE=1
+            shift
+            ;;
+        *)
+            log_error "Unknown argument: $1"
+            exit 1
+            ;;
+        esac
+    done
+    export DOTFILES_SETUP_UPGRADE
+
+    if [[ "$DOTFILES_SETUP_UPGRADE" == "1" ]]; then
+        log_info "Upgrade mode: will update installed tools when newer releases exist"
     fi
 
     ensure_cmd curl tar unzip git install make perl jq
@@ -339,6 +392,9 @@ EOF
     fi
 
     replica_install_tools_with_bin
+    if dotfiles_setup_upgrade_enabled; then
+        marcos_bin_update_managed
+    fi
     setup_uv_replica_tools || log_warning "uv tool setup failed; continuing"
     install_yazi_from_release || log_warning "yazi release install failed; continuing"
     setup_cargo_crates || log_warning "cargo crate setup failed; continuing"

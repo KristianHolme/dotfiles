@@ -17,6 +17,11 @@ source "$_LIB_INSTALL_DIR/lib-dotfiles.sh"
 # shellcheck source=lib-packages.sh
 source "$_LIB_INSTALL_DIR/lib-packages.sh"
 
+# True when a setup script requested a full upgrade pass (--upgrade).
+dotfiles_setup_upgrade_enabled() {
+    [[ "${DOTFILES_SETUP_UPGRADE:-0}" == "1" ]]
+}
+
 # Install go-yq on Arch before any packages.toml-driven step (migration-safe).
 ensure_toml_parser_arch() {
     if go_yq_available; then
@@ -288,7 +293,13 @@ install_juliaup_and_setup() {
     install_via_curl "Julia (juliaup)" "juliaup" "https://install.julialang.org" "" --yes
 
     if [[ "$juliaup_was_present" -eq 1 ]]; then
-        log_info "juliaup was already installed; run setup manually if needed: ${setup_script:-}"
+        if dotfiles_setup_upgrade_enabled && command -v juliaup >/dev/null 2>&1; then
+            log_info "Checking juliaup for updates"
+            juliaup self update || log_warning "juliaup self update failed; continuing"
+            juliaup update || log_warning "juliaup channel update failed; continuing"
+        else
+            log_info "juliaup was already installed; run setup manually if needed: ${setup_script:-}"
+        fi
         return 0
     fi
 
@@ -339,6 +350,15 @@ clone_or_update_omarchy() {
 install_tpm() {
     local tpm_dir="$HOME/.config/tmux/plugins/tpm"
 
+    if [[ -d "$tpm_dir/.git" ]]; then
+        if dotfiles_setup_upgrade_enabled; then
+            log_info "Updating tmux plugin manager (tpm)"
+            git -C "$tpm_dir" pull --ff-only || log_warning "tpm update failed; continuing"
+        else
+            log_info "tmux plugin manager (tpm) already installed; skipping"
+        fi
+        return 0
+    fi
     if [[ -d "$tpm_dir" ]]; then
         log_info "tmux plugin manager (tpm) already installed; skipping"
         return 0
@@ -366,6 +386,11 @@ cargo_prepend_path() {
 ensure_cargo() {
     cargo_prepend_path
     if command -v cargo >/dev/null 2>&1; then
+        if dotfiles_setup_upgrade_enabled && command -v rustup >/dev/null 2>&1; then
+            log_info "Checking rustup/toolchain for updates"
+            rustup self update || log_warning "rustup self update failed; continuing"
+            rustup update || log_warning "rustup toolchain update failed; continuing"
+        fi
         return 0
     fi
 
@@ -386,7 +411,53 @@ ensure_cargo() {
     return 0
 }
 
+cargo_crate_is_installed() {
+    local crate="$1"
+    cargo install --list 2>/dev/null | grep -qE "^${crate} "
+}
+
+cargo_crate_installed_version() {
+    local crate="$1"
+    cargo install --list 2>/dev/null | awk -v c="$crate" '$1 == c {
+        v = $2
+        sub(/^v/, "", v)
+        sub(/:$/, "", v)
+        print v
+        exit
+    }'
+}
+
+cargo_crate_latest_version() {
+    local crate="$1"
+    curl -fsSL --max-time "${CURL_TIMEOUT:-30}" \
+        -A "dotfiles-setup (cargo crate version check)" \
+        "https://crates.io/api/v1/crates/${crate}" |
+        jq -r '.crate.max_stable_version // .crate.max_version // empty'
+}
+
+cargo_install_crate() {
+    local crate="$1" cmd="$2" force="${3:-0}"
+    local -a args=("$crate")
+    if [[ "$force" == "1" ]]; then
+        args+=(--force)
+        log_info "Updating $crate via cargo (binary: $cmd)..."
+    else
+        log_info "Installing $crate via cargo (binary: $cmd)..."
+    fi
+    if cargo install "${args[@]}"; then
+        cargo_prepend_path
+        if command -v "$cmd" >/dev/null 2>&1; then
+            log_success "Installed $cmd -> $(command -v "$cmd")"
+        else
+            log_warning "$cmd not on PATH after cargo install $crate"
+        fi
+    else
+        log_warning "cargo install $crate failed (non-critical)"
+    fi
+}
+
 # Install crates from packages.toml [cargo].install (crate or crate:command per entry).
+# With DOTFILES_SETUP_UPGRADE=1, cargo-installed crates are updated when crates.io is newer.
 setup_cargo_crates() {
     local -a entries=()
 
@@ -402,7 +473,7 @@ setup_cargo_crates() {
         return 1
     fi
 
-    local entry crate cmd
+    local entry crate cmd installed_ver latest_ver
     for entry in "${entries[@]}"; do
         if [[ "$entry" == *:* ]]; then
             crate="${entry%%:*}"
@@ -413,28 +484,41 @@ setup_cargo_crates() {
         fi
 
         cargo_prepend_path
+        if cargo_crate_is_installed "$crate"; then
+            if ! dotfiles_setup_upgrade_enabled; then
+                log_info "$cmd already installed via cargo; skipping $crate"
+                continue
+            fi
+            installed_ver=$(cargo_crate_installed_version "$crate" || true)
+            latest_ver=$(cargo_crate_latest_version "$crate" || true)
+            if [[ -n "$installed_ver" && -n "$latest_ver" ]] && ver_ge "$installed_ver" "$latest_ver"; then
+                log_info "$crate already up to date ($installed_ver)"
+                continue
+            fi
+            if [[ -z "$latest_ver" ]]; then
+                log_warning "Could not query crates.io for $crate; forcing cargo install"
+            else
+                log_info "$crate ${installed_ver:-unknown} older than $latest_ver"
+            fi
+            cargo_install_crate "$crate" "$cmd" 1
+            continue
+        fi
         if command -v "$cmd" >/dev/null 2>&1; then
             log_info "$cmd already on PATH; skipping cargo install $crate"
             continue
         fi
 
-        log_info "Installing $crate via cargo (binary: $cmd)..."
-        if cargo install "$crate"; then
-            cargo_prepend_path
-            if command -v "$cmd" >/dev/null 2>&1; then
-                log_success "Installed $cmd -> $(command -v "$cmd")"
-            else
-                log_warning "$cmd not on PATH after cargo install $crate"
-            fi
-        else
-            log_warning "cargo install $crate failed (non-critical)"
-        fi
+        cargo_install_crate "$crate" "$cmd" 0
     done
 }
 
 # Bootstrap uv via the official standalone installer (replica servers, no sudo).
 ensure_uv() {
     if command -v uv >/dev/null 2>&1; then
+        if dotfiles_setup_upgrade_enabled; then
+            log_info "Checking uv for updates"
+            uv self update || log_warning "uv self update failed; continuing"
+        fi
         return 0
     fi
 
@@ -500,7 +584,12 @@ setup_uv_replica_tools() {
 
         marcos_bin_prepend_path
         if uv_replica_cmd_available "$cmd"; then
-            log_info "$cmd already on PATH; skipping uv tool install $pkg"
+            if dotfiles_setup_upgrade_enabled && uv tool list 2>/dev/null | grep -qE "^${pkg}( |$)"; then
+                log_info "Checking $pkg for uv tool updates"
+                uv tool upgrade "$pkg" || log_warning "uv tool upgrade $pkg failed; continuing"
+            else
+                log_info "$cmd already on PATH; skipping uv tool install $pkg"
+            fi
             continue
         fi
 
@@ -1085,6 +1174,18 @@ marcos_bin_install_or_update_github() {
     fi
     log_info "bin install $spec"
     bin install "$spec" || return 1
+}
+
+# Check every bin-managed binary for a newer release and update when one exists.
+# -y: no confirm prompts; -c: continue if one tool fails.
+marcos_bin_update_managed() {
+    if ! command -v bin >/dev/null 2>&1; then
+        log_warning "bin not on PATH; skipping updates"
+        return 0
+    fi
+    export_github_token_from_gh_if_needed
+    log_info "Checking bin-managed tools for updates"
+    bin update -y -c || log_warning "bin update reported errors; continuing"
 }
 
 #######################################

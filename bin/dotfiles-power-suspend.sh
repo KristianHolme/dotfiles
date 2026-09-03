@@ -4,6 +4,12 @@ set -Eeuo pipefail
 # Configure power button to suspend instead of shutdown
 # Creates systemd logind drop-in configuration
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib-gum.sh
+source "$SCRIPT_DIR/lib-gum.sh"
+omarchy_gum_env_load
+
+
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     cat <<EOF
 Usage: $0
