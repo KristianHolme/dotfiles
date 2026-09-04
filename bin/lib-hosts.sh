@@ -16,6 +16,7 @@
 #   remote_path = "/home/..."        # optional; together with local_path => mountable
 #   local_path  = "/mnt/..."
 #   login_node  = "login-1"          # optional; dst hops here for a stable tmux host
+#   install_root = "/cluster/projects/..."  # optional; replica setup prefix (bin, .cargo, .rustup, .julia)
 #
 #   [groups.<name>]                  # set of machines sharing a filesystem
 #   machines    = ["a", "b", ...]
@@ -114,6 +115,47 @@ hosts_standalone_machines() {
 hosts_login_node() {
     local alias="$1"
     _hosts_json | jq -r --arg a "$alias" '.machines[$a].login_node // empty'
+}
+
+# Inventory alias for this machine: hostname, login_node, or $HOME == remote_path.
+# Empty if this host is not in hosts.toml (prints nothing, exit 0).
+hosts_local_machine_alias() {
+    local json="" host="" home="" alias=""
+    json="$(_hosts_json)" || return 0
+    host="$(hosts_local_hostname)"
+    home="$HOME"
+
+    alias="$(jq -r --arg a "$host" 'if (.machines[$a] // null) != null then $a else empty end' <<<"$json")"
+    if [[ -n "$alias" ]]; then
+        echo "$alias"
+        return 0
+    fi
+
+    alias="$(jq -r --arg h "$host" '
+        .machines // {} | to_entries[] | select(.value.login_node == $h) | .key
+    ' <<<"$json" | head -n1)"
+    if [[ -n "$alias" ]]; then
+        echo "$alias"
+        return 0
+    fi
+
+    alias="$(jq -r --arg home "$home" '
+        .machines // {} | to_entries[] | select(.value.remote_path == $home) | .key
+    ' <<<"$json" | head -n1)"
+    if [[ -n "$alias" ]]; then
+        echo "$alias"
+        return 0
+    fi
+    return 0
+}
+
+# hosts.toml install_root for this machine, or empty.
+hosts_local_install_root() {
+    toml_backend_available || return 0
+    local alias=""
+    alias="$(hosts_local_machine_alias)" || return 0
+    [[ -n "$alias" ]] || return 0
+    _hosts_json | jq -r --arg a "$alias" '.machines[$a].install_root // empty'
 }
 
 # Members of a single group.

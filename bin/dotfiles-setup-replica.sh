@@ -24,7 +24,8 @@ set -Eeuo pipefail
 # omarchy already version-check on every run.
 #
 # Config via env vars (override as needed):
-#   INSTALL_DIR - where to place binaries (default: ~/.local/bin); also bin's default
+#   INSTALL_DIR - where to place binaries (default: ~/.local/bin, or
+#                 hosts.toml install_root/bin when set for this machine)
 #   OMARCHY_DIR         - omarchy clone dir (default: ~/.local/share/omarchy)
 #   OMARCHY_REPO_URL    - git URL for omarchy (default: empty; skip clone if unset)
 #   NVIM_OPT_DIR        - reserved / Neovim install base comment (default: ~/.local/opt/neovim)
@@ -37,7 +38,15 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-install.sh"
 
-INSTALL_DIR="${INSTALL_DIR:-"$HOME/.local/bin"}"
+# INSTALL_DIR defaults to ~/.local/bin, or hosts.toml install_root/bin on this machine.
+# An INSTALL_DIR already set in the environment wins over hosts.toml.
+if [[ -n "${INSTALL_DIR:-}" ]]; then
+    DOTFILES_INSTALL_DIR_FROM_USER=1
+else
+    DOTFILES_INSTALL_DIR_FROM_USER=0
+fi
+export DOTFILES_INSTALL_DIR_FROM_USER
+
 OMARCHY_DIR="${OMARCHY_DIR:-"$HOME/.local/share/omarchy"}"
 OMARCHY_REPO_URL="${OMARCHY_REPO_URL:-https://github.com/basecamp/omarchy}"
 NVIM_OPT_DIR="${NVIM_OPT_DIR:-"$HOME/.local/opt/neovim"}"
@@ -336,6 +345,10 @@ EOF
         exit 1
     fi
 
+    apply_dotfiles_install_root || true
+    INSTALL_DIR="${INSTALL_DIR:-"$HOME/.local/bin"}"
+    export INSTALL_DIR
+
     mkdir -p "$INSTALL_DIR"
     marcos_bin_prepend_path
 
@@ -358,6 +371,13 @@ EOF
         log_error "go-yq bootstrap failed; cannot read packages.toml"
         exit 1
     fi
+
+    apply_dotfiles_install_root || true
+    INSTALL_DIR="${INSTALL_DIR:-"$HOME/.local/bin"}"
+    export INSTALL_DIR
+    mkdir -p "$INSTALL_DIR"
+    marcos_bin_prepend_path
+    ensure_marcos_bin_config_default_path || exit 1
 
     local -a prereqs=()
     mapfile -t prereqs < <(bin_replica_prereq_list) || exit 1

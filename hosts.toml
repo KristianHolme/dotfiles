@@ -35,6 +35,8 @@ remote_path = "/cluster/home/kholme"
 local_path = "/mnt/saga"
 sync_root = "/cluster/projects/nn9886k/kholme/Code"
 login_node = "login-4"
+# Replica setup prefix (binaries, rustup/cargo, juliaup, uv tools). Home quota is 20 GiB.
+install_root = "/cluster/projects/nn9886k/kholme"
 
 [machines.nrec1]
 remote_path = "/home/ubuntu"

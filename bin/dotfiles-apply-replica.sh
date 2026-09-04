@@ -4,7 +4,7 @@ set -Eeuo pipefail
 # Applies omarchy-tweaks configs for university servers:
 # - Stows default/dot-config into ~/.config (nvim, tmux, starship, hypr, etc.)
 # - Stows default/dot-agents into ~/.agents (skills, commands)
-# - Creates symlink for Julia config (~/.julia/config)
+# - Creates symlink for Julia config ($JULIA_DEPOT_PATH/config or ~/.julia/config)
 # - Adds source line to server's ~/.bashrc for our dot-bashrc (idempotent)
 # - Ensures omarchy repo is cloned/updated first
 #
@@ -18,6 +18,21 @@ source "$SCRIPT_DIR/lib-install.sh"
 
 OMARCHY_DIR="${OMARCHY_DIR:-"$HOME/.local/share/omarchy"}"
 OMARCHY_REPO_URL="${OMARCHY_REPO_URL:-https://github.com/basecamp/omarchy}"
+
+# Host-specific prefix from replica setup (hosts.toml install_root)
+[[ -f "$HOME/.dotfiles-install-env" ]] && . "$HOME/.dotfiles-install-env"
+
+# Ensure local bin is in PATH for tools like stow (idempotent)
+case ":$PATH:" in
+*":$HOME/.local/bin:"*) ;;
+*) export PATH="$HOME/.local/bin${PATH:+:${PATH}}" ;;
+esac
+if [[ -n "${INSTALL_DIR:-}" ]]; then
+	case ":$PATH:" in
+	*":$INSTALL_DIR:"*) ;;
+	*) export PATH="$INSTALL_DIR${PATH:+:${PATH}}" ;;
+	esac
+fi
 
 # Menu labels (order is canonical run order)
 TASK_OMARCHY="Clone or update omarchy"
@@ -37,16 +52,10 @@ MENU_OPTIONS=(
 # Set by pick_tasks_interactive (newline-separated labels, canonical order)
 REPLICA_SELECTION=""
 
-# Ensure local bin is in PATH for tools like stow (idempotent)
-case ":$PATH:" in
-*":$HOME/.local/bin:"*) ;;
-*) export PATH="$HOME/.local/bin${PATH:+:${PATH}}" ;;
-esac
-
 setup_julia_config() {
 	local dotfiles_dir="$HOME/dotfiles/"
 	local julia_config_source="$dotfiles_dir/default/dot-julia/config"
-	local julia_config_target="$HOME/.julia/config"
+	local julia_config_target="${JULIA_DEPOT_PATH:-$HOME/.julia}/config"
 
 	create_symlink_with_backup "$julia_config_source" "$julia_config_target" "Julia config"
 }

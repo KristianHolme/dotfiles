@@ -1,5 +1,7 @@
-# User-local tools (replica hosts; must run before interactive-only return below)
+# User-local tools (must run before interactive-only return below).
 export PATH="$HOME/.local/bin:$HOME/dotfiles/bin:$PATH"
+# Host-specific prefix (hosts.toml install_root) prepended when replica setup wrote it.
+[[ -f "$HOME/.dotfiles-install-env" ]] && . "$HOME/.dotfiles-install-env"
 
 # If not running interactively, don't do anything (leave this near the top of this file)
 [[ $- != *i* ]] && return
