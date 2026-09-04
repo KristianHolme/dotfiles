@@ -1,5 +1,5 @@
 #!/bin/bash
-# Push the new theme to hosts with active SSH sessions (non-blocking).
+# Push the new theme to hosts with an existing ControlMaster (non-blocking).
 
 set -euo pipefail
 

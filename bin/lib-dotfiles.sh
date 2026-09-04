@@ -122,16 +122,37 @@ create_symlink_with_backup() {
     ln -sf "$source_path" "$target_path"
 }
 
-# Start a background SSH ControlMaster when ~/.ssh/config enables multiplexing.
-# Subsequent ssh(1) calls to the same host reuse the connection (helps 2FA/jump hosts).
-ensure_ssh_controlmaster() {
-    local host="$1" cm=""
-
-    cm=$(ssh -G "$host" 2>/dev/null | awk '$1 == "controlmaster" { print $2; exit }')
+# True when ~/.ssh/config enables ControlMaster for this alias.
+_ssh_controlmaster_enabled() {
+    local cm
+    cm=$(ssh -G "$1" 2>/dev/null | awk '$1 == "controlmaster" { print $2; exit }')
     case "$cm" in
-    auto | autoask | yes | ask) ;;
-    *) return 0 ;;
+    auto | autoask | yes | ask) return 0 ;;
+    *) return 1 ;;
     esac
+}
+
+# Start a background SSH ControlMaster when ~/.ssh/config enables multiplexing.
+# Establishes ProxyJump masters first so 2FA happens once, serially, with no race.
+ensure_ssh_controlmaster() {
+    local host="$1"
+    local skip_jumps="${2:-}"
+    local jumps jump j
+
+    if [[ -z "$skip_jumps" ]]; then
+        jumps=$(ssh -G "$host" 2>/dev/null | awk '$1 == "proxyjump" { print $2; exit }')
+        if [[ -n "$jumps" ]]; then
+            IFS=',' read -ra jump <<< "$jumps"
+            for j in "${jump[@]}"; do
+                j="${j##*@}"
+                j="${j%%:*}"
+                [[ -n "$j" ]] || continue
+                ensure_ssh_controlmaster "$j" skip_jumps
+            done
+        fi
+    fi
+
+    _ssh_controlmaster_enabled "$host" || return 0
 
     if ssh -O check "$host" >/dev/null 2>&1; then
         return 0

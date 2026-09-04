@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Push the current Omarchy theme to SSH hosts that are actively connected
-# (ControlMaster up, or a live ssh process targeting the inventory alias).
+# Push the current Omarchy theme to SSH hosts that already have a ControlMaster.
+# Never opens a new TCP/2FA session — that races dst and can lock out jump hosts.
 # Also used by dst on connect for a single host.
 #
 # Usage:
@@ -26,9 +26,9 @@ Sync the Omarchy theme to active SSH hosts from hosts.toml (or one host).
   --host ALIAS   Sync only this inventory alias (e.g. dst after connect)
   --theme NAME   Theme display name or kebab-case (default: local current theme)
 
-Active = ControlMaster up (\`ssh -O check\`) or a live ssh process targeting
-the alias. Omarchy desktops (Hyprland running) get a full theme set; replicas
-use OMARCHY_THEME_SKIP_BACKGROUND=1. Third-party themes from packages.toml
+Active = ControlMaster up (\`ssh -O check\`). Never opens a new SSH session.
+Omarchy desktops get a full theme set; replicas use
+OMARCHY_THEME_SKIP_BACKGROUND=1. Third-party themes from packages.toml
 are installed/updated on the remote first.
 EOF
 }
@@ -84,35 +84,7 @@ resolve_local_theme() {
 	return 1
 }
 
-# True if a live ssh process has this inventory alias as a destination argument.
-host_in_live_ssh_ps() {
-	local host="$1"
-	ps -eo args= 2>/dev/null | awk -v h="$host" '
-		{
-			cmd = $0
-			sub(/^[[:space:]]+/, "", cmd)
-			n = split(cmd, a, /[[:space:]]+/)
-			base = a[1]
-			sub(/.*\//, "", base)
-			if (base != "ssh") next
-			for (i = 2; i <= n; i++) {
-				arg = a[i]
-				if (arg ~ /^-/) continue
-				# Destination: host or user@host (first non-option after options)
-				sub(/^[^@]+@/, "", arg)
-				if (arg == h) {
-					found = 1
-					exit
-				}
-				# Only the first non-option is the destination for typical ssh
-				break
-			}
-		}
-		END { exit !found }
-	'
-}
-
-# Print active inventory aliases (one per line), excluding the local hostname.
+# Print inventory aliases with a live ControlMaster (one per line), excluding local host.
 hosts_active_ssh() {
 	local host local_host
 	local_host="$(hosts_local_hostname)"
@@ -123,21 +95,22 @@ hosts_active_ssh() {
 		fi
 		if ssh -O check "$host" >/dev/null 2>&1; then
 			echo "$host"
-			continue
-		fi
-		if host_in_live_ssh_ps "$host"; then
-			echo "$host"
 		fi
 	done < <(hosts_all_machines)
 }
 
-# SSH options: never block on interactive MFA for sync probes/applies.
+# SSH options: never block on interactive MFA. Callers must already have a ControlMaster.
 _SSH_SYNC_OPTS=(-o BatchMode=yes -o ConnectTimeout=8 -o PreferredAuthentications=publickey)
 
 # Apply theme on one remote host. Never exits non-zero for the caller.
 sync_host() {
 	local host="$1"
 	local theme="$2"
+
+	if ! ssh -O check "$host" >/dev/null 2>&1; then
+		log_warning "Skip $host: no ControlMaster (will not open a new SSH/2FA session)"
+		return 0
+	fi
 
 	log_info "Syncing theme '$theme' -> $host"
 

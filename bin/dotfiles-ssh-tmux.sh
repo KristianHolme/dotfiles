@@ -17,9 +17,9 @@ Usage: $0
 Pick an SSH host with gum filter, connect with tmux session management.
 Server list comes from hosts.toml (set HOSTS_TOML to override).
 If the machine has login_node set, hop there after the VIP so tmux is
-always on that node. After ControlMaster is up, syncs the local Omarchy
-theme to that host (dotfiles-theme-sync-remote.sh) in the background,
-then attaches tmux.
+always on that node. Starts a background ControlMaster first when
+~/.ssh/config enables one (2FA/jump hosts). Then syncs the local Omarchy
+theme in the background only if that master is up, and attaches tmux.
 EOF
     exit 0
 fi
@@ -55,8 +55,8 @@ echo
 
 ensure_ssh_controlmaster "$SELECTED"
 
-# Align remote Omarchy theme in the background so connect isn't blocked
-if [[ -x "$SCRIPT_DIR/dotfiles-theme-sync-remote.sh" ]]; then
+# Theme sync reuses ControlMaster only — never open a competing 2FA connection.
+if [[ -x "$SCRIPT_DIR/dotfiles-theme-sync-remote.sh" ]] && ssh -O check "$SELECTED" >/dev/null 2>&1; then
 	mkdir -p "${HOME}/.cache/dotfiles"
 	log="${HOME}/.cache/dotfiles/remote-theme-sync.log"
 	echo "🎨 Syncing Omarchy theme to $SELECTED in background..."

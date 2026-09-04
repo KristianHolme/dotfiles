@@ -32,7 +32,7 @@ Host nam-shub*
     SetEnv TERM=xterm-256color
 
 Host abacus*
-    Hostname %h 
+    Hostname %h
     ProxyJump uio
     user kholme
     SendEnv TERM
@@ -45,6 +45,12 @@ Host freebio* bioint0* ml*
     ProxyJump uio
     SendEnv TERM
     SetEnv TERM=xterm-256color
+
+# Multiplex through the 2FA jump host: one interactive login, reuse for dst/theme-sync/rsync.
+Host uio atalanta nam-shub* abacus* freebio* bioint0* ml*
+    ControlMaster auto
+    ControlPath ~/.ssh/cm-%C
+    ControlPersist 4h
 
 Host nrec1
     User ubuntu
