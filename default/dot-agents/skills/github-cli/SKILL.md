@@ -115,6 +115,18 @@ Common flags across commands:
 | `-y, --yes` | Skip confirmation prompts |
 | `--json` | Output as JSON |
 
+## Library and package docs
+
+Prefer `gh` over editor-only doc plugins when looking up libraries (portable across agents):
+
+```bash
+gh repo view owner/repo --web          # docs / README in browser
+gh api repos/owner/repo/readme -q .content   # raw README (base64)
+gh search code "Query" --repo owner/repo
+```
+
+Clone or browse upstream source with `gh` / `git` when API examples in README are not enough.
+
 ## Best Practices
 
 1. **Specify owner/repo explicitly** when not in a git repository context

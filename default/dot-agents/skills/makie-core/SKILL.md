@@ -1,6 +1,9 @@
 ---
 name: makie-core
-description: Core Makie plotting, layouts, and modular figure construction. Use for static plots, layouts, axes, and general Makie usage.
+description: >-
+  Core Makie plotting, layouts, and modular figure construction. Use for any
+  Julia plotting (Makie only — not Plots.jl), static figures, layouts, axes, or
+  general Makie usage.
 ---
 
 # Makie Core

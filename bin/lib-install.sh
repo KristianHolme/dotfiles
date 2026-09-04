@@ -394,11 +394,12 @@ install_juliaup_and_setup() {
             juliaup self update || log_warning "juliaup self update failed; continuing"
             juliaup update || log_warning "juliaup channel update failed; continuing"
         else
-            log_info "juliaup was already installed; run setup manually if needed: ${setup_script:-}"
+            log_info "juliaup was already installed; running Julia setup script"
         fi
-        return 0
     fi
 
+    # Always run setup when provided (packages/apps/juliaclient). julia-setup.jl is
+    # idempotent; previously we returned early when juliaup existed and skipped juliaclient.
     if [[ -n "$setup_script" ]]; then
         run_julia_setup_script "$setup_script" || true
     fi
