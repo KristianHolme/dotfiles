@@ -16,7 +16,7 @@
 #   remote_path = "/home/..."        # optional; together with local_path => mountable
 #   local_path  = "/mnt/..."
 #   login_node  = "login-1"          # optional; dst hops here for a stable tmux host
-#   install_root = "/cluster/projects/..."  # optional; replica setup prefix (bin, .cargo, .rustup, .julia)
+#   install_root = "/cluster/projects/..."  # optional; replica setup prefix (bin; rustup/juliaup/uv create their dirs)
 #
 #   [groups.<name>]                  # set of machines sharing a filesystem
 #   machines    = ["a", "b", ...]

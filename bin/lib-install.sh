@@ -25,7 +25,8 @@ dotfiles_setup_upgrade_enabled() {
 }
 
 # Apply hosts.toml install_root for this machine (no-op if unset or TOML unread).
-# Layout: $root/bin, $root/.cargo, $root/.rustup, $root/.juliaup, $root/.julia, $root/.uv
+# Layout: $root/bin, plus CARGO_HOME/RUSTUP_HOME/julia depot env (those tools create their own dirs).
+# Do not mkdir .juliaup — the juliaup installer refuses to use an existing folder.
 # Explicit INSTALL_DIR / CARGO_HOME / RUSTUP_HOME in the environment are left alone.
 # Writes ~/.dotfiles-install-env so login shells prepend the prefix.
 apply_dotfiles_install_root() {
@@ -35,7 +36,7 @@ apply_dotfiles_install_root() {
     [[ -n "$root" ]] || return 0
 
     export DOTFILES_INSTALL_ROOT="$root"
-    mkdir -p "$root/bin" "$root/.cargo/bin" "$root/.rustup" "$root/.juliaup" "$root/.julia" "$root/.uv/tools"
+    mkdir -p "$root/bin" "$root/.uv/tools"
 
     if [[ "${DOTFILES_INSTALL_DIR_FROM_USER:-0}" != "1" ]]; then
         export INSTALL_DIR="$root/bin"
@@ -367,6 +368,7 @@ run_julia_setup_script() {
 # Install juliaup via official curl installer, then run optional setup script.
 install_juliaup_and_setup() {
     local setup_script="${1:-}"
+    refresh_julia_path
     local juliaup_was_present=0
     if command -v juliaup >/dev/null 2>&1; then
         juliaup_was_present=1
@@ -375,7 +377,14 @@ install_juliaup_and_setup() {
     prepare_juliaup_install
     local -a juliaup_args=(--yes)
     if [[ -n "${DOTFILES_INSTALL_ROOT:-}" ]]; then
-        juliaup_args+=(--path "$DOTFILES_INSTALL_ROOT/.juliaup")
+        local juliaup_home="$DOTFILES_INSTALL_ROOT/.juliaup"
+        # Installer errors if the target folder already exists (including an empty
+        # dir we used to mkdir). Only keep it when juliaup is actually there.
+        if [[ -d "$juliaup_home" && ! -x "$juliaup_home/bin/juliaup" ]]; then
+            log_info "Removing incomplete $juliaup_home so the juliaup installer can run"
+            rm -rf "$juliaup_home"
+        fi
+        juliaup_args+=(--path "$juliaup_home")
     fi
     install_via_curl "Julia (juliaup)" "juliaup" "https://install.julialang.org" "" "${juliaup_args[@]}"
 
@@ -880,12 +889,15 @@ setup_yazi_plugins() {
         return 0
     fi
 
-    local installed_list plugin
+    local installed_list plugin plugin_short
     local -a to_add=() to_upgrade=()
     installed_list=$(ya pkg list 2>/dev/null || true)
 
     for plugin in "${plugins[@]}"; do
-        if grep -qF "$plugin" <<<"$installed_list"; then
+        plugin_short="${plugin##*:}"
+        plugin_short="${plugin_short##*/}"
+        if grep -qF "$plugin" <<<"$installed_list" ||
+            [[ -d "$HOME/.config/yazi/plugins/${plugin_short}.yazi" ]]; then
             to_upgrade+=("$plugin")
         else
             to_add+=("$plugin")
@@ -1358,6 +1370,8 @@ marcos_bin_prefer_musl() {
 }
 
 # Name globs for unattended bin install (gnu/musl ties, git-lfs archive members).
+# Inner-archive patterns must come before *linux* or bin downloads the tarball
+# then prompts for git-lfs vs install.sh.
 marcos_bin_asset_globs() {
     if marcos_bin_prefer_musl; then
         echo '*musl*'
@@ -1368,17 +1382,21 @@ marcos_bin_asset_globs() {
     fi
     case "$(uname -m)" in
     aarch64 | arm64)
+        echo '*linux*arm64*/git-lfs'
+        echo '*/git-lfs'
         echo '*linux*arm64*'
         echo '*Linux*aarch64*'
         ;;
     *)
+        echo '*linux*amd64*/git-lfs'
+        echo '*linux-amd64*/git-lfs'
+        echo '*/git-lfs'
         echo '*linux*amd64*'
         echo '*Linux*x86_64*'
         echo '*linux-x86_64*'
         ;;
     esac
     echo '*linux*'
-    echo '*/git-lfs'
 }
 
 # Re-install one managed binary with name globs so gnu/musl and archive picks are non-interactive.
