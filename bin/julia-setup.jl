@@ -38,7 +38,9 @@ function load_julia_lists(toml_path)
     packages = string_list(get(julia, "packages", Dict{String, Any}()), "install")
     apps = string_list(get(julia, "apps", Dict{String, Any}()), "install")
     registries = string_list(get(julia, "registries", Dict{String, Any}()), "install")
-    return (; packages, apps, registries)
+    daemon = get(julia, "daemon", Dict{String, Any}())
+    daemon_url = get(daemon, "url", "")
+    return (; packages, apps, registries, daemon_url)
 end
 
 function parse_app_spec(spec)
@@ -111,6 +113,48 @@ function install_registries(registries)
     return nothing
 end
 
+function juliaclient_working()
+    Sys.which("juliaclient") === nothing && return false
+    try
+        return success(pipeline(`juliaclient --status`, stdout = devnull, stderr = devnull))
+    catch
+        return false
+    end
+end
+
+function install_daemoniccabal(url)
+    if isempty(url)
+        @info "No [julia.daemon] url configured; skipping juliaclient setup"
+        return nothing
+    end
+    if juliaclient_working()
+        @info "juliaclient already working; skipping (re-run DaemonicCabal.install() after juliaup updates)"
+        return nothing
+    end
+    try
+        Pkg.add(; url)
+        @info "Added DaemonicCabal from $url"
+    catch e
+        @warn "Error adding DaemonicCabal; skipping juliaclient setup" exception = (e, catch_backtrace())
+        return nothing
+    end
+    try
+        @eval using DaemonicCabal
+        Base.invokelatest(DaemonicCabal.install)
+        @info "juliaclient installed and julia-daemon service enabled"
+    catch e
+        @warn "DaemonicCabal.install() failed" exception = (e, catch_backtrace())
+        @warn "If this is a headless host, the user manager may need lingering: loginctl enable-linger \$USER, then re-run DaemonicCabal.install()"
+        try
+            Base.invokelatest(DaemonicCabal.install_client_symlink)
+            @info "juliaclient symlink ensured despite service failure"
+        catch e2
+            @warn "Could not ensure juliaclient symlink" exception = (e2, catch_backtrace())
+        end
+    end
+    return nothing
+end
+
 Pkg.activate()
 toml_path = resolve_packages_toml()
 @info "Loading Julia install lists from $toml_path"
@@ -119,6 +163,7 @@ lists = load_julia_lists(toml_path)
 install_packages(lists.packages)
 install_apps(lists.apps)
 install_registries(lists.registries)
+install_daemoniccabal(lists.daemon_url)
 
 # Force hard exit to avoid segfault during Julia cleanup (Julia 1.12 + JETLS issue)
 ccall(:jl_exit, Cvoid, (Int32,), 0)

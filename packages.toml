@@ -154,6 +154,11 @@ install = ["Runic", "https://github.com/aviatesk/JETLS.jl#release"]
 [julia.registries]
 install = ["https://github.com/KristianHolme/KristianHolmeRegistry"]
 
+[julia.daemon]
+# DaemonicCabal.jl (juliaclient CLI + julia-daemon service) is not in a registry;
+# bin/julia-setup.jl adds it from this git URL and runs DaemonicCabal.install().
+url = "https://github.com/tecosaur/DaemonicCabal.jl.git"
+
 [zotero.plugins.better-bibtex]
 display_name = "Better BibTeX"
 github_repo = "retorquere/zotero-better-bibtex"

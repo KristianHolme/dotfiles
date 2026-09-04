@@ -1,11 +1,12 @@
 # performance-exploration
 
-Use julia-mcp to explore alternative implementations.
+Use juliaclient (see the juliaclient skill) to explore alternative implementations.
 Benchmark code against current implementation, using BenchmarkTools (available in base env).
 
 ## Suggested workflow
 
 - Make scripts with implementations in `_research/performance` if the folder exists (may ask user to create it if not present)
-- in the persistent julia-mcp session: load the files with `includet` to have revise keep the functions updated as they are modified.
-- Run benchmarks using code evaluation, using the functions in the script.
-
+- Run them with `juliaclient` so every run is warm — no Julia startup cost per benchmark.
+- For iterative work, use one session (`juliaclient --session=perf-<topic>`) and `include` the files there; with `--revise`, `includet` keeps the functions updated as the files are edited.
+- Restart only your own session when state goes stale (see juliaclient skill). Never `juliaclient --restart` — it resets every session in the project.
+- Run benchmarks with `juliaclient -e`/`-E` against the functions in the script.
