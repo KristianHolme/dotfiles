@@ -675,13 +675,16 @@ ensure_uv() {
     return 0
 }
 
-# True when a uv.replica command is present and works (recycle-bin checks trash-list --version).
-uv_replica_cmd_available() {
+# True when a uv-tool CLI is present and works (recycle-bin checks trash-list --version).
+uv_tool_cmd_available() {
     local cmd="$1"
     command -v "$cmd" >/dev/null 2>&1 || return 1
     case "$cmd" in
     trash-list | trash-put | trash-empty | trash-restore | trash-rm)
         "$cmd" --version >/dev/null 2>&1
+        ;;
+    zotero-cli | zotero-mcp | zotero-mcp-server)
+        "$cmd" --help >/dev/null 2>&1
         ;;
     *)
         return 0
@@ -689,14 +692,12 @@ uv_replica_cmd_available() {
     esac
 }
 
-# Install Python CLI tools from packages.toml [uv.replica].install (package or package:command).
-setup_uv_replica_tools() {
-    local -a entries=()
-
-    mapfile -t entries < <(uv_replica_install_list) || return 1
+# Install Python CLI tools via uv tool (entries: package or package[extras]:command).
+setup_uv_tools() {
+    local -a entries=("$@")
 
     if [[ ${#entries[@]} -eq 0 ]]; then
-        log_info "No uv tools listed in $(packages_toml_path); skipping"
+        log_info "No uv tools listed; skipping"
         return 0
     fi
 
@@ -708,7 +709,7 @@ setup_uv_replica_tools() {
     local tool_bin_dir="${INSTALL_DIR:-$HOME/.local/bin}"
     export UV_TOOL_BIN_DIR="$tool_bin_dir"
 
-    local entry pkg cmd
+    local entry pkg cmd pkg_base
     for entry in "${entries[@]}"; do
         if [[ "$entry" == *:* ]]; then
             pkg="${entry%%:*}"
@@ -717,22 +718,24 @@ setup_uv_replica_tools() {
             pkg="$entry"
             cmd="$entry"
         fi
+        # uv tool list / upgrade match the distribution name without extras.
+        pkg_base="${pkg%%\[*}"
 
         marcos_bin_prepend_path
         if [[ -n "${DOTFILES_INSTALL_ROOT:-}" ]]; then
-            if [[ -x "$tool_bin_dir/$cmd" ]] && uv_replica_cmd_available "$cmd"; then
-                if dotfiles_setup_upgrade_enabled && uv tool list 2>/dev/null | grep -qE "^${pkg}( |$)"; then
-                    log_info "Checking $pkg for uv tool updates"
-                    uv tool upgrade "$pkg" || log_warning "uv tool upgrade $pkg failed; continuing"
+            if [[ -x "$tool_bin_dir/$cmd" ]] && uv_tool_cmd_available "$cmd"; then
+                if dotfiles_setup_upgrade_enabled && uv tool list 2>/dev/null | grep -qE "^${pkg_base}( |$)"; then
+                    log_info "Checking $pkg_base for uv tool updates"
+                    uv tool upgrade "$pkg_base" || log_warning "uv tool upgrade $pkg_base failed; continuing"
                 else
                     log_info "$cmd already at $tool_bin_dir; skipping uv tool install $pkg"
                 fi
                 continue
             fi
-        elif uv_replica_cmd_available "$cmd"; then
-            if dotfiles_setup_upgrade_enabled && uv tool list 2>/dev/null | grep -qE "^${pkg}( |$)"; then
-                log_info "Checking $pkg for uv tool updates"
-                uv tool upgrade "$pkg" || log_warning "uv tool upgrade $pkg failed; continuing"
+        elif uv_tool_cmd_available "$cmd"; then
+            if dotfiles_setup_upgrade_enabled && uv tool list 2>/dev/null | grep -qE "^${pkg_base}( |$)"; then
+                log_info "Checking $pkg_base for uv tool updates"
+                uv tool upgrade "$pkg_base" || log_warning "uv tool upgrade $pkg_base failed; continuing"
             else
                 log_info "$cmd already on PATH; skipping uv tool install $pkg"
             fi
@@ -742,7 +745,7 @@ setup_uv_replica_tools() {
         log_info "Installing $pkg via uv tool (binary: $cmd)..."
         if uv tool install "$pkg"; then
             marcos_bin_prepend_path
-            if uv_replica_cmd_available "$cmd"; then
+            if uv_tool_cmd_available "$cmd"; then
                 log_success "Installed $cmd -> $(command -v "$cmd")"
             else
                 log_warning "$cmd not working on PATH after uv tool install $pkg"
@@ -751,6 +754,116 @@ setup_uv_replica_tools() {
             log_warning "uv tool install $pkg failed (non-critical)"
         fi
     done
+}
+
+# Install Python CLI tools from packages.toml [uv.replica].install.
+setup_uv_replica_tools() {
+    local -a entries=()
+    mapfile -t entries < <(uv_replica_install_list) || return 1
+    setup_uv_tools "${entries[@]}"
+}
+
+# Install Python CLI tools from packages.toml [uv].install (desktop).
+setup_uv_desktop_tools() {
+    local -a entries=()
+    mapfile -t entries < <(uv_install_list) || return 1
+    setup_uv_tools "${entries[@]}"
+}
+
+# Load Zotero Web API credentials from the environment or a local env file.
+# File (optional, not in git): ~/.config/zotero-mcp/credentials.env
+#   ZOTERO_API_KEY=...
+#   ZOTERO_LIBRARY_ID=...
+#   ZOTERO_LIBRARY_TYPE=user   # optional; default user
+load_zotero_web_credentials() {
+    local cred_file="${ZOTERO_CREDENTIALS_FILE:-$HOME/.config/zotero-mcp/credentials.env}"
+
+    if [[ -f "$cred_file" ]]; then
+        log_info "Loading Zotero Web API credentials from $cred_file"
+        set -a
+        # shellcheck disable=SC1090
+        source "$cred_file"
+        set +a
+    fi
+
+    if [[ -z "${ZOTERO_API_KEY:-}" || -z "${ZOTERO_LIBRARY_ID:-}" ]]; then
+        log_warning "Zotero Web API credentials missing (need ZOTERO_API_KEY and ZOTERO_LIBRARY_ID)."
+        log_warning "Export them, or create $cred_file (see load_zotero_web_credentials in lib-install.sh)."
+        return 1
+    fi
+
+    export ZOTERO_API_KEY ZOTERO_LIBRARY_ID
+    export ZOTERO_LIBRARY_TYPE="${ZOTERO_LIBRARY_TYPE:-user}"
+    return 0
+}
+
+# Configure zotero-mcp / zotero-cli. mode: local (desktop Zotero API) or web (API key).
+configure_zotero_mcp() {
+    local mode="${1:-local}"
+
+    if ! command -v zotero-mcp >/dev/null 2>&1; then
+        log_warning "zotero-mcp not on PATH; skip configure"
+        return 0
+    fi
+
+    case "$mode" in
+    local)
+        log_info "Configuring zotero-mcp for local Zotero API..."
+        if zotero-mcp setup --no-claude --skip-semantic-search; then
+            log_success "zotero-mcp configured (local API)"
+        else
+            log_warning "zotero-mcp local setup failed; continuing"
+            return 1
+        fi
+        ;;
+    web)
+        if ! load_zotero_web_credentials; then
+            return 1
+        fi
+        log_info "Configuring zotero-mcp for Web API (library ${ZOTERO_LIBRARY_ID}, type ${ZOTERO_LIBRARY_TYPE})..."
+        if zotero-mcp setup \
+            --no-local \
+            --api-key "$ZOTERO_API_KEY" \
+            --library-id "$ZOTERO_LIBRARY_ID" \
+            --library-type "$ZOTERO_LIBRARY_TYPE" \
+            --no-claude \
+            --skip-semantic-search; then
+            log_success "zotero-mcp configured (Web API)"
+        else
+            log_warning "zotero-mcp web setup failed; continuing"
+            return 1
+        fi
+        ;;
+    *)
+        log_error "configure_zotero_mcp: unknown mode '$mode' (want local|web)"
+        return 1
+        ;;
+    esac
+
+    if command -v zotero-cli >/dev/null 2>&1; then
+        zotero-cli config >/dev/null 2>&1 || log_warning "zotero-cli config check failed (is Zotero reachable?)"
+    fi
+    return 0
+}
+
+# Desktop: install zotero-cli via uv and configure local API. Replica: web API.
+setup_zotero_mcp_cli() {
+    local mode="${1:-local}"
+
+    case "$mode" in
+    local)
+        setup_uv_desktop_tools || log_warning "uv desktop tools install failed; continuing"
+        configure_zotero_mcp local || true
+        ;;
+    web)
+        # Package is also listed under [uv.replica]; configure after uv install step.
+        configure_zotero_mcp web || true
+        ;;
+    *)
+        log_error "setup_zotero_mcp_cli: unknown mode '$mode'"
+        return 1
+        ;;
+    esac
 }
 
 # Install yazi and ya from the official GitHub release zip (bin only installs one binary).

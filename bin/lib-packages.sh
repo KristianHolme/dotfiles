@@ -23,6 +23,9 @@
 #   [cargo]
 #   install = ["crate", "crate:command", ...]
 #
+#   [uv]
+#   install = ["package", "package[extras]:command", ...]  # desktop uv tool CLIs
+#
 #   [uv.replica]
 #   install = ["package", "package:command", ...]
 #
@@ -137,6 +140,10 @@ webapps_remove_list() {
 
 cargo_install_list() {
     _packages_json | jq -r '.cargo.install[]?'
+}
+
+uv_install_list() {
+    _packages_json | jq -r '.uv.install[]?'
 }
 
 uv_replica_install_list() {

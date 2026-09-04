@@ -252,6 +252,7 @@ SETUP_STEPS=(
     'Setup marcosnils/bin:step_setup_marcosnils_bin'
     'Setup Television:step_setup_television'
     'Zotero setup:step_setup_zotero'
+    'Setup zotero-cli:step_setup_zotero_cli'
     'LaTeX templates:step_latex_templates'
     'Setup tmux TPM:step_setup_tmux_tpm'
     'Setup Tailscale:step_setup_tailscale'
@@ -354,6 +355,10 @@ step_setup_zotero() {
         log_info "Setting up Zotero extensions..."
         "$HOME/dotfiles/bin/dotfiles-setup-zotero.sh" || log_info "Zotero setup failed (non-critical)"
     fi
+}
+
+step_setup_zotero_cli() {
+    setup_zotero_mcp_cli local || log_warning "zotero-cli setup failed; continuing"
 }
 
 step_latex_templates() {

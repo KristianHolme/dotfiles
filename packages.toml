@@ -62,9 +62,16 @@ remove = ["HEY", "Basecamp", "WhatsApp", "Google Photos", "ChatGPT", "Figma"]
 # Use "crate:command" when the binary name differs from the crate name.
 install = ["mdv", "tree-sitter-cli:tree-sitter"]
 
+[uv]
+# Desktop Python CLI tools (uv tool install). package or package[extras]:command.
+install = ["zotero-mcp-server[semantic]:zotero-cli"]
+
 [uv.replica]
 # package:command — CLI checked before uv tool install on replica servers.
-install = ["trash-cli:trash-list"]
+install = [
+    "trash-cli:trash-list",
+    "zotero-mcp-server[semantic]:zotero-cli",
+]
 
 [bin.replica]
 # spec:command — CLI checked before marcosnils/bin install on replica servers.

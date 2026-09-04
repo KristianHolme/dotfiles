@@ -13,7 +13,9 @@ set -Eeuo pipefail
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); LazyVim starter, tpm, omarchy clone.
-# - uv tool install for Python CLIs (packages.toml [uv.replica], e.g. trash-cli/trash-list).
+# - uv tool install for Python CLIs (packages.toml [uv.replica], e.g. trash-cli/trash-list,
+#   zotero-mcp-server → zotero-cli). Replica configures zotero-cli for the Zotero Web API
+#   using ZOTERO_API_KEY + ZOTERO_LIBRARY_ID (env or ~/.config/zotero-mcp/credentials.env).
 # - yazi + ya from GitHub release zip; cargo crates from packages.toml; ya pkg plugins.
 #
 # PATH skip: distro or other installs satisfy the checker (e.g. bat but not Debian's batcat-only name).
@@ -325,6 +327,10 @@ scopes) or run gh auth login so the token is exported for bin and curl API calls
 After juliaup, if gum is available, asks via gum confirm whether to install Cursor CLI.
 Installs cargo crates and Yazi plugins (ya pkg) after bin tools.
 
+zotero-cli (via uv): configured for Zotero Web API. Set ZOTERO_API_KEY and
+ZOTERO_LIBRARY_ID (optional ZOTERO_LIBRARY_TYPE=user|group), or put them in
+~/.config/zotero-mcp/credentials.env before running.
+
 See header comments for INSTALL_DIR, OMARCHY_DIR, OMARCHY_REPO_URL, etc.
 EOF
             exit 0
@@ -425,6 +431,7 @@ EOF
         marcos_bin_update_managed
     fi
     setup_uv_replica_tools || log_warning "uv tool setup failed; continuing"
+    setup_zotero_mcp_cli web || log_warning "zotero-cli web configure failed; continuing"
     install_yazi_from_release || log_warning "yazi release install failed; continuing"
     setup_cargo_crates || log_warning "cargo crate setup failed; continuing"
     setup_yazi_plugins || log_warning "Yazi plugin setup failed; continuing"

@@ -31,6 +31,7 @@ Use Makie (not a specific backend) for all plotting. Assume all features are ava
 ## Dashboards and Structure
 - Keep dashboard state in a small set of observables (or a struct holding them).
 - Split UI and plot construction into functions that accept `GridPosition` or `Axis`.
+- On Makie 0.25+, use a `Subfigure`'s scene theme to isolate independently themed dashboard regions.
 - For larger dashboards, consider using `Makie.SpecApi` to build declarative layouts.
 
 ## Performance Notes
