@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-theme="${HOME}/.config/omarchy/current/theme/tmux.conf"
+theme="${HOME}/.local/state/omarchy/current/theme/tmux.conf"
 
 [[ -f "$theme" ]] || exit 0
 

@@ -76,7 +76,7 @@ resolve_local_theme() {
 			return 0
 		fi
 	fi
-	path="${HOME}/.config/omarchy/current/theme.name"
+	path="${HOME}/.local/state/omarchy/current/theme.name"
 	if [[ -f "$path" ]]; then
 		sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g' <"$path"
 		return 0

@@ -1119,7 +1119,7 @@ setup_omarchy_plugins() {
 # Point btop at the Omarchy-generated theme (desktop install does this; replicas need it too).
 # Safe to call repeatedly after omarchy theme set / refresh.
 ensure_btop_omarchy_theme() {
-    local theme_src="${HOME}/.config/omarchy/current/theme/btop.theme"
+    local theme_src="${HOME}/.local/state/omarchy/current/theme/btop.theme"
     local themes_dir="${HOME}/.config/btop/themes"
     local link="${themes_dir}/current.theme"
     local conf="${HOME}/.config/btop/btop.conf"
