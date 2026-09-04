@@ -1,0 +1,18 @@
+{
+  "lastChangelogVersion": "0.84.4",
+  "defaultProvider": "opencode",
+  "defaultModel": "deepseek-v4-pro",
+  "packages": ["npm:pi-mcp-adapter"],
+  "defaultThinkingLevel": "high",
+  "enabledModels": [
+    "cerebras/zai-glm-4.7",
+    "cerebras/gpt-oss-120b",
+    "cerebras/gemma-4-31b",
+    "opencode/deepseek-v4-pro",
+    "opencode/glm-5.2",
+    "opencode/kimi-k2.7-code",
+    "opencode/gpt-5.6-sol",
+    "opencode/grok-4.5"
+  ],
+  "theme": "omarchy-system"
+}

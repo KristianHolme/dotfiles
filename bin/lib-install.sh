@@ -196,9 +196,38 @@ esac
 EOF
 }
 
+# rustup-init inserts an unguarded `. "$HOME/.cargo/env"`. After deleting
+# ~/.cargo that line errors on every shell. Comment it; CARGO_HOME/env is
+# sourced from dot-bashrc when the file exists.
+sanitize_stale_cargo_env_sources() {
+    local file tmp line
+    for file in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.bash_login"; do
+        [[ -f "$file" ]] || continue
+        grep -q '\.cargo/env' "$file" 2>/dev/null || continue
+        tmp="$(mktemp)"
+        local changed=0
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ "$line" =~ ^[[:space:]]*(\.|source)[[:space:]]+.*\.cargo/env ]] &&
+                [[ "$line" != *'[['* ]]; then
+                printf '# removed by dotfiles (missing ~/.cargo/env): %s\n' "$line"
+                changed=1
+            else
+                printf '%s\n' "$line"
+            fi
+        done <"$file" >"$tmp"
+        if [[ "$changed" -eq 1 ]]; then
+            mv "$tmp" "$file"
+            log_info "Commented stale cargo/env source in $file"
+        else
+            rm -f "$tmp"
+        fi
+    done
+}
+
 # Ensure login shells (SSH, etc.) load ~/.bashrc — required on many RHEL/university images.
 # Also prepends user-local bin to PATH in the profile (yazi/plugins need this even when bashrc returns early).
 ensure_bash_profile_user_path() {
+    sanitize_stale_cargo_env_sources
     local profile_path="${1:-$HOME/.bash_profile}"
     local path_line='export PATH="$HOME/.local/bin:$HOME/dotfiles/bin:$PATH"'
 
@@ -448,16 +477,17 @@ rustup_home_dir() {
 # Minimal profile skips rust-docs (hundreds of MiB unpacked). Clean tmp before/after
 # so a failed NFS rename does not leave the home quota full.
 upgrade_rustup_toolchain() {
-    local rh=""
+    local rh="" ru=""
     rh=$(rustup_home_dir)
-    if ! command -v rustup >/dev/null 2>&1; then
+    ru="${CARGO_HOME:-$HOME/.cargo}/bin/rustup"
+    if [[ ! -x "$ru" ]]; then
         return 0
     fi
     log_info "Checking rustup/toolchain for updates (minimal profile, no rust-docs)"
-    rustup set profile minimal >/dev/null 2>&1 || true
+    "$ru" set profile minimal >/dev/null 2>&1 || true
     rm -rf "$rh/tmp"
-    rustup self update || log_warning "rustup self update failed; continuing"
-    if ! rustup update; then
+    "$ru" self update || log_warning "rustup self update failed; continuing"
+    if ! "$ru" update; then
         log_warning "rustup toolchain update failed; continuing"
         rm -rf "$rh/tmp"
         return 0
@@ -467,23 +497,25 @@ upgrade_rustup_toolchain() {
 
 ensure_cargo() {
     cargo_prepend_path
-    if command -v cargo >/dev/null 2>&1; then
-        if dotfiles_setup_upgrade_enabled && command -v rustup >/dev/null 2>&1; then
+    local cargo_bin="${CARGO_HOME:-$HOME/.cargo}/bin/cargo"
+    local rustup_bin="${CARGO_HOME:-$HOME/.cargo}/bin/rustup"
+    if [[ -x "$cargo_bin" ]]; then
+        if dotfiles_setup_upgrade_enabled && [[ -x "$rustup_bin" ]]; then
             upgrade_rustup_toolchain
         fi
         return 0
     fi
 
     ensure_cmd curl
-    log_info "Installing Rust toolchain via rustup (minimal profile, no rust-docs)..."
-    if ! curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal; then
+    log_info "Installing Rust toolchain via rustup (minimal profile, no rust-docs) -> ${CARGO_HOME:-$HOME/.cargo}"
+    if ! curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --no-modify-path; then
         log_error "rustup installation failed"
         return 1
     fi
 
     cargo_prepend_path
-    if ! command -v cargo >/dev/null 2>&1; then
-        log_error "cargo not on PATH after rustup install"
+    if [[ ! -x "$cargo_bin" ]]; then
+        log_error "cargo not found at $cargo_bin after rustup install"
         return 1
     fi
 
@@ -589,7 +621,7 @@ setup_cargo_crates() {
             cargo_install_crate "$crate" "$cmd" 1
             continue
         fi
-        if command -v "$cmd" >/dev/null 2>&1; then
+        if [[ -z "${DOTFILES_INSTALL_ROOT:-}" ]] && command -v "$cmd" >/dev/null 2>&1; then
             log_info "$cmd already on PATH; skipping cargo install $crate"
             continue
         fi
@@ -600,7 +632,15 @@ setup_cargo_crates() {
 
 # Bootstrap uv via the official standalone installer (replica servers, no sudo).
 ensure_uv() {
-    if command -v uv >/dev/null 2>&1; then
+    local uv_bin="${UV_INSTALL_DIR:-${INSTALL_DIR:-$HOME/.local/bin}}/uv"
+    if [[ -x "$uv_bin" ]]; then
+        if dotfiles_setup_upgrade_enabled; then
+            log_info "Checking uv for updates"
+            "$uv_bin" self update || log_warning "uv self update failed; continuing"
+        fi
+        return 0
+    fi
+    if [[ -z "${DOTFILES_INSTALL_ROOT:-}" ]] && command -v uv >/dev/null 2>&1; then
         if dotfiles_setup_upgrade_enabled; then
             log_info "Checking uv for updates"
             uv self update || log_warning "uv self update failed; continuing"
@@ -669,7 +709,17 @@ setup_uv_replica_tools() {
         fi
 
         marcos_bin_prepend_path
-        if uv_replica_cmd_available "$cmd"; then
+        if [[ -n "${DOTFILES_INSTALL_ROOT:-}" ]]; then
+            if [[ -x "$tool_bin_dir/$cmd" ]] && uv_replica_cmd_available "$cmd"; then
+                if dotfiles_setup_upgrade_enabled && uv tool list 2>/dev/null | grep -qE "^${pkg}( |$)"; then
+                    log_info "Checking $pkg for uv tool updates"
+                    uv tool upgrade "$pkg" || log_warning "uv tool upgrade $pkg failed; continuing"
+                else
+                    log_info "$cmd already at $tool_bin_dir; skipping uv tool install $pkg"
+                fi
+                continue
+            fi
+        elif uv_replica_cmd_available "$cmd"; then
             if dotfiles_setup_upgrade_enabled && uv tool list 2>/dev/null | grep -qE "^${pkg}( |$)"; then
                 log_info "Checking $pkg for uv tool updates"
                 uv tool upgrade "$pkg" || log_warning "uv tool upgrade $pkg failed; continuing"
@@ -738,8 +788,13 @@ install_yazi_from_release() {
     local need_install=0 asset_re="" asset_url="" tmp="" extract_dir="" latest_ver="" cur_ver="" cmd=""
 
     marcos_bin_prepend_path
-    yazi_cmd_works yazi || need_install=1
-    yazi_cmd_works ya || need_install=1
+    if [[ -n "${DOTFILES_INSTALL_ROOT:-}" ]]; then
+        [[ -x "$install_base/yazi" ]] && yazi_cmd_works "$install_base/yazi" || need_install=1
+        [[ -x "$install_base/ya" ]] && yazi_cmd_works "$install_base/ya" || need_install=1
+    else
+        yazi_cmd_works yazi || need_install=1
+        yazi_cmd_works ya || need_install=1
+    fi
 
     ensure_cmd curl unzip install
 
@@ -759,7 +814,11 @@ install_yazi_from_release() {
     latest_ver=$(first_version_from_output <<<"$asset_url" || true)
     if [[ "$need_install" -eq 0 && -n "$latest_ver" ]]; then
         for cmd in yazi ya; do
-            cur_ver=$("$cmd" --version 2>/dev/null | first_version_from_output || true)
+            if [[ -n "${DOTFILES_INSTALL_ROOT:-}" ]]; then
+                cur_ver=$("$install_base/$cmd" --version 2>/dev/null | first_version_from_output || true)
+            else
+                cur_ver=$("$cmd" --version 2>/dev/null | first_version_from_output || true)
+            fi
             if [[ -z "$cur_ver" ]] || ! ver_ge "$cur_ver" "$latest_ver"; then
                 log_info "$cmd ${cur_ver:-unknown} older than latest release $latest_ver; upgrading"
                 need_install=1
@@ -840,7 +899,11 @@ setup_yazi_plugins() {
 
     if [[ ${#to_upgrade[@]} -gt 0 ]]; then
         log_info "Upgrading Yazi plugins: ${to_upgrade[*]}"
-        ya pkg upgrade "${to_upgrade[@]}" || log_warning "Some Yazi plugin upgrades failed (non-critical)"
+        local -a ya_upgrade=(ya pkg upgrade)
+        if dotfiles_setup_upgrade_enabled; then
+            ya_upgrade+=(--discard)
+        fi
+        "${ya_upgrade[@]}" "${to_upgrade[@]}" || log_warning "Some Yazi plugin upgrades failed (non-critical)"
     fi
 }
 
@@ -1236,9 +1299,20 @@ marcos_bin_install_if_missing() {
     bin install "$spec" || return 1
 }
 
-# Skip bin install when the expected CLI is already on PATH (e.g. distro package).
+# With install_root, only skip when the CLI already lives in INSTALL_DIR.
+# Otherwise PATH skip still honors distro/other installs (e.g. bat vs batcat).
 marcos_bin_install_if_missing_and_cmd_absent() {
     local spec="$1" cmd="$2"
+    local dest="${INSTALL_DIR:-$HOME/.local/bin}/$cmd"
+    if [[ -n "${DOTFILES_INSTALL_ROOT:-}" ]]; then
+        if [[ -x "$dest" ]]; then
+            log_info "$cmd already at $dest; skipping bin install ($spec)"
+            return 0
+        fi
+        log_info "Installing $cmd into install_root ($dest)"
+        marcos_bin_reinstall_with_libc_glob "$dest" "$spec" || return 1
+        return 0
+    fi
     if command -v "$cmd" >/dev/null 2>&1; then
         log_info "$cmd already on PATH; skipping bin install ($spec)"
         return 0
@@ -1251,6 +1325,10 @@ marcos_bin_install_or_update_github() {
     local spec="$1"
     local binary_name="$2"
     local install_path="${INSTALL_DIR:-$HOME/.local/bin}/$binary_name"
+    if [[ -n "${DOTFILES_INSTALL_ROOT:-}" ]]; then
+        marcos_bin_install_if_missing_and_cmd_absent "$spec" "$binary_name"
+        return
+    fi
     local -a update_flags=(-p)
     export_github_token_from_gh_if_needed
     if [[ "${DOTFILES_SETUP_UNATTENDED:-0}" == "1" ]] || dotfiles_setup_upgrade_enabled; then
@@ -1279,25 +1357,78 @@ marcos_bin_prefer_musl() {
     return 1
 }
 
-# Re-install one managed binary, preferring musl/gnu so gnu vs musl ties are not interactive.
+# Name globs for unattended bin install (gnu/musl ties, git-lfs archive members).
+marcos_bin_asset_globs() {
+    if marcos_bin_prefer_musl; then
+        echo '*musl*'
+        echo '*gnu*'
+    else
+        echo '*gnu*'
+        echo '*musl*'
+    fi
+    case "$(uname -m)" in
+    aarch64 | arm64)
+        echo '*linux*arm64*'
+        echo '*Linux*aarch64*'
+        ;;
+    *)
+        echo '*linux*amd64*'
+        echo '*Linux*x86_64*'
+        echo '*linux-x86_64*'
+        ;;
+    esac
+    echo '*linux*'
+    echo '*/git-lfs'
+}
+
+# Re-install one managed binary with name globs so gnu/musl and archive picks are non-interactive.
 marcos_bin_reinstall_with_libc_glob() {
     local path="$1" url="$2"
-    local -a globs=()
-    if marcos_bin_prefer_musl; then
-        globs=('*musl*' '*gnu*' '*linux*')
-    else
-        globs=('*gnu*' '*musl*' '*linux*')
-    fi
     local g
-    for g in "${globs[@]}"; do
+    export_github_token_from_gh_if_needed
+    while IFS= read -r g; do
+        [[ -n "$g" ]] || continue
         if bin install -f -n "$g" "$url" "$path" </dev/null; then
             return 0
         fi
-    done
-    bin install -f "$url" "$path" </dev/null
+    done < <(marcos_bin_asset_globs)
+    log_warning "No non-interactive asset match for $url -> $path"
+    return 1
 }
 
-# After a bulk update, install any binaries still behind latest using a libc glob.
+# Move bin-managed binaries that still live under $HOME into INSTALL_DIR.
+marcos_bin_relocate_managed_to_install_dir() {
+    local conf="" path="" url="" dest="" name="" install_base="${INSTALL_DIR:-$HOME/.local/bin}"
+    [[ -n "${DOTFILES_INSTALL_ROOT:-}" ]] || return 0
+    conf=$(marcos_bin_config_path)
+    [[ -f "$conf" ]] || return 0
+    command -v jq >/dev/null 2>&1 || return 0
+    mkdir -p "$install_base"
+
+    while IFS= read -r path; do
+        [[ -n "$path" ]] || continue
+        case "$path" in
+        "$install_base"/*) continue ;;
+        esac
+        url=$(jq -r --arg p "$path" '.bins[$p].url // empty' "$conf")
+        [[ -n "$url" ]] || continue
+        name="$(basename "$path")"
+        dest="$install_base/$name"
+        if [[ -x "$dest" ]]; then
+            log_info "$name already at $dest; removing old $path"
+            bin remove "$path" </dev/null 2>/dev/null || rm -f "$path"
+            continue
+        fi
+        log_info "Relocating $name from $path -> $dest"
+        if ! marcos_bin_reinstall_with_libc_glob "$dest" "$url"; then
+            log_warning "Could not relocate $path; leaving in place"
+            continue
+        fi
+        bin remove "$path" </dev/null 2>/dev/null || rm -f "$path"
+    done < <(jq -r '.bins | keys[]?' "$conf")
+}
+
+# After relocate, update any remaining outdated binaries without the interactive picker.
 marcos_bin_update_remaining_with_asset_glob() {
     local conf="" path="" url=""
     conf=$(marcos_bin_config_path)
@@ -1311,16 +1442,13 @@ marcos_bin_update_remaining_with_asset_glob() {
         if bin update --dry-run "$path" </dev/null >/dev/null 2>&1; then
             continue
         fi
-        log_info "Retrying bin update with libc asset glob: $path"
+        log_info "Updating $path with libc asset glob"
         marcos_bin_reinstall_with_libc_glob "$path" "$url" ||
             log_warning "bin install retry failed: $path"
     done < <(jq -r '.bins | keys[]?' "$conf")
 }
 
 # Check every bin-managed binary for a newer release and update when one exists.
-# -y: no confirm prompts; -c: keep going if one tool fails;
-# -p: skip stored archive inner paths (they embed the old version);
-# stdin closed: accept the previous-asset default instead of hanging on gnu/musl ties.
 marcos_bin_update_managed() {
     if ! command -v bin >/dev/null 2>&1; then
         log_warning "bin not on PATH; skipping updates"
@@ -1328,7 +1456,7 @@ marcos_bin_update_managed() {
     fi
     export_github_token_from_gh_if_needed
     log_info "Checking bin-managed tools for updates"
-    bin update -y -c -p </dev/null || log_warning "bin update reported errors; retrying remaining"
+    marcos_bin_relocate_managed_to_install_dir || true
     marcos_bin_update_remaining_with_asset_glob || true
 }
 

@@ -192,13 +192,20 @@ install_stow() {
     stow_bin=$(command -v stow 2>/dev/null || true)
 
     if [[ -n "$stow_bin" ]]; then
-        if ! dotfiles_setup_upgrade_enabled; then
-            log_info "stow already installed; skipping"
-            return 0
-        fi
-        if [[ "$stow_bin" != "$prefix/bin/stow" && "$stow_bin" != "$INSTALL_DIR/stow" ]]; then
+        if [[ -x "$prefix/bin/stow" ]]; then
+            if ! dotfiles_setup_upgrade_enabled; then
+                log_info "stow already installed; skipping"
+                return 0
+            fi
+        elif [[ -z "${DOTFILES_INSTALL_ROOT:-}" ]]; then
+            if ! dotfiles_setup_upgrade_enabled; then
+                log_info "stow already installed; skipping"
+                return 0
+            fi
             log_info "stow on PATH is not the replica prefix install ($stow_bin); skipping rebuild"
             return 0
+        else
+            log_info "Installing stow into prefix $prefix (existing $stow_bin left in place)"
         fi
     fi
 
@@ -218,8 +225,8 @@ install_stow() {
     fi
 
     latest_ver=$(basename "$src" | first_version_from_output || true)
-    if [[ -n "$stow_bin" ]]; then
-        current_ver=$(stow --version 2>/dev/null | first_version_from_output || true)
+    if [[ -x "$prefix/bin/stow" ]]; then
+        current_ver=$("$prefix/bin/stow" --version 2>/dev/null | first_version_from_output || true)
         if [[ -n "$current_ver" && -n "$latest_ver" ]] && ver_ge "$current_ver" "$latest_ver"; then
             log_info "stow already up to date ($current_ver)"
             return 0
@@ -236,7 +243,7 @@ install_stow() {
         make -s install 2>&1 | grep -v "WARNING.*missing modules" || true
     )
 
-    if command -v stow >/dev/null 2>&1; then
+    if [[ -x "$prefix/bin/stow" ]]; then
         log_success "Installed stow -> $prefix/bin/stow"
     else
         log_error "Failed to install stow"
@@ -260,7 +267,7 @@ replica_install_tools_with_bin() {
         spec="${pair%%:*}"
         cmd="${pair##*:}"
         # Prefer mikefarah go-yq; replace legacy Python yq or other unmanaged binaries.
-        if [[ "$cmd" == "yq" ]]; then
+        if [[ "$cmd" == "yq" && -z "${DOTFILES_INSTALL_ROOT:-}" ]]; then
             if go_yq_available; then
                 log_info "go-yq already on PATH; skipping bin install ($spec)"
                 continue
@@ -338,6 +345,8 @@ EOF
         log_info "Upgrade mode: will update installed tools when newer releases exist"
     fi
 
+    sanitize_stale_cargo_env_sources
+
     ensure_cmd curl tar unzip git install make perl jq
 
     if ! arch_is_supported; then
@@ -386,7 +395,7 @@ EOF
     for pair in "${prereqs[@]}"; do
         spec="${pair%%:*}"
         cmd="${pair##*:}"
-        log_info "Installing prerequisite via bin ($cmd): $spec (skipped if already on PATH)"
+        log_info "Installing prerequisite via bin ($cmd): $spec"
         if ! marcos_bin_install_if_missing_and_cmd_absent "$spec" "$cmd"; then
             log_error "bin install $spec failed; cannot continue"
             exit 1

@@ -107,7 +107,7 @@ if [[ "${TERM:-}" != "dumb" ]] && command -v starship &>/dev/null; then
     eval "$(starship init bash)"
 fi
 
-[[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
+[[ -f "${CARGO_HOME:-$HOME/.cargo}/env" ]] && . "${CARGO_HOME:-$HOME/.cargo}/env"
 [[ -f ~/.config/uwsm/default ]] && source ~/.config/uwsm/default
 
 if command -v tv &>/dev/null; then
