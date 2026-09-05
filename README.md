@@ -47,18 +47,18 @@ connected displays. `dac` still accepts an optional profile overlay if you add
 a top-level package later.
 
 Pass GNU Stow flags after `--` (e.g. `dac -- -D` to unstow, then `dac` to
-re-apply). `dar -- -D` unstows replica `dot-config` / `dot-agents` only.
+re-apply). `dar -- -D` unstows replica `dot-config` / `dot-agents` / `dot-pi`.
 
 ### University servers (no sudo)
 
 ```bash
 # 1. Install user-local CLI tools (bootstraps marcosnils/bin, then bin install from
 #    packages.toml [bin.replica]; uv tool install from [uv.replica] (e.g. trash-cli);
-#    neovim AppImage is glibc-aware, stow built from source, juliaup, omarchy clone)
+#    neovim AppImage is glibc-aware, stow built from source, juliaup)
 dotfiles-setup-replica.sh             # alias: dsr
 
-# 2. Apply configs (gum menu: omarchy clone, julia config symlink,
-#    stow dot-config/dot-agents, bashrc sourcing). --all skips the menu.
+# 2. Apply configs (gum menu: julia config symlink, stow
+#    dot-config/dot-agents/dot-pi, bashrc sourcing). --all skips the menu.
 dotfiles-apply-replica.sh             # alias: dar
 ```
 
@@ -92,7 +92,7 @@ project-area path on the server.
 | Script | Purpose |
 | --- | --- |
 | `dotfiles-ssh-tmux.sh` (`dst`) | Pick a host with gum, SSH in, attach/create tmux session. Starts a background ControlMaster first for hosts configured with one (2FA hosts). Machines with `login_node` in `hosts.toml` hop to that node so tmux is not lost on VIP round-robin. Syncs the local Omarchy theme to that host in the background (log: `~/.cache/dotfiles/remote-theme-sync.log`). |
-| `dotfiles-theme-sync-remote.sh` | Push the current Omarchy theme to active SSH hosts (ControlMaster or live `ssh`). Installs `[omarchy.themes]` from `packages.toml` on the remote first. Full `omarchy theme set` if Hyprland is running; otherwise `OMARCHY_THEME_SKIP_BACKGROUND=1`. Also run from the `theme-set.d/remote-theme-sync` hook (background, log: `~/.cache/dotfiles/remote-theme-sync.log`). |
+| `dotfiles-theme-sync-remote.sh` | Rsync the locally staged Omarchy theme (`~/.local/state/omarchy/current/theme`) to active SSH hosts (ControlMaster only). Applies replica hooks: btop, tmux (status + pane OSC), terminals, gum env, pi, claude, helix, opencode. No Omarchy clone on the remote. Also run from the `theme-set.d/remote-theme-sync` hook (background, log: `~/.cache/dotfiles/remote-theme-sync.log`). |
 | `dotfiles-rsync-ssh.sh` (`drs`) | Pick host, browse folders, rsync selections. Pull (default): remote → `~/Code`. Push: `drs --push host`. Remote copy: `drs --remote source target path`. Examples: `drs fox DRL_Sphere`, `drs ml3`, `drs --push nam-shub-01`, `drs --remote fox ml3 DRL_Sphere/data`. |
 | `dotfiles-mounts.sh` | SSHFS mount manager (TUI and CLI). Plain user `sshfs` mounts of the filesystems in `hosts.toml`; sudo only to prepare `/mnt` mountpoints. `-l` lists status, `-e`/`-d` enable/disable. |
 | `dotfiles-server-monitor.sh` | tmux session with one `btop` window per selected host; group members preselected. |
@@ -135,5 +135,7 @@ project-area path on the server.
   `cargo install tree-sitter-cli --no-default-features`
 - Local tmux status colors still come from `themed/tmux.conf.tpl` + the
   `theme-set.d/tmux` hook. Quattro's `omarchy-theme-set-tmux` paints pane/window
-  colors; keep the workaround for the status bar. Remote fan-out remains
-  `dotfiles-theme-sync-remote.sh` and `hooks/theme-set.d/remote-theme-sync`.
+  colors; keep the workaround for the status bar. Remote fan-out rsyncs the
+  staged theme and reapplies terminal/tmux hooks via
+  `dotfiles-theme-sync-remote.sh` / `hooks/theme-set.d/remote-theme-sync`.
+  Replicas do not clone Omarchy.

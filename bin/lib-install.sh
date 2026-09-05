@@ -675,6 +675,24 @@ ensure_uv() {
     return 0
 }
 
+# uv tools need CPython >=3.10 (zotero-mcp-server). On RHEL/old replicas the
+# system python is often 3.9; install a uv-managed 3.12 (~50MB) and pin tools to it.
+# No-op when system python3 is already new enough. Override pin with UV_PYTHON_VERSION.
+ensure_uv_python() {
+    UV_TOOL_PYTHON_ARGS=()
+    local pin="${UV_PYTHON_VERSION:-3.12}"
+    if command -v python3 >/dev/null 2>&1 &&
+        python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+        return 0
+    fi
+    log_info "System Python is older than 3.10; installing uv-managed $pin"
+    if ! uv python install "$pin"; then
+        log_warning "uv python install $pin failed"
+        return 1
+    fi
+    UV_TOOL_PYTHON_ARGS=(--python "$pin")
+}
+
 # True when a uv-tool CLI is present and works (recycle-bin checks trash-list --version).
 uv_tool_cmd_available() {
     local cmd="$1"
@@ -705,6 +723,9 @@ setup_uv_tools() {
         log_warning "uv unavailable; cannot install tools"
         return 1
     fi
+    if ! ensure_uv_python; then
+        log_warning "uv-managed Python unavailable; tool installs may fail on old system Python"
+    fi
 
     local tool_bin_dir="${INSTALL_DIR:-$HOME/.local/bin}"
     export UV_TOOL_BIN_DIR="$tool_bin_dir"
@@ -726,7 +747,7 @@ setup_uv_tools() {
             if [[ -x "$tool_bin_dir/$cmd" ]] && uv_tool_cmd_available "$cmd"; then
                 if dotfiles_setup_upgrade_enabled && uv tool list 2>/dev/null | grep -qE "^${pkg_base}( |$)"; then
                     log_info "Checking $pkg_base for uv tool updates"
-                    uv tool upgrade "$pkg_base" || log_warning "uv tool upgrade $pkg_base failed; continuing"
+                    uv tool upgrade "${UV_TOOL_PYTHON_ARGS[@]}" "$pkg_base" || log_warning "uv tool upgrade $pkg_base failed; continuing"
                 else
                     log_info "$cmd already at $tool_bin_dir; skipping uv tool install $pkg"
                 fi
@@ -735,15 +756,15 @@ setup_uv_tools() {
         elif uv_tool_cmd_available "$cmd"; then
             if dotfiles_setup_upgrade_enabled && uv tool list 2>/dev/null | grep -qE "^${pkg_base}( |$)"; then
                 log_info "Checking $pkg_base for uv tool updates"
-                uv tool upgrade "$pkg_base" || log_warning "uv tool upgrade $pkg_base failed; continuing"
+                uv tool upgrade "${UV_TOOL_PYTHON_ARGS[@]}" "$pkg_base" || log_warning "uv tool upgrade $pkg_base failed; continuing"
             else
                 log_info "$cmd already on PATH; skipping uv tool install $pkg"
             fi
             continue
         fi
 
-        log_info "Installing $pkg via uv tool (binary: $cmd)..."
-        if uv tool install "$pkg"; then
+        log_info "Installing $pkg via uv tool (binary: $cmd)${UV_TOOL_PYTHON_ARGS:+ (${UV_TOOL_PYTHON_ARGS[*]})}..."
+        if uv tool install "${UV_TOOL_PYTHON_ARGS[@]}" "$pkg"; then
             marcos_bin_prepend_path
             if uv_tool_cmd_available "$cmd"; then
                 log_success "Installed $cmd -> $(command -v "$cmd")"

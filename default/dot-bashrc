@@ -6,13 +6,11 @@ export PATH="$HOME/.local/bin:$HOME/dotfiles/bin:$PATH"
 # If not running interactively, don't do anything (leave this near the top of this file)
 [[ $- != *i* ]] && return
 
-# Omarchy aliases/functions when present (optional on replica servers)
+# Omarchy bash rc when present (desktop). Replicas skip this silently.
 _omarchy_rc="$HOME/.local/share/omarchy/default/bash/rc"
 if [[ -f "$_omarchy_rc" ]]; then
     # shellcheck source=/dev/null
     source "$_omarchy_rc"
-else
-    echo "dot-bashrc: omarchy rc not found at $_omarchy_rc (run dotfiles-apply-replica omarchy step)" >&2
 fi
 unset _omarchy_rc
 

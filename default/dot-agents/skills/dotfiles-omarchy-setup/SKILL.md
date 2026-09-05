@@ -56,3 +56,4 @@ ALWAYS run `hyprctl configerrors` after changing hyprland configs, to check if t
 **Omarchy integration (dotfiles-only)**
 
 - If dotfiles reference omarchy paths or scripts, update those references in `~/dotfiles/` only.
+- Replicas do not clone Omarchy. Theme sync rsyncs the locally staged theme (`~/.local/state/omarchy/current/theme`) and applies terminal/tmux hooks via `dotfiles-theme-sync-remote.sh`.

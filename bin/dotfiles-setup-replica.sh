@@ -12,7 +12,7 @@ set -Eeuo pipefail
 #   also listed in packages.toml [bin.replica] for updates on re-runs.
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
-# - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); LazyVim starter, tpm, omarchy clone.
+# - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); LazyVim starter, tpm.
 # - uv tool install for Python CLIs (packages.toml [uv.replica], e.g. trash-cli/trash-list,
 #   zotero-mcp-server → zotero-cli). Replica configures zotero-cli for the Zotero Web API
 #   using ZOTERO_API_KEY + ZOTERO_LIBRARY_ID (env or ~/.config/zotero-mcp/credentials.env).
@@ -22,14 +22,12 @@ set -Eeuo pipefail
 #
 # Idempotent: safe to re-run. Pass --upgrade to check for updates and upgrade
 # bin-managed tools, uv, cargo crates, rustup, stow (prefix install), juliaup,
-# tpm, and Cursor CLI when already installed. Neovim, yazi, yazi plugins, and
-# omarchy already version-check on every run.
+# tpm, and Cursor CLI when already installed. Neovim, yazi, and yazi plugins
+# already version-check on every run.
 #
 # Config via env vars (override as needed):
 #   INSTALL_DIR - where to place binaries (default: ~/.local/bin, or
 #                 hosts.toml install_root/bin when set for this machine)
-#   OMARCHY_DIR         - omarchy clone dir (default: ~/.local/share/omarchy)
-#   OMARCHY_REPO_URL    - git URL for omarchy (default: empty; skip clone if unset)
 #   NVIM_OPT_DIR        - reserved / Neovim install base comment (default: ~/.local/opt/neovim)
 #   GITHUB_AUTH_TOKEN   - optional PAT (no scopes) for GitHub API; avoids rate limits for bin
 #   BIN_CONFIG          - optional path to bin's config.json (see marcosnils/bin)
@@ -49,8 +47,6 @@ else
 fi
 export DOTFILES_INSTALL_DIR_FROM_USER
 
-OMARCHY_DIR="${OMARCHY_DIR:-"$HOME/.local/share/omarchy"}"
-OMARCHY_REPO_URL="${OMARCHY_REPO_URL:-https://github.com/basecamp/omarchy}"
 NVIM_OPT_DIR="${NVIM_OPT_DIR:-"$HOME/.local/opt/neovim"}"
 
 # Backward compat: GITHUB_TOKEN was documented historically; bin uses GITHUB_AUTH_TOKEN.
@@ -310,7 +306,7 @@ main() {
             cat <<EOF
 Usage: $0 [--upgrade]
 
-Install user-local CLI tools and omarchy (no sudo) using marcosnils/bin for
+Install user-local CLI tools (no sudo) using marcosnils/bin for
 GitHub release binaries. Binaries go to INSTALL_DIR (default ~/.local/bin).
 
 Each listed tool skips bin install if its CLI is already on PATH (except bin bootstrap).
@@ -318,7 +314,7 @@ Each listed tool skips bin install if its CLI is already on PATH (except bin boo
   --upgrade, -u   Check for updates and upgrade installed tools: bin-managed
                   binaries, uv (self + replica tools), rustup, cargo crates,
                   prefix-built stow, juliaup, tpm, and Cursor CLI if present.
-                  Neovim, yazi, yazi plugins, and omarchy already version-check
+                  Neovim, yazi, and yazi plugins already version-check
                   on every run. Does not overwrite an existing LazyVim config.
 
 Authentication: after gh is available (preinstalled or via bin), set GITHUB_AUTH_TOKEN (PAT, no
@@ -331,7 +327,7 @@ zotero-cli (via uv): configured for Zotero Web API. Set ZOTERO_API_KEY and
 ZOTERO_LIBRARY_ID (optional ZOTERO_LIBRARY_TYPE=user|group), or put them in
 ~/.config/zotero-mcp/credentials.env before running.
 
-See header comments for INSTALL_DIR, OMARCHY_DIR, OMARCHY_REPO_URL, etc.
+See header comments for INSTALL_DIR, NVIM_OPT_DIR, etc.
 EOF
             exit 0
             ;;
@@ -448,9 +444,6 @@ EOF
     maybe_install_cursor_cli
 
     install_tpm || log_warning "tpm installation failed; continuing"
-
-    clone_or_update_omarchy "$OMARCHY_DIR" "$OMARCHY_REPO_URL"
-    ensure_btop_omarchy_theme || true
 
     ensure_bash_profile_user_path
 

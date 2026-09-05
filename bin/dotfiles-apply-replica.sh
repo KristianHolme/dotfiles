@@ -7,18 +7,15 @@ set -Eeuo pipefail
 # - Stows default/dot-pi into ~/.pi (agent settings.json)
 # - Creates symlink for Julia config ($JULIA_DEPOT_PATH/config or ~/.julia/config)
 # - Adds source line to server's ~/.bashrc for our dot-bashrc (idempotent)
-# - Ensures omarchy repo is cloned/updated first
+#
+# Theme files are not cloned here; dst / theme-set syncs the locally rendered
+# Omarchy theme via rsync (see dotfiles-theme-sync-remote.sh).
 #
 # Config via env vars:
-#   OMARCHY_DIR          - omarchy clone dir (default: ~/.local/share/omarchy)
-#   OMARCHY_REPO_URL     - git URL for omarchy (default: https://github.com/basecamp/omarchy)
 #   DOTFILES_REPLICA_ALL - if set to 1, same as --all (skip menu)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib-install.sh"
-
-OMARCHY_DIR="${OMARCHY_DIR:-"$HOME/.local/share/omarchy"}"
-OMARCHY_REPO_URL="${OMARCHY_REPO_URL:-https://github.com/basecamp/omarchy}"
 
 # Host-specific prefix from replica setup (hosts.toml install_root)
 [[ -f "$HOME/.dotfiles-install-env" ]] && . "$HOME/.dotfiles-install-env"
@@ -36,7 +33,6 @@ if [[ -n "${INSTALL_DIR:-}" ]]; then
 fi
 
 # Menu labels (order is canonical run order)
-TASK_OMARCHY="Clone or update omarchy"
 TASK_JULIA_CONFIG="Symlink Julia config (~/.julia/config)"
 TASK_STOW="Stow dot-config into ~/.config"
 TASK_STOW_AGENTS="Stow dot-agents into ~/.agents"
@@ -44,7 +40,6 @@ TASK_STOW_PI="Stow dot-pi into ~/.pi"
 TASK_BASHRC="Add dot-bashrc source to ~/.bashrc"
 
 MENU_OPTIONS=(
-	"$TASK_OMARCHY"
 	"$TASK_JULIA_CONFIG"
 	"$TASK_STOW"
 	"$TASK_STOW_AGENTS"
@@ -159,9 +154,6 @@ ensure_cmds_for_selection() {
 	local selection="$1"
 	local -a cmds=()
 
-	if task_is_selected "$TASK_OMARCHY" "$selection"; then
-		cmds+=(git)
-	fi
 	if task_is_selected "$TASK_STOW" "$selection" ||
 		task_is_selected "$TASK_STOW_AGENTS" "$selection" ||
 		task_is_selected "$TASK_STOW_PI" "$selection"; then
@@ -218,11 +210,6 @@ pick_tasks_interactive() {
 
 run_selected_steps() {
 	local selection="$1"
-
-	if task_is_selected "$TASK_OMARCHY" "$selection"; then
-		clone_or_update_omarchy "$OMARCHY_DIR" "$OMARCHY_REPO_URL"
-		ensure_btop_omarchy_theme || true
-	fi
 
 	if task_is_selected "$TASK_JULIA_CONFIG" "$selection"; then
 		setup_julia_config
@@ -283,7 +270,6 @@ Arguments after -- are passed to GNU Stow only (skips the menu), e.g.:
   $0 -- -D -n    Dry-run unstow
 
 Environment:
-  OMARCHY_DIR, OMARCHY_REPO_URL
   DOTFILES_REPLICA_ALL=1  Same as --all
 EOF
 			exit 0
