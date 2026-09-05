@@ -139,14 +139,18 @@ function install_daemoniccabal(url)
         return nothing
     end
     try
-        @eval using DaemonicCabal
-        Base.invokelatest(DaemonicCabal.install)
+        # @eval runs in the latest world. invokelatest(DaemonicCabal.install) still
+        # looks up DaemonicCabal in this function's older world (Julia 1.12+).
+        @eval begin
+            using DaemonicCabal
+            DaemonicCabal.install()
+        end
         @info "juliaclient installed and julia-daemon service enabled"
     catch e
         @warn "DaemonicCabal.install() failed" exception = (e, catch_backtrace())
         @warn "If this is a headless host, the user manager may need lingering: loginctl enable-linger \$USER, then re-run DaemonicCabal.install()"
         try
-            Base.invokelatest(DaemonicCabal.install_client_symlink)
+            @eval DaemonicCabal.install_client_symlink()
             @info "juliaclient symlink ensured despite service failure"
         catch e2
             @warn "Could not ensure juliaclient symlink" exception = (e2, catch_backtrace())
