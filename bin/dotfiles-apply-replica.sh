@@ -4,6 +4,7 @@ set -Eeuo pipefail
 # Applies omarchy-tweaks configs for university servers:
 # - Stows default/dot-config into ~/.config (nvim, tmux, starship, hypr, etc.)
 # - Stows default/dot-agents into ~/.agents (skills, commands)
+# - Stows default/dot-pi into ~/.pi (agent settings.json)
 # - Creates symlink for Julia config ($JULIA_DEPOT_PATH/config or ~/.julia/config)
 # - Adds source line to server's ~/.bashrc for our dot-bashrc (idempotent)
 # - Ensures omarchy repo is cloned/updated first
@@ -39,6 +40,7 @@ TASK_OMARCHY="Clone or update omarchy"
 TASK_JULIA_CONFIG="Symlink Julia config (~/.julia/config)"
 TASK_STOW="Stow dot-config into ~/.config"
 TASK_STOW_AGENTS="Stow dot-agents into ~/.agents"
+TASK_STOW_PI="Stow dot-pi into ~/.pi"
 TASK_BASHRC="Add dot-bashrc source to ~/.bashrc"
 
 MENU_OPTIONS=(
@@ -46,6 +48,7 @@ MENU_OPTIONS=(
 	"$TASK_JULIA_CONFIG"
 	"$TASK_STOW"
 	"$TASK_STOW_AGENTS"
+	"$TASK_STOW_PI"
 	"$TASK_BASHRC"
 )
 
@@ -111,6 +114,7 @@ run_stow_passthrough() {
 	if stow_flags_include -D "${stow_flags[@]}"; then
 		stow_replica_package dot-config "$HOME/.config" "${stow_flags[@]}"
 		stow_replica_package dot-agents "$HOME/.agents" "${stow_flags[@]}"
+		stow_replica_package dot-pi "$HOME/.pi" "${stow_flags[@]}"
 		return 0
 	fi
 
@@ -120,6 +124,10 @@ run_stow_passthrough() {
 	}
 	stow_replica_package dot-agents "$HOME/.agents" "${stow_flags[@]}" || {
 		log_error "dot-agents stow failed; aborting"
+		exit 1
+	}
+	stow_replica_package dot-pi "$HOME/.pi" "${stow_flags[@]}" || {
+		log_error "dot-pi stow failed; aborting"
 		exit 1
 	}
 }
@@ -154,7 +162,9 @@ ensure_cmds_for_selection() {
 	if task_is_selected "$TASK_OMARCHY" "$selection"; then
 		cmds+=(git)
 	fi
-	if task_is_selected "$TASK_STOW" "$selection" || task_is_selected "$TASK_STOW_AGENTS" "$selection"; then
+	if task_is_selected "$TASK_STOW" "$selection" ||
+		task_is_selected "$TASK_STOW_AGENTS" "$selection" ||
+		task_is_selected "$TASK_STOW_PI" "$selection"; then
 		cmds+=(stow)
 	fi
 
@@ -232,6 +242,13 @@ run_selected_steps() {
 		}
 	fi
 
+	if task_is_selected "$TASK_STOW_PI" "$selection"; then
+		stow_replica_package dot-pi "$HOME/.pi" || {
+			log_error "dot-pi stow failed; aborting"
+			exit 1
+		}
+	fi
+
 	if task_is_selected "$TASK_BASHRC" "$selection"; then
 		ensure_bashrc_source
 	fi
@@ -262,7 +279,7 @@ Options:
   -h, --help  Show this help
 
 Arguments after -- are passed to GNU Stow only (skips the menu), e.g.:
-  $0 -- -D       Unstow dot-config and dot-agents
+  $0 -- -D       Unstow dot-config, dot-agents, and dot-pi
   $0 -- -D -n    Dry-run unstow
 
 Environment:
