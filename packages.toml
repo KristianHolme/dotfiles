@@ -82,6 +82,8 @@ install = [
     "github.com/ajeetdsouza/zoxide:zoxide",
     "github.com/BurntSushi/ripgrep:rg",
     "github.com/jesseduffield/lazygit:lazygit",
+    # Official standalone builds: no cluster ncurses/libevent modules needed.
+    "github.com/tmux/tmux-builds:tmux",
     "github.com/junegunn/fzf:fzf",
     "github.com/sharkdp/fd:fd",
     "github.com/bootandy/dust:dust",

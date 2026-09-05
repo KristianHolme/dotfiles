@@ -64,6 +64,13 @@ dotfiles-apply-replica.sh             # alias: dar
 
 GitHub API access: set `GITHUB_AUTH_TOKEN` (PAT, no scopes) or `gh auth login`.
 
+Replica tools include official standalone tmux builds (`tmux/tmux-builds`), avoiding
+cluster ncurses/libevent module dependencies. On Saga, after installing standalone
+tmux, run `bin/migrations/dotfiles-migrate-saga-shell-tools.sh` once to back up
+`~/.bashrc` and remove the legacy Git/tmux module loads and ncurses swap. Use system
+Git, and test from a fresh SSH login with `tmux -L clean new-session -s main`;
+existing tmux servers retain their old module environment.
+
 ### Local package management (Arch/Omarchy)
 
 ```bash
