@@ -27,6 +27,8 @@ hooks on the remote. No Omarchy install is required on the replica.
   --host ALIAS   Sync only this inventory alias (e.g. dst after connect)
 
 Active = ControlMaster up (\`ssh -O check\`). Never opens a new SSH session.
+On hosts with login_node (e.g. saga), files rsync to shared home via the VIP
+and live tmux/OSC apply hops to that node — same pin dst uses.
 Skips backgrounds/preview.png. Applies btop, tmux (status + pane OSC),
 terminals, gum env, pi, claude, helix, and opencode when present.
 EOF
@@ -97,7 +99,9 @@ hosts_active_ssh() {
 }
 
 # SSH options: never block on interactive MFA. Callers must already have a ControlMaster.
-_SSH_SYNC_OPTS=(-o BatchMode=yes -o ConnectTimeout=8 -o PreferredAuthentications=publickey)
+_SSH_SYNC_OPTS=(-o BatchMode=yes -o ConnectTimeout=8 -o PreferredAuthentications=publickey -o RequestTTY=no)
+# Intra-cluster hop to hosts.toml login_node (no new 2FA; uses the VIP ControlMaster).
+_SSH_HOP_OPTS=(-o BatchMode=yes -o ConnectTimeout=8 -o RequestTTY=no)
 
 push_theme_files() {
 	local host="$1"
@@ -152,13 +156,24 @@ sync_host() {
 	fi
 
 	# Apply hooks from this machine so the remote need not have updated dotfiles yet.
-	if ! ssh "${_SSH_SYNC_OPTS[@]}" "$host" bash -s <<REMOTE
+	# Theme files live on shared home (any login node). tmux/OSC must run where
+	# dst pinned the session (hosts.toml login_node), not on the VIP landing node.
+	local login_node
+	login_node="$(hosts_login_node "$host")"
+	local -a apply_cmd=("${_SSH_SYNC_OPTS[@]}" "$host")
+	if [[ -n "$login_node" ]]; then
+		log_info "Applying live tmux/terminal theme on $login_node (via $host)"
+		apply_cmd+=(ssh "${_SSH_HOP_OPTS[@]}" "$login_node")
+	fi
+	apply_cmd+=(bash -s)
+
+	if ! ssh "${apply_cmd[@]}" <<REMOTE
 set -euo pipefail
 $(cat "$SCRIPT_DIR/lib-theme-replica.sh")
 apply_omarchy_theme_replica
 REMOTE
 	then
-		log_warning "Theme apply failed on $host (see remote stderr above)"
+		log_warning "Theme apply failed on $host${login_node:+ (hop $login_node)} (see remote stderr above)"
 		return 0
 	fi
 

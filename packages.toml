@@ -68,10 +68,7 @@ install = ["zotero-mcp-server[semantic]:zotero-cli"]
 
 [uv.replica]
 # package:command — CLI checked before uv tool install on replica servers.
-install = [
-    "trash-cli:trash-list",
-    "zotero-mcp-server[semantic]:zotero-cli",
-]
+install = ["trash-cli:trash-list", "zotero-mcp-server[semantic]:zotero-cli"]
 
 [bin.replica]
 # spec:command — CLI checked before marcosnils/bin install on replica servers.
@@ -89,7 +86,6 @@ install = [
     "github.com/bootandy/dust:dust",
     "github.com/git-lfs/git-lfs:git-lfs",
     "github.com/aristocratos/btop:btop",
-    "github.com/yorukot/superfile:spf",
     "github.com/starship/starship:starship",
     "github.com/charmbracelet/gum:gum",
     "github.com/alexpasmantier/television:tv",
@@ -115,9 +111,7 @@ install = [
 # Third-party Omarchy theme git repo URLs (cloned into ~/.config/omarchy/themes).
 # Naming matches omarchy-theme-install (strip omarchy- prefix and -theme suffix).
 # Optional "#branch" selects a non-default branch. Install does not switch the active theme.
-install = [
-    "https://github.com/euandeas/omarchy-flexoki-dark-theme",
-]
+install = ["https://github.com/euandeas/omarchy-flexoki-dark-theme"]
 
 [omarchy.plugins]
 # Third-party Omarchy shell plugin git repo URLs (cloned into ~/.config/omarchy/plugins).

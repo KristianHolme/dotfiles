@@ -6,8 +6,8 @@
 # below must resolve via ssh on its own.
 #
 # Optional login_node: short name of a specific login node (e.g. login-1).
-# Used only by dst so tmux lands on a stable node; raw `ssh <alias>`
-# still hits the VIP / round-robin hostname.
+# dst hops here so tmux is stable; theme sync applies live tmux/OSC here too.
+# Raw `ssh <alias>` still hits the VIP / round-robin hostname.
 
 [defaults]
 sync_root = "Code"
