@@ -43,6 +43,7 @@
     "editor.rulers": [92],
     "files.eol": "\n"
   },
+  "remote.SSH.path": "/home/kristian/dotfiles/bin/dotfiles-ssh-cursor.sh",
   "remote.SSH.remotePlatform": {
     "bengal": "linux",
     "ml7": "linux",
