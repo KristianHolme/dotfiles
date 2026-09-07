@@ -49,7 +49,7 @@
     "abacus-min": "linux"
   },
   "python.terminal.activateEnvironment": false,
-  "workbench.colorTheme": "Omarchy",
+  "workbench.colorTheme": "flexoki-light",
   "remote.autoForwardPortsSource": "hybrid",
   "git.suggestSmartCommit": false,
   "editor.cursorSurroundingLines": 8,
