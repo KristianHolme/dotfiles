@@ -4,8 +4,7 @@
 # Sourced by dotfiles-mounts.sh, dotfiles-rsync-ssh.sh, and dotfiles-ssh-tmux.sh:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib-hosts.sh"
 #
-# TOML is parsed once per shell via toml_to_json (go-yq preferred, tomlq fallback)
-# and queried with jq.
+# TOML is parsed once per shell via toml_to_json (go-yq) and queried with jq.
 #
 # The TOML file is resolved as:
 #   1. $HOSTS_TOML if set
@@ -55,7 +54,7 @@ _hosts_resolve() {
         echo "$_HOSTS_TOML_PATH"
         return 0
     fi
-    if ! toml_backend_available; then
+    if ! go_yq_available; then
         log_error "No TOML parser available; install go-yq (Arch: yay -S go-yq; replica: packages.toml [bin.replica])"
         return 1
     fi
@@ -85,15 +84,13 @@ _hosts_resolve() {
     return 1
 }
 
-_hosts_json() {
-    if [[ -n "$_HOSTS_JSON" ]]; then
-        echo "$_HOSTS_JSON"
-        return 0
-    fi
+# Load hosts.toml into $_HOSTS_JSON in the current shell (safe to call repeatedly).
+# Must not run on the left of a pipe, or the cache is lost to the pipeline subshell.
+_hosts_ensure() {
+    [[ -n "$_HOSTS_JSON" ]] && return 0
     local f
     f="$(_hosts_resolve)" || return 1
     _HOSTS_JSON="$(toml_to_json "$f")" || return 1
-    echo "$_HOSTS_JSON"
 }
 
 # Path of the resolved hosts.toml (for error messages).
@@ -103,29 +100,32 @@ hosts_toml_path() {
 
 # All group keys, sorted.
 hosts_groups() {
-    _hosts_json | jq -r '.groups // {} | keys[]' | sort
+    _hosts_ensure || return 1
+    jq -r '.groups // {} | keys[]' <<<"$_HOSTS_JSON" | sort
 }
 
 # All [machines.*] keys, sorted.
 hosts_standalone_machines() {
-    _hosts_json | jq -r '.machines // {} | keys[]' | sort
+    _hosts_ensure || return 1
+    jq -r '.machines // {} | keys[]' <<<"$_HOSTS_JSON" | sort
 }
 
 # Pinned login node for dst (empty if unset). Short name used for an intra-cluster hop.
 hosts_login_node() {
     local alias="$1"
-    _hosts_json | jq -r --arg a "$alias" '.machines[$a].login_node // empty'
+    _hosts_ensure || return 1
+    jq -r --arg a "$alias" '.machines[$a].login_node // empty' <<<"$_HOSTS_JSON"
 }
 
 # Inventory alias for this machine: hostname, login_node, or $HOME == remote_path.
 # Empty if this host is not in hosts.toml (prints nothing, exit 0).
 hosts_local_machine_alias() {
-    local json="" host="" home="" alias=""
-    json="$(_hosts_json)" || return 0
+    local host="" home="" alias=""
+    _hosts_ensure || return 0
     host="$(hosts_local_hostname)"
     home="$HOME"
 
-    alias="$(jq -r --arg a "$host" 'if (.machines[$a] // null) != null then $a else empty end' <<<"$json")"
+    alias="$(jq -r --arg a "$host" 'if (.machines[$a] // null) != null then $a else empty end' <<<"$_HOSTS_JSON")"
     if [[ -n "$alias" ]]; then
         echo "$alias"
         return 0
@@ -133,7 +133,7 @@ hosts_local_machine_alias() {
 
     alias="$(jq -r --arg h "$host" '
         .machines // {} | to_entries[] | select(.value.login_node == $h) | .key
-    ' <<<"$json" | head -n1)"
+    ' <<<"$_HOSTS_JSON" | head -n1)"
     if [[ -n "$alias" ]]; then
         echo "$alias"
         return 0
@@ -141,7 +141,7 @@ hosts_local_machine_alias() {
 
     alias="$(jq -r --arg home "$home" '
         .machines // {} | to_entries[] | select(.value.remote_path == $home) | .key
-    ' <<<"$json" | head -n1)"
+    ' <<<"$_HOSTS_JSON" | head -n1)"
     if [[ -n "$alias" ]]; then
         echo "$alias"
         return 0
@@ -151,48 +151,49 @@ hosts_local_machine_alias() {
 
 # hosts.toml install_root for this machine, or empty.
 hosts_local_install_root() {
-    toml_backend_available || return 0
+    go_yq_available || return 0
     local alias=""
     alias="$(hosts_local_machine_alias)" || return 0
     [[ -n "$alias" ]] || return 0
-    _hosts_json | jq -r --arg a "$alias" '.machines[$a].install_root // empty'
+    _hosts_ensure || return 0
+    jq -r --arg a "$alias" '.machines[$a].install_root // empty' <<<"$_HOSTS_JSON"
 }
 
 # Members of a single group.
 hosts_group_machines() {
     local group="$1"
-    _hosts_json | jq -r --arg g "$group" '.groups[$g].machines[]?'
+    _hosts_ensure || return 1
+    jq -r --arg g "$group" '.groups[$g].machines[]?' <<<"$_HOSTS_JSON"
 }
 
 # Union of every SSH alias known to this file (machines.* keys + groups.*.machines), deduped, sorted.
 hosts_all_machines() {
-    local json
-    json="$(_hosts_json)" || return 1
+    _hosts_ensure || return 1
     {
-        jq -r '.machines // {} | keys[]' <<<"$json"
-        jq -r '.groups   // {} | to_entries[].value.machines[]?' <<<"$json"
+        jq -r '.machines // {} | keys[]' <<<"$_HOSTS_JSON"
+        jq -r '.groups   // {} | to_entries[].value.machines[]?' <<<"$_HOSTS_JSON"
     } | sort -u
 }
 
 # Filesystem keys: machines with both paths set + groups with mount_via and both paths set.
 hosts_filesystems() {
-    local json
-    json="$(_hosts_json)" || return 1
+    _hosts_ensure || return 1
     {
-        jq -r '.machines // {} | to_entries[] | select(.value.local_path and .value.remote_path) | .key' <<<"$json"
-        jq -r '.groups   // {} | to_entries[] | select(.value.mount_via and .value.local_path and .value.remote_path) | .key' <<<"$json"
+        jq -r '.machines // {} | to_entries[] | select(.value.local_path and .value.remote_path) | .key' <<<"$_HOSTS_JSON"
+        jq -r '.groups   // {} | to_entries[] | select(.value.mount_via and .value.local_path and .value.remote_path) | .key' <<<"$_HOSTS_JSON"
     } | sort -u
 }
 
 # "machine" | "group" | "unknown"
 hosts_filesystem_kind() {
     local key="$1"
-    _hosts_json | jq -r --arg k "$key" '
+    _hosts_ensure || return 1
+    jq -r --arg k "$key" '
         if (.machines[$k]? // null) != null and (.machines[$k].local_path? // null) != null then "machine"
         elif (.groups[$k]?   // null) != null and (.groups[$k].mount_via?   // null) != null then "group"
         else "unknown"
         end
-    '
+    ' <<<"$_HOSTS_JSON"
 }
 
 # SSH alias used to mount this filesystem.
@@ -201,7 +202,10 @@ hosts_filesystem_host() {
     kind="$(hosts_filesystem_kind "$key")"
     case "$kind" in
         machine) echo "$key" ;;
-        group)   _hosts_json | jq -r --arg k "$key" '.groups[$k].mount_via' ;;
+        group)
+            _hosts_ensure || return 1
+            jq -r --arg k "$key" '.groups[$k].mount_via' <<<"$_HOSTS_JSON"
+            ;;
         *)       log_error "Unknown filesystem: $key"; return 1 ;;
     esac
 }
@@ -210,8 +214,14 @@ hosts_filesystem_remote_path() {
     local key="$1" kind
     kind="$(hosts_filesystem_kind "$key")"
     case "$kind" in
-        machine) _hosts_json | jq -r --arg k "$key" '.machines[$k].remote_path' ;;
-        group)   _hosts_json | jq -r --arg k "$key" '.groups[$k].remote_path'   ;;
+        machine)
+            _hosts_ensure || return 1
+            jq -r --arg k "$key" '.machines[$k].remote_path' <<<"$_HOSTS_JSON"
+            ;;
+        group)
+            _hosts_ensure || return 1
+            jq -r --arg k "$key" '.groups[$k].remote_path' <<<"$_HOSTS_JSON"
+            ;;
         *)       log_error "Unknown filesystem: $key"; return 1 ;;
     esac
 }
@@ -220,8 +230,14 @@ hosts_filesystem_local_path() {
     local key="$1" kind
     kind="$(hosts_filesystem_kind "$key")"
     case "$kind" in
-        machine) _hosts_json | jq -r --arg k "$key" '.machines[$k].local_path' ;;
-        group)   _hosts_json | jq -r --arg k "$key" '.groups[$k].local_path'   ;;
+        machine)
+            _hosts_ensure || return 1
+            jq -r --arg k "$key" '.machines[$k].local_path' <<<"$_HOSTS_JSON"
+            ;;
+        group)
+            _hosts_ensure || return 1
+            jq -r --arg k "$key" '.groups[$k].local_path' <<<"$_HOSTS_JSON"
+            ;;
         *)       log_error "Unknown filesystem: $key"; return 1 ;;
     esac
 }
@@ -245,22 +261,22 @@ hosts_sync_root_default_local() {
 
 # Resolve SSH alias to filesystem context: kind, inventory key, remote_path, local_path (tab-separated).
 hosts_ssh_alias_context() {
-    local alias="$1" json machine_remote group
-    json="$(_hosts_json)" || return 1
+    local alias="$1" machine_remote group
+    _hosts_ensure || return 1
 
-    machine_remote="$(jq -r --arg a "$alias" '.machines[$a].remote_path // empty' <<<"$json")"
+    machine_remote="$(jq -r --arg a "$alias" '.machines[$a].remote_path // empty' <<<"$_HOSTS_JSON")"
     if [[ -n "$machine_remote" ]]; then
         local local_path=""
-        local_path="$(jq -r --arg a "$alias" '.machines[$a].local_path // empty' <<<"$json")"
+        local_path="$(jq -r --arg a "$alias" '.machines[$a].local_path // empty' <<<"$_HOSTS_JSON")"
         printf '%s\t%s\t%s\t%s\n' "machine" "$alias" "$machine_remote" "$local_path"
         return 0
     fi
 
-    group="$(jq -r --arg a "$alias" '.groups // {} | to_entries[] | select(.value.machines[]? == $a) | .key' <<<"$json" | head -n1)"
+    group="$(jq -r --arg a "$alias" '.groups // {} | to_entries[] | select(.value.machines[]? == $a) | .key' <<<"$_HOSTS_JSON" | head -n1)"
     if [[ -n "$group" ]]; then
         local remote_path="" local_path=""
-        remote_path="$(jq -r --arg g "$group" '.groups[$g].remote_path // empty' <<<"$json")"
-        local_path="$(jq -r --arg g "$group" '.groups[$g].local_path // empty' <<<"$json")"
+        remote_path="$(jq -r --arg g "$group" '.groups[$g].remote_path // empty' <<<"$_HOSTS_JSON")"
+        local_path="$(jq -r --arg g "$group" '.groups[$g].local_path // empty' <<<"$_HOSTS_JSON")"
         if [[ -n "$remote_path" ]]; then
             printf '%s\t%s\t%s\t%s\n' "group" "$group" "$remote_path" "$local_path"
             return 0
@@ -274,7 +290,8 @@ hosts_ssh_alias_context() {
 # Remote path spec for sync_root (string or .remote from table).
 hosts_sync_root_remote_spec() {
     local kind="$1" key="$2"
-    _hosts_json | jq -r --arg kind "$kind" --arg key "$key" '
+    _hosts_ensure || return 1
+    jq -r --arg kind "$kind" --arg key "$key" '
         (.defaults.sync_root // "Code") as $default |
         (if $kind == "machine" then
             .machines[$key].sync_root // $default
@@ -284,13 +301,13 @@ hosts_sync_root_remote_spec() {
         if type == "string" then .
         elif type == "object" then .remote // "Code"
         else "Code" end
-    '
+    ' <<<"$_HOSTS_JSON"
 }
 
 # Local landing path for sync_root (defaults to ~/Code).
 hosts_sync_root_local() {
-    local kind="$1" key="$2" json local_override
-    json="$(_hosts_json)" || return 1
+    local kind="$1" key="$2" local_override
+    _hosts_ensure || return 1
     local_override="$(jq -r --arg kind "$kind" --arg key "$key" '
         (if $kind == "machine" then
             .machines[$key].sync_root // null
@@ -298,7 +315,7 @@ hosts_sync_root_local() {
             .groups[$key].sync_root // null
         end) |
         if type == "object" then .local // empty else empty end
-    ' <<<"$json")"
+    ' <<<"$_HOSTS_JSON")"
     if [[ -n "$local_override" ]]; then
         echo "$local_override"
     else
@@ -308,12 +325,12 @@ hosts_sync_root_local() {
 
 # Full remote base path for sync_root (absolute on the server).
 hosts_sync_root_remote_base() {
-    local kind="$1" key="$2" json remote_path remote_spec
-    json="$(_hosts_json)" || return 1
+    local kind="$1" key="$2" remote_path remote_spec
+    _hosts_ensure || return 1
 
     case "$kind" in
-        machine) remote_path="$(jq -r --arg k "$key" '.machines[$k].remote_path' <<<"$json")" ;;
-        group) remote_path="$(jq -r --arg k "$key" '.groups[$k].remote_path' <<<"$json")" ;;
+        machine) remote_path="$(jq -r --arg k "$key" '.machines[$k].remote_path' <<<"$_HOSTS_JSON")" ;;
+        group) remote_path="$(jq -r --arg k "$key" '.groups[$k].remote_path' <<<"$_HOSTS_JSON")" ;;
         *)
             log_error "Unknown context kind: $kind"
             return 1

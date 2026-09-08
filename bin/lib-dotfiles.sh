@@ -61,20 +61,11 @@ go_yq_available() {
     command -v yq >/dev/null 2>&1 && yq --version 2>/dev/null | grep -q mikefarah
 }
 
-# True when go-yq or legacy tomlq (PyPI yq) is available.
-toml_backend_available() {
-    go_yq_available || command -v tomlq >/dev/null 2>&1
-}
-
-# Print JSON for a TOML file (prefer go-yq, fall back to tomlq).
+# Print JSON for a TOML file (mikefarah go-yq).
 toml_to_json() {
     local file="$1"
     if go_yq_available; then
         yq -p toml -o json "$file"
-        return 0
-    fi
-    if command -v tomlq >/dev/null 2>&1; then
-        tomlq . "$file"
         return 0
     fi
     log_error "No TOML parser available; install go-yq (Arch: yay -S go-yq; replica: packages.toml [bin.replica])"

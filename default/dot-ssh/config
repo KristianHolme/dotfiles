@@ -54,10 +54,6 @@ Host uio atalanta nam-shub* abacus* freebio* bioint0* ml*
     ControlPath ~/.ssh/cm-%C
     ControlPersist 4h
 
-Host nrec1
-    User ubuntu
-    HostName 2001:700:2:8201::1242
-
 Host fox
     Hostname fox.educloud.no
     User ec-kholme

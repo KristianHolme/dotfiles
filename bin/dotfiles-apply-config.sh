@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Apply dotfiles with GNU Stow: default package to ~, then optional profile overlay
-# (Hyprland host layouts are in default Lua; profile dirs are optional).
+# Apply dotfiles with GNU Stow: default package to ~.
+# Host-specific Hyprland lives in default Lua (hostname + connected displays).
 
 set -Eeuo pipefail
 
@@ -12,40 +12,13 @@ TARGET_HOME="$HOME"
 
 usage() {
 	cat <<EOF
-Usage: $0 [-h] [PROFILE] [-- STOW_ARGS...]
+Usage: $0 [-h] [-- STOW_ARGS...]
 
-Apply dotfiles with GNU Stow: default package to ~, then optional profile overlay
-if that top-level package exists in the repo. Host-specific Hyprland now lives in
-default Lua (hostname + connected displays), so a profile is usually unnecessary.
+Apply dotfiles with GNU Stow: default package to ~.
+Host-specific Hyprland lives in default Lua (hostname + connected displays).
 
-Arguments after -- are passed to GNU Stow (e.g. unstow: $0 -- -D, dry-run: $0 -- -D -n).
+Arguments after -- are passed to GNU Stow (e.g. unstow: $0 -- -D, dry-run: $0 -- -n).
 EOF
-}
-
-# Unstow any existing profile packages at repo root; optional extra stow flags after target_dir.
-unstow_all_profiles() {
-	local packages_dir="$1"
-	local target_dir="$2"
-	shift 2
-	local -a extra_flags=("$@")
-
-	log_info "Unstowing any existing profiles..."
-	shopt -s nullglob
-	for pkg_dir in "$packages_dir"/*; do
-		[[ -d "$pkg_dir" ]] || continue
-		local pkg_name
-		pkg_name=$(basename "$pkg_dir")
-		if [[ "$pkg_name" == "default" || "$pkg_name" == "bin" || "$pkg_name" == "templates" ]]; then
-			continue
-		fi
-		local -a stow_extra=() arg
-		for arg in "${extra_flags[@]}"; do
-			[[ "$arg" == -D ]] && continue
-			stow_extra+=("$arg")
-		done
-		stow -d "$packages_dir" -t "$target_dir" --dotfiles "${stow_extra[@]}" -D "$pkg_name" 2>/dev/null || true
-	done
-	shopt -u nullglob
 }
 
 stow_with_conflict_detection() {
@@ -126,8 +99,6 @@ stow_with_conflict_detection() {
 }
 
 apply_configs() {
-	local profile="${1:-}"
-	shift
 	local -a user_stow_flags=("$@")
 	local -a stow_flags=()
 
@@ -145,16 +116,6 @@ apply_configs() {
 
 	stow_with_conflict_detection "$packages_dir" "default" "$TARGET_HOME" "default files" "${stow_flags[@]}"
 
-	if [[ -n "$profile" ]]; then
-		local profile_pkg_name="$profile"
-		if [[ -d "$packages_dir/$profile_pkg_name" ]]; then
-			unstow_all_profiles "$packages_dir" "$TARGET_HOME"
-			stow_with_conflict_detection "$packages_dir" "$profile_pkg_name" "$TARGET_HOME" "profile files" "${stow_flags[@]}"
-		else
-			log_info "No profile package '$profile_pkg_name' found; skipping profile overlay"
-		fi
-	fi
-
 	log_success "Configuration linking completed"
 }
 
@@ -167,7 +128,6 @@ unapply_configs() {
 	local packages_dir
 	packages_dir="$(realpath "$SCRIPT_DIR/..")"
 
-	unstow_all_profiles "$packages_dir" "$TARGET_HOME" "${stow_flags[@]}"
 	log_info "Unstowing default package..."
 	stow -d "$packages_dir" -t "$TARGET_HOME" --dotfiles "${stow_flags[@]}" default 2>/dev/null || true
 	if ! stow_flags_include -n "${stow_flags[@]}"; then
@@ -310,7 +270,6 @@ reload_hyprland() {
 }
 
 main() {
-	local profile_arg=""
 	local stow_passthrough=0
 	local -a stow_flags=()
 
@@ -332,13 +291,9 @@ main() {
 			exit 1
 			;;
 		*)
-			if [[ -n "$profile_arg" ]]; then
-				log_error "Unexpected argument: $1"
-				usage >&2
-				exit 1
-			fi
-			profile_arg="$1"
-			shift
+			log_error "Unexpected argument: $1"
+			usage >&2
+			exit 1
 			;;
 		esac
 	done
@@ -350,16 +305,18 @@ main() {
 		return 0
 	fi
 
-	if [[ -n "$profile_arg" ]]; then
-		log_info "Applying Omarchy tweaks (profile: $profile_arg)..."
-	else
-		log_info "Applying Omarchy tweaks..."
-	fi
+	log_info "Applying Omarchy tweaks..."
 
 	if [[ "$stow_passthrough" -eq 1 ]]; then
-		apply_configs "$profile_arg" "${stow_flags[@]}"
+		apply_configs "${stow_flags[@]}"
 	else
-		apply_configs "$profile_arg"
+		apply_configs
+	fi
+
+	if [[ "$stow_passthrough" -eq 1 ]] && stow_flags_include -n "${stow_flags[@]}"; then
+		log_info "Dry-run: skipping agent linking and Hyprland reload"
+		log_success "Dry-run completed"
+		return 0
 	fi
 
 	link_agent_configs

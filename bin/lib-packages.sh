@@ -5,8 +5,7 @@
 # dotfiles-setup-zotero.sh, and lib-install.sh:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib-packages.sh"
 #
-# TOML is parsed once per shell via toml_to_json (go-yq preferred, tomlq fallback)
-# and queried with jq.
+# TOML is parsed once per shell via toml_to_json (go-yq) and queried with jq.
 #
 # The TOML file is resolved as:
 #   1. $PACKAGES_TOML if set
@@ -80,7 +79,7 @@ _packages_resolve() {
         echo "$_PACKAGES_TOML_PATH"
         return 0
     fi
-    if ! toml_backend_available; then
+    if ! go_yq_available; then
         log_error "No TOML parser available; install go-yq (Arch: yay -S go-yq; replica: packages.toml [bin.replica])"
         return 1
     fi
@@ -110,15 +109,13 @@ _packages_resolve() {
     return 1
 }
 
-_packages_json() {
-    if [[ -n "$_PACKAGES_JSON" ]]; then
-        echo "$_PACKAGES_JSON"
-        return 0
-    fi
+# Load packages.toml into $_PACKAGES_JSON in the current shell (safe to call repeatedly).
+# Must not run on the left of a pipe, or the cache is lost to the pipeline subshell.
+_packages_ensure() {
+    [[ -n "$_PACKAGES_JSON" ]] && return 0
     local f
     f="$(_packages_resolve)" || return 1
     _PACKAGES_JSON="$(toml_to_json "$f")" || return 1
-    echo "$_PACKAGES_JSON"
 }
 
 # Path of the resolved packages.toml (for error messages).
@@ -127,64 +124,78 @@ packages_toml_path() {
 }
 
 packages_install_list() {
-    _packages_json | jq -r '.packages.install[]?'
+    _packages_ensure || return 1
+    jq -r '.packages.install[]?' <<<"$_PACKAGES_JSON"
 }
 
 packages_remove_list() {
-    _packages_json | jq -r '.packages.remove[]?'
+    _packages_ensure || return 1
+    jq -r '.packages.remove[]?' <<<"$_PACKAGES_JSON"
 }
 
 webapps_remove_list() {
-    _packages_json | jq -r '.webapps.remove[]?'
+    _packages_ensure || return 1
+    jq -r '.webapps.remove[]?' <<<"$_PACKAGES_JSON"
 }
 
 cargo_install_list() {
-    _packages_json | jq -r '.cargo.install[]?'
+    _packages_ensure || return 1
+    jq -r '.cargo.install[]?' <<<"$_PACKAGES_JSON"
 }
 
 uv_install_list() {
-    _packages_json | jq -r '.uv.install[]?'
+    _packages_ensure || return 1
+    jq -r '.uv.install[]?' <<<"$_PACKAGES_JSON"
 }
 
 uv_replica_install_list() {
-    _packages_json | jq -r '.uv.replica.install[]?'
+    _packages_ensure || return 1
+    jq -r '.uv.replica.install[]?' <<<"$_PACKAGES_JSON"
 }
 
 bin_replica_prereq_list() {
-    _packages_json | jq -r '.bin.replica.prereq[]?'
+    _packages_ensure || return 1
+    jq -r '.bin.replica.prereq[]?' <<<"$_PACKAGES_JSON"
 }
 
 bin_replica_install_list() {
-    _packages_json | jq -r '.bin.replica.install[]?'
+    _packages_ensure || return 1
+    jq -r '.bin.replica.install[]?' <<<"$_PACKAGES_JSON"
 }
 
 gh_extensions_list() {
-    _packages_json | jq -r '.gh.extensions[]?'
+    _packages_ensure || return 1
+    jq -r '.gh.extensions[]?' <<<"$_PACKAGES_JSON"
 }
 
 yazi_plugins_list() {
-    _packages_json | jq -r '.yazi.install[]?'
+    _packages_ensure || return 1
+    jq -r '.yazi.install[]?' <<<"$_PACKAGES_JSON"
 }
 
 omarchy_themes_install_list() {
-    _packages_json | jq -r '.omarchy.themes.install[]?'
+    _packages_ensure || return 1
+    jq -r '.omarchy.themes.install[]?' <<<"$_PACKAGES_JSON"
 }
 
 omarchy_plugins_install_list() {
-    _packages_json | jq -r '.omarchy.plugins.install[]?'
+    _packages_ensure || return 1
+    jq -r '.omarchy.plugins.install[]?' <<<"$_PACKAGES_JSON"
 }
 
 zotero_plugin_keys() {
-    _packages_json | jq -r '.zotero.plugins // {} | keys[]' | sort
+    _packages_ensure || return 1
+    jq -r '.zotero.plugins // {} | keys[]' <<<"$_PACKAGES_JSON" | sort
 }
 
 zotero_plugin_field() {
     local key="$1" field="$2"
-    _packages_json | jq -r --arg k "$key" --arg f "$field" '.zotero.plugins[$k][$f] // empty'
+    _packages_ensure || return 1
+    jq -r --arg k "$key" --arg f "$field" '.zotero.plugins[$k][$f] // empty' <<<"$_PACKAGES_JSON"
 }
 
 zotero_plugin_exists() {
-    local key="$1" json
-    json="$(_packages_json)" || return 1
-    [[ -n "$(jq -r --arg k "$key" '.zotero.plugins[$k] // empty' <<<"$json")" ]]
+    local key="$1"
+    _packages_ensure || return 1
+    [[ -n "$(jq -r --arg k "$key" '.zotero.plugins[$k] // empty' <<<"$_PACKAGES_JSON")" ]]
 }

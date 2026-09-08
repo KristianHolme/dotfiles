@@ -43,8 +43,7 @@ unalias ls
 unalias lsa
 alias l='eza -lh --group-directories-first --icons=auto'
 alias la='l -a'
-alias f='spf'
-alias q='qmd query'
+alias f='y'
 alias ghd='gh dash'
 alias tvn='nvim "$(tv)"'
 alias dotfiles-help='bat ~/dotfiles/README.md'
@@ -71,21 +70,10 @@ fi
 export JULIA_NUM_THREADS=auto
 
 
-# SSH agent setup
-# Use systemd ssh-agent socket if available, otherwise start manually
-if [[ -z "$SSH_AUTH_SOCK" ]]; then
-    # Try systemd user ssh-agent socket first
-    if [[ -S "$XDG_RUNTIME_DIR/ssh-agent.socket" ]]; then
-        export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
-    elif systemctl --user is-active --quiet ssh-agent.socket 2>/dev/null; then
-        # Socket is active, check for environment variable
-        if [[ -S "$XDG_RUNTIME_DIR/ssh-agent.socket" ]]; then
-            export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
-        fi
-    else
-        # Fallback: start ssh-agent manually
-        eval "$(ssh-agent -s)" >/dev/null
-    fi
+# SSH agent: use a persistent socket when present. Do not start a new agent
+# per shell — that leaks processes when SSH_AUTH_SOCK is unset (replicas, SSH).
+if [[ -z "${SSH_AUTH_SOCK:-}" && -n "${XDG_RUNTIME_DIR:-}" && -S "$XDG_RUNTIME_DIR/ssh-agent.socket" ]]; then
+    export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
 fi
 
 # Auto-add SSH key if agent is running and key isn't already loaded
@@ -100,8 +88,8 @@ if [[ -n "$SSH_AUTH_SOCK" ]] && command -v ssh-add &>/dev/null; then
 fi
 
 
-# starship prompt (omarchy init also runs this when omarchy rc is present)
-if [[ "${TERM:-}" != "dumb" ]] && command -v starship &>/dev/null; then
+# starship prompt (skip if Omarchy rc already initialized it)
+if [[ -z "${STARSHIP_SESSION_KEY:-}" && "${TERM:-}" != "dumb" ]] && command -v starship &>/dev/null; then
     eval "$(starship init bash)"
 fi
 
@@ -130,7 +118,7 @@ esac
 
 # <<< juliaup initialize <<<
 
-# zoxide - must be initialized last
-if command -v zoxide &>/dev/null; then
+# zoxide - must be initialized last (skip if Omarchy rc already initialized it)
+if ! declare -F __zoxide_z >/dev/null 2>&1 && command -v zoxide &>/dev/null; then
     eval "$(zoxide init bash)"
 fi

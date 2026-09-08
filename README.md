@@ -43,8 +43,7 @@ Stows `default/` into `~`. Conflicts are resolved interactively with `gum`
 
 Host-specific Hyprland (monitors, scale, workspace pins) is in
 `default/dot-config/hypr/monitors.lua`: it reads `/etc/hostname` and the
-connected displays. `dac` still accepts an optional profile overlay if you add
-a top-level package later.
+connected displays.
 
 Pass GNU Stow flags after `--` (e.g. `dac -- -D` to unstow, then `dac` to
 re-apply). `dar -- -D` unstows replica `dot-config` / `dot-agents` / `dot-pi`.
@@ -88,7 +87,7 @@ Python `yq`).
 
 Machines, groups, mountable filesystems, and the rsync sync root are declared once in
 [`hosts.toml`](hosts.toml) and consumed via `bin/lib-hosts.sh` (requires
-go-yq or legacy tomlq, plus `jq`). Jump hosts and ControlMaster settings live in `~/.ssh/config`.
+go-yq, plus `jq`). Jump hosts and ControlMaster settings live in `~/.ssh/config`.
 
 **Sync root** (`defaults.sync_root` plus optional per-machine/group override) maps
 each host's remote `Code` tree to local `~/Code`. The remote spec is relative to
@@ -99,7 +98,7 @@ project-area path on the server.
 | Script | Purpose |
 | --- | --- |
 | `dotfiles-ssh-tmux.sh` (`dst`) | Pick a host with gum, SSH in, attach/create tmux session. Starts a background ControlMaster first for hosts configured with one (2FA hosts). Machines with `login_node` in `hosts.toml` hop to that node so tmux is not lost on VIP round-robin. Syncs the local Omarchy theme to that host in the background (log: `~/.cache/dotfiles/remote-theme-sync.log`). |
-| `dotfiles-theme-sync-remote.sh` | Rsync the locally staged Omarchy theme (`~/.local/state/omarchy/current/theme`) to active SSH hosts (ControlMaster only). Applies replica hooks: btop, tmux (status + pane OSC), terminals, gum env, pi, claude, helix, opencode, neovim (`~/.config/nvim/lua/plugins/theme.lua` → staged `neovim.lua`). Hosts with `login_node` apply on that node (VIP rsync, hop for live tmux). No Omarchy clone on the remote. Also run from the `theme-set.d/remote-theme-sync` hook (background, log: `~/.cache/dotfiles/remote-theme-sync.log`). |
+| `dotfiles-theme-sync-remote.sh` | Rsync the locally staged Omarchy theme (`~/.local/state/omarchy/current/theme`) to active SSH hosts (ControlMaster only; rsync required on both sides, `--delete` so stale files like `light.mode` are removed). Applies replica hooks: btop, tmux (status + pane OSC), terminals, gum env, pi, claude, helix, opencode, neovim (`~/.config/nvim/lua/plugins/theme.lua` → staged `neovim.lua`). Hosts with `login_node` apply on that node (VIP rsync, hop for live tmux). No Omarchy clone on the remote. Also run from the `theme-set.d/remote-theme-sync` hook (background, log: `~/.cache/dotfiles/remote-theme-sync.log`). |
 | `dotfiles-rsync-ssh.sh` (`drs`) | Pick host, browse folders, rsync selections. Pull (default): remote → `~/Code`. Push: `drs --push host`. Remote copy: `drs --remote source target path`. Examples: `drs fox DRL_Sphere`, `drs ml3`, `drs --push nam-shub-01`, `drs --remote fox ml3 DRL_Sphere/data`. |
 | `dotfiles-mounts.sh` | SSHFS mount manager (TUI and CLI). Plain user `sshfs` mounts of the filesystems in `hosts.toml`; sudo only to prepare `/mnt` mountpoints. `-l` lists status, `-e`/`-d` enable/disable. |
 | `dotfiles-server-monitor.sh` | tmux session with one `btop` window per selected host; group members preselected. |
@@ -125,7 +124,7 @@ project-area path on the server.
 ## Requirements
 
 - Local: GNU Stow, `gum`, `yay` (Arch), Hyprland/Omarchy for the desktop bits,
-  go-yq (mikefarah) for TOML inventory scripts (legacy tomlq fallback), `sshfs` for mounts, `rsync`.
+  go-yq (mikefarah) for TOML inventory scripts, `sshfs` for mounts, `rsync`.
 - University servers: `curl`, `tar`, `git`, `jq`; no sudo needed.
   `dotfiles-setup-replica.sh` bootstraps go-yq via marcosnils/bin before reading
   `packages.toml`, then installs from `[bin.replica]` and `[uv.replica]` (e.g. trash-cli via

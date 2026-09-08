@@ -38,10 +38,6 @@ login_node = "login-4"
 # Replica setup prefix (binaries, rustup/cargo, juliaup, uv tools). Home quota is 20 GiB.
 install_root = "/cluster/projects/nn9886k/kholme"
 
-[machines.nrec1]
-remote_path = "/home/ubuntu"
-local_path = "/mnt/nrec1"
-
 [machines.fox]
 remote_path = "/fp/homes01/u01/ec-kholme"
 local_path = "/mnt/fox"
