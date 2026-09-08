@@ -249,6 +249,22 @@ theme_replica_apply_opencode() {
 	fi
 }
 
+# LazyVim loads Omarchy themes via plugins/theme.lua (same as omarchy-nvim).
+# Replicas only get the staged theme under ~/.local/state/...; without this
+# link, nvim keeps LazyVim defaults (e.g. tokyonight) while the terminal OSC
+# is already light — unreadable contrast.
+theme_replica_apply_neovim() {
+	local src="${OMARCHY_CURRENT_THEME}/neovim.lua"
+	local plugins_dir="${HOME}/.config/nvim/lua/plugins"
+	local theme_link="${plugins_dir}/theme.lua"
+
+	[[ -f $src ]] || return 0
+	[[ -d ${HOME}/.config/nvim ]] || return 0
+
+	mkdir -p "$plugins_dir"
+	ln -snf "$src" "$theme_link"
+}
+
 apply_omarchy_theme_replica() {
 	if [[ ! -d $OMARCHY_CURRENT_THEME ]]; then
 		echo "No staged theme at $OMARCHY_CURRENT_THEME" >&2
@@ -262,5 +278,6 @@ apply_omarchy_theme_replica() {
 	theme_replica_apply_tmux
 	theme_replica_apply_helix
 	theme_replica_apply_opencode
+	theme_replica_apply_neovim
 	return 0
 }
