@@ -56,4 +56,4 @@ ALWAYS run `hyprctl configerrors` after changing hyprland configs, to check if t
 **Omarchy integration (dotfiles-only)**
 
 - If dotfiles reference omarchy paths or scripts, update those references in `~/dotfiles/` only.
-- Replicas do not clone Omarchy. Theme sync rsyncs the locally staged theme (`~/.local/state/omarchy/current/theme`) and applies terminal/tmux/neovim hooks via `dotfiles-theme-sync-remote.sh` (nvim needs `~/.config/nvim/lua/plugins/theme.lua` → staged `neovim.lua`, or LazyVim stays on tokyonight while the terminal is already themed).
+- Replicas do not clone Omarchy. Theme sync rsyncs the locally staged theme (`~/.local/state/omarchy/current/theme`) and applies terminal/tmux/neovim hooks via `dotfiles-theme-sync-remote.sh` (nvim needs `~/.config/nvim/lua/plugins/theme.lua` → staged `neovim.lua`, or LazyVim stays on tokyonight). Lazy reloads that spec; `autocmds.lua` finishes the colorscheme apply (`highlight clear` + `background` + `colorscheme`) so leftover groups like CursorLine do not survive a light→dark switch.
