@@ -31,7 +31,7 @@ dotfiles_setup_upgrade_enabled() {
 # Writes ~/.dotfiles-install-env so login shells prepend the prefix.
 apply_dotfiles_install_root() {
     local root="" env_file="$HOME/.dotfiles-install-env"
-    toml_backend_available || return 0
+    go_yq_available || return 0
     root="$(hosts_local_install_root)" || return 0
     [[ -n "$root" ]] || return 0
 
@@ -423,24 +423,6 @@ install_via_curl() {
             eval "$post_install_cmd"
         fi
     fi
-}
-
-clone_or_update_omarchy() {
-    local omarchy_dir="${1:-$HOME/.local/share/omarchy}"
-    local omarchy_repo_url="${2:-https://github.com/basecamp/omarchy}"
-
-    if [[ -d "$omarchy_dir/.git" ]]; then
-        log_info "Updating omarchy in $omarchy_dir"
-        git -C "$omarchy_dir" pull --ff-only || log_warning "omarchy update failed; continuing"
-        return 0
-    fi
-    if [[ -z "${omarchy_repo_url}" ]]; then
-        log_warning "OMARCHY_REPO_URL not set and no existing clone at $omarchy_dir; skipping clone"
-        return 0
-    fi
-    mkdir -p "$(dirname "$omarchy_dir")"
-    log_info "Cloning omarchy from $omarchy_repo_url -> $omarchy_dir"
-    git clone "$omarchy_repo_url" "$omarchy_dir" || log_warning "omarchy clone failed; continuing"
 }
 
 # Install tmux plugin manager (tpm) into ~/.config/tmux/plugins/tpm (idempotent).
@@ -1249,42 +1231,6 @@ setup_omarchy_plugins() {
             omarchy-plugin-add "$entry" --yes --enable || log_warning "Failed to add Omarchy plugin: $entry"
         fi
     done
-}
-
-# Point btop at the Omarchy-generated theme (desktop install does this; replicas need it too).
-# Safe to call repeatedly after omarchy theme set / refresh.
-ensure_btop_omarchy_theme() {
-    local theme_src="${HOME}/.local/state/omarchy/current/theme/btop.theme"
-    local themes_dir="${HOME}/.config/btop/themes"
-    local link="${themes_dir}/current.theme"
-    local conf="${HOME}/.config/btop/btop.conf"
-
-    if [[ ! -f "$theme_src" ]]; then
-        log_info "No Omarchy btop.theme yet; skip btop theme link"
-        return 0
-    fi
-
-    mkdir -p "$themes_dir"
-    ln -snf "$theme_src" "$link"
-    log_info "Linked btop theme -> $link"
-
-    mkdir -p "$(dirname "$conf")"
-    if [[ -f "$conf" ]]; then
-        if grep -qE '^[[:space:]]*color_theme[[:space:]]*=' "$conf"; then
-            sed -i -E 's|^[[:space:]]*color_theme[[:space:]]*=.*|color_theme = "current"|' "$conf"
-        else
-            printf '\ncolor_theme = "current"\n' >>"$conf"
-        fi
-    else
-        printf 'color_theme = "current"\n' >"$conf"
-    fi
-
-    if command -v omarchy-restart-btop >/dev/null 2>&1; then
-        omarchy-restart-btop >/dev/null 2>&1 || true
-    else
-        pkill -SIGUSR2 btop >/dev/null 2>&1 || true
-    fi
-    return 0
 }
 
 #######################################

@@ -84,6 +84,7 @@ elseif host == "sibir" then
 		scale = 1,
 		transform = 3,
 	})
+	-- HDMI 4K@60 on Iris Xe is flaky after DPMS; watcher software-replugs it.
 	hl.monitor({
 		output = "desc:Samsung Electric Company U32E850",
 		mode = "3840x2160@60",

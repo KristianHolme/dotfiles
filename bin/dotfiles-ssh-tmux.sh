@@ -17,9 +17,10 @@ Usage: $0
 Pick an SSH host with gum filter, connect with tmux session management.
 Server list comes from hosts.toml (set HOSTS_TOML to override).
 If the machine has login_node set, hop there after the VIP so tmux is
-always on that node. Starts a background ControlMaster first when
-~/.ssh/config enables one (2FA/jump hosts). Then syncs the local Omarchy
-theme in the background only if that master is up, and attaches tmux.
+always on that node. Starts a dedicated background ControlMaster first when
+~/.ssh/config enables one (2FA/jump hosts), replacing a Cursor-owned mux so
+Remote-SSH reconnects cannot drop the tmux session. Then syncs the local
+Omarchy theme in the background only if that master is up, and attaches tmux.
 EOF
     exit 0
 fi

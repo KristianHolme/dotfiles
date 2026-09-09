@@ -85,19 +85,13 @@ stow_replica_package() {
 		apply_flags=(--dotfiles --no-folding -S)
 	fi
 
-	log_info "Stowing default/$package into $target (first with --adopt if existing files conflict)..."
-	if stow -d "$stow_dir" -t "$target" "${apply_flags[@]}" "$package" --adopt -v; then
-		log_success "Stowed $package into $target"
-		return 0
-	fi
-
-	log_warning "Stow with --adopt failed; retrying without --adopt"
+	log_info "Stowing default/$package into $target..."
 	if stow -d "$stow_dir" -t "$target" "${apply_flags[@]}" "$package" -v; then
 		log_success "Stowed $package into $target"
 		return 0
 	fi
 
-	log_error "Failed to stow $package"
+	log_error "Failed to stow $package (existing files conflict; pass -- --adopt to take them into the repo)"
 	return 1
 }
 

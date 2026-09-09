@@ -7,12 +7,12 @@ set -Eeuo pipefail
 #   use `bin install` for gh (skipped if gh is already on PATH), then require PAT or `gh auth login`,
 #   export token, then `bin install` for the rest (packages.toml [bin.replica]) unless each
 #   tool's CLI already exists on PATH (eza, zoxide, rg, lazygit, fzf, fd, starship, git-lfs,
-#   btop, gum, superfile, dust, television, bat, shfmt; bin-managed specs still skip via config).
+#   btop, gum, dust, television, bat, shfmt; bin-managed specs still skip via config).
 # - go-yq (mikefarah/yq): bootstrapped via bin immediately after bin self-install (before packages.toml);
 #   also listed in packages.toml [bin.replica] for updates on re-runs.
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
-# - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); LazyVim starter, tpm.
+# - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); tpm.
 # - uv tool install for Python CLIs (packages.toml [uv.replica], e.g. trash-cli/trash-list,
 #   zotero-mcp-server → zotero-cli). Replica configures zotero-cli for the Zotero Web API
 #   using ZOTERO_API_KEY + ZOTERO_LIBRARY_ID (env or ~/.config/zotero-mcp/credentials.env).
@@ -28,7 +28,6 @@ set -Eeuo pipefail
 # Config via env vars (override as needed):
 #   INSTALL_DIR - where to place binaries (default: ~/.local/bin, or
 #                 hosts.toml install_root/bin when set for this machine)
-#   NVIM_OPT_DIR        - reserved / Neovim install base comment (default: ~/.local/opt/neovim)
 #   GITHUB_AUTH_TOKEN   - optional PAT (no scopes) for GitHub API; avoids rate limits for bin
 #   BIN_CONFIG          - optional path to bin's config.json (see marcosnils/bin)
 #   DEBUG               - set to 1 for verbose debug output
@@ -46,8 +45,6 @@ else
     DOTFILES_INSTALL_DIR_FROM_USER=0
 fi
 export DOTFILES_INSTALL_DIR_FROM_USER
-
-NVIM_OPT_DIR="${NVIM_OPT_DIR:-"$HOME/.local/opt/neovim"}"
 
 # Backward compat: GITHUB_TOKEN was documented historically; bin uses GITHUB_AUTH_TOKEN.
 if [[ -z "${GITHUB_AUTH_TOKEN:-}" && -n "${GITHUB_TOKEN:-}" ]]; then
@@ -146,42 +143,6 @@ install_neovim() {
     install -m 0755 "$tmp/nvim.AppImage" "$INSTALL_DIR/nvim.appimage"
     ln -sf "$INSTALL_DIR/nvim.appimage" "$INSTALL_DIR/nvim"
     log_success "Installed neovim (AppImage) -> $INSTALL_DIR/nvim (symlink)"
-}
-
-install_lazyvim() {
-    local nvim_config_dir="$HOME/.config/nvim"
-
-    if [[ -f "$nvim_config_dir/lua/config/lazy.lua" ]] || [[ -f "$nvim_config_dir/init.lua" ]]; then
-        log_info "LazyVim config already exists; skipping"
-        return 0
-    fi
-
-    if ! command -v nvim >/dev/null 2>&1; then
-        log_warning "nvim not found; skipping LazyVim installation"
-        return 0
-    fi
-
-    log_info "Installing LazyVim starter configuration..."
-
-    mkdir -p "$nvim_config_dir"
-
-    local tmp_dir=""
-    tmp_dir=$(mktemp -d)
-    trap 't="${tmp_dir:-}"; [[ -n "$t" ]] && rm -rf "$t"' RETURN
-
-    if git clone https://github.com/LazyVim/starter "$tmp_dir/lazyvim-starter" >/dev/null 2>&1; then
-        rm -rf "$tmp_dir/lazyvim-starter/.git"
-
-        pushd "$tmp_dir/lazyvim-starter" >/dev/null
-        cp -r . "$nvim_config_dir/"
-        popd >/dev/null
-
-        log_success "LazyVim starter configuration installed"
-        log_info "Run 'nvim' to complete the setup and install plugins"
-    else
-        log_error "Failed to clone LazyVim starter template"
-        return 1
-    fi
 }
 
 install_stow() {
@@ -315,7 +276,7 @@ Each listed tool skips bin install if its CLI is already on PATH (except bin boo
                   binaries, uv (self + replica tools), rustup, cargo crates,
                   prefix-built stow, juliaup, tpm, and Cursor CLI if present.
                   Neovim, yazi, and yazi plugins already version-check
-                  on every run. Does not overwrite an existing LazyVim config.
+                  on every run.
 
 Authentication: after gh is available (preinstalled or via bin), set GITHUB_AUTH_TOKEN (PAT, no
 scopes) or run gh auth login so the token is exported for bin and curl API calls.
@@ -327,7 +288,7 @@ zotero-cli (via uv): configured for Zotero Web API. Set ZOTERO_API_KEY and
 ZOTERO_LIBRARY_ID (optional ZOTERO_LIBRARY_TYPE=user|group), or put them in
 ~/.config/zotero-mcp/credentials.env before running.
 
-See header comments for INSTALL_DIR, NVIM_OPT_DIR, etc.
+See header comments for INSTALL_DIR, etc.
 EOF
             exit 0
             ;;
@@ -436,8 +397,6 @@ EOF
     install_stow || log_warning "stow installation failed; continuing"
 
     install_neovim || log_warning "neovim installation failed; continuing"
-
-    install_lazyvim || log_warning "LazyVim installation failed; continuing"
 
     install_juliaup_and_setup "$SCRIPT_DIR/julia-setup.jl"
 

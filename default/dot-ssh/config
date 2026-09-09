@@ -47,14 +47,12 @@ Host freebio* bioint0* ml*
     SetEnv TERM=xterm-256color
 
 # Multiplex through the 2FA jump host: one interactive login, reuse for dst/theme-sync/rsync.
+# dst starts a dedicated `ssh -fN` master. Cursor Remote-SSH must not own this
+# socket (it recycles its tunnel and would drop multiplexed tmux with it).
 Host uio atalanta nam-shub* abacus* freebio* bioint0* ml*
     ControlMaster auto
     ControlPath ~/.ssh/cm-%C
     ControlPersist 4h
-
-Host nrec1
-    User ubuntu
-    HostName 2001:700:2:8201::1242
 
 Host fox
     Hostname fox.educloud.no

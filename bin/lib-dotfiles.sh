@@ -61,20 +61,11 @@ go_yq_available() {
     command -v yq >/dev/null 2>&1 && yq --version 2>/dev/null | grep -q mikefarah
 }
 
-# True when go-yq or legacy tomlq (PyPI yq) is available.
-toml_backend_available() {
-    go_yq_available || command -v tomlq >/dev/null 2>&1
-}
-
-# Print JSON for a TOML file (prefer go-yq, fall back to tomlq).
+# Print JSON for a TOML file (mikefarah go-yq).
 toml_to_json() {
     local file="$1"
     if go_yq_available; then
         yq -p toml -o json "$file"
-        return 0
-    fi
-    if command -v tomlq >/dev/null 2>&1; then
-        tomlq . "$file"
         return 0
     fi
     log_error "No TOML parser available; install go-yq (Arch: yay -S go-yq; replica: packages.toml [bin.replica])"
@@ -132,8 +123,30 @@ _ssh_controlmaster_enabled() {
     esac
 }
 
+# PID of the live ControlMaster for alias $1, or empty.
+_ssh_controlmaster_pid() {
+    local out
+    out=$(ssh -O check "$1" </dev/null 2>&1) || return 1
+    echo "$out" | sed -n 's/^Master running (pid=\([0-9][0-9]*\)).*/\1/p' | head -n1
+}
+
+# True when the mux is our background `ssh -fN <host>` (not Cursor Remote-SSH).
+# Cursor's ControlPersist [mux] still holds ProxyJump stdio in the Cursor ssh
+# process; when that tunnel recycles, every multiplexed dst session dies.
+_ssh_dedicated_master_running() {
+    local host="$1" pid cmd
+    pid="$(_ssh_controlmaster_pid "$host")" || return 1
+    [[ -n "$pid" && -r "/proc/${pid}/cmdline" ]] || return 1
+    cmd=$(tr '\0' ' ' < "/proc/${pid}/cmdline")
+    case "$cmd" in
+    *"-fN ${host}"*) return 0 ;;
+    esac
+    return 1
+}
+
 # Start a background SSH ControlMaster when ~/.ssh/config enables multiplexing.
 # Establishes ProxyJump masters first so 2FA happens once, serially, with no race.
+# Requires a dedicated -fN master so Cursor Remote-SSH cannot own the socket.
 ensure_ssh_controlmaster() {
     local host="$1"
     local skip_jumps="${2:-}"
@@ -154,8 +167,14 @@ ensure_ssh_controlmaster() {
 
     _ssh_controlmaster_enabled "$host" || return 0
 
-    if ssh -O check "$host" >/dev/null 2>&1; then
+    if _ssh_dedicated_master_running "$host"; then
         return 0
+    fi
+
+    if ssh -O check "$host" >/dev/null 2>&1; then
+        echo "⚠️  Replacing non-dedicated SSH master for $host (e.g. Cursor Remote-SSH)..."
+        ssh -O stop "$host" >/dev/null 2>&1 || true
+        sleep 0.2
     fi
 
     echo "🔐 Starting background master connection for $host..."

@@ -54,6 +54,16 @@ local groups = {
 	"NotifyDEBUGBorder",
 }
 
-for _, name in ipairs(groups) do
-	make_transparent(name)
+local function apply()
+	for _, name in ipairs(groups) do
+		make_transparent(name)
+	end
 end
+
+apply()
+
+-- After LazyReload re-applies the colorscheme, keep the terminal showing through.
+vim.api.nvim_create_autocmd("ColorScheme", {
+	group = vim.api.nvim_create_augroup("dotfiles_transparency", { clear = true }),
+	callback = apply,
+})
