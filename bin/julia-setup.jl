@@ -122,12 +122,25 @@ function juliaclient_working()
     end
 end
 
+function installed_daemoniccabal_url()
+    manifest = joinpath(dirname(Base.active_project()), "Manifest.toml")
+    isfile(manifest) || return ""
+    data = TOML.parsefile(manifest)
+    deps = get(data, "deps", data)
+    entry = get(deps, "DaemonicCabal", nothing)
+    entry === nothing && return ""
+    rec = entry isa AbstractVector ? get(entry, 1, nothing) : entry
+    rec isa AbstractDict || return ""
+    return String(get(rec, "repo-url", ""))
+end
+
 function install_daemoniccabal(url)
     if isempty(url)
         @info "No [julia.daemon] url configured; skipping juliaclient setup"
         return nothing
     end
-    if juliaclient_working()
+    url_matches = installed_daemoniccabal_url() == url
+    if url_matches && juliaclient_working()
         @info "juliaclient already working; skipping (re-run DaemonicCabal.install() after juliaup updates)"
         return nothing
     end
