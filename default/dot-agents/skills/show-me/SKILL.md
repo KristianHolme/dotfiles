@@ -11,7 +11,7 @@ description: >-
 
 Help the user understand the current topic visually. Skip the preamble and keep prose brief. Pick the smallest view that makes the key point clear. Explain; do not write or propose implementation code.
 
-When the explanation is technical, apply [asd-ste100](../asd-ste100/SKILL.md) (STE-flavored) to the prose.
+Surrounding reply style follows [agent-communication](../agent-communication/SKILL.md). When the explanation is technical, apply [asd-ste100](../asd-ste100/SKILL.md) (STE-flavored) to the prose.
 
 - Show logic or an algorithm as pseudocode:
 
