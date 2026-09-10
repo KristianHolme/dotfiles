@@ -139,7 +139,6 @@ install = [
     "JET",
     "PkgTemplates",
     "ProgressMeter",
-    "OhMyREPL",
     "Infiltrator",
     "ArtifactUtils",
     "ExplicitImports",
