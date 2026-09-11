@@ -56,6 +56,7 @@ o.bind("SUPER + ALT + RETURN", "Tmux", { omarchy = "terminal-tmux" })
 
 -- monitors.lua only re-evaluates on config reload (unplug does not switch layouts).
 o.bind("SUPER + ALT + R", "Reload Hyprland", "hyprctl reload")
+o.bind("SUPER + CTRL + U", "Update Omarchy", "omarchy-launch-floating-terminal-with-presentation omarchy-update")
 o.bind("SUPER + SHIFT + D", "Docker", { tui = "lazydocker" })
 o.bind("SUPER + D", "Downloads", "omarchy-shell shell toggle jankeesvw.downloads")
 
