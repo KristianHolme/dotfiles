@@ -34,6 +34,12 @@ kill $(juliaclient --status=json | jq -r '.workers[] | select(.session_label=="<
 
 - Installed by dotfiles (`bin/julia-setup.jl`, see `packages.toml [julia.daemon]`)
   from https://github.com/KristianHolmeAgenticWorkspace/DaemonicCabal.jl (epoll
-  fallback for Linux 4.18). Re-run `DaemonicCabal.install()` after `juliaup update`.
-  Published 0.5.0 artifacts are still io_uring-only; this host overlays a Zig 0.16
-  build via `~/.julia/artifacts/Overrides.toml`.
+  fallback for Linux 4.18).
+- After `juliaup update`, re-run `DaemonicCabal.install()` only if
+  `~/.julia/artifacts/Overrides.toml` still points at the epoll overlay
+  (`~/.local/share/julia/daemoniccabal-execbundle`). A plain `install()`
+  hardlinks the official 0.5.0 artifact; that binary is io_uring-only and
+  the conductor then exits with `SystemOutdated` on Linux 4.18. Rebuild the
+  overlay with Zig 0.16 from `~/Code/DaemonicCabal.jl` (toolchain in
+  `~/.local/share/zig/zig-x86_64-linux-0.16.0`, not `/tmp`) if the override
+  path is missing.
