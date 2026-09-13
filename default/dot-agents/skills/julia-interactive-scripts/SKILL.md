@@ -50,9 +50,9 @@ Reserve `const` (section 3) for values that are clearly and permanently fixed �
 
 A short comment block explaining what the script does is fine (before the imports). Don't turn the whole script into a small API.
 
-## Interactive first
+## Save without display
 
-Call `display(fig)` (or equivalent) before saving so the figure can be inspected live.
+Do not `display(fig)` before saving. That opens a GUI window and blocks until it is closed. Save the file; open it if you need to inspect it. See [makie-core](../makie-core/SKILL.md).
 
 ## Save in its own section
 
@@ -105,7 +105,7 @@ using MyPackage, CairoMakie
 
 ## Templates
 
-**DrWatson workflow** — utilities, setup, display, save:
+**DrWatson workflow** — utilities, setup, plot, save:
 
 ```julia
 # one-line description of what the script does
@@ -130,7 +130,6 @@ ny = 64
 u = rand(ny, ny)
 ## plot
 fig = plot_field(u; figsize = (800, 600), colormap = :viridis)
-display(fig)
 ##
 path = plotsdir("my_plot.png")
 wsave(path, fig)
@@ -161,7 +160,7 @@ Inline struct/policy definitions in `examples/` are fine when they illustrate AP
 ## Anti-patterns
 
 - Wrapping the whole script in `main()` / `run_analysis()` called at the end
-- Saving figures without `display` first
+- Calling `display(fig)` before `save` (opens a GUI and blocks)
 - Putting one-off experiment logic in `src/` instead of `scripts/` or `_research/`
 - Defining many small helpers for code used once in the same file
 - Putting utility functions in usage sections instead of section 2

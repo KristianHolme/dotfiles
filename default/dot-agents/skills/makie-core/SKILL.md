@@ -35,3 +35,6 @@ If a static plot may be reused later in dynamic visualizations, ask whether the 
 ## Themes and Defaults
 - Use `set_theme!` or `update_theme!` to keep styling consistent across figures.
 - Prefer explicit axis labels and titles for clarity.
+
+## Saving
+Do not `display(fig)` before `save`. `display` opens a GUI window and blocks until that window is closed. Save the file; open it later if you need to inspect it.
