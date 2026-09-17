@@ -4,24 +4,20 @@
 local home = os.getenv("HOME") or ""
 
 -- SUPER+CTRL+RETURN is Herdr when preinstalled bindings are on; keep Ghostty QT.
--- Ghostty registers a D-Bus global shortcut, but Hyprland's `global` dispatcher
--- returns ok without Ghostty toggling. Sending the chord into a Ghostty window
--- does toggle the layer (Ghostty 1.3.1 has no +toggle-quick-terminal CLI).
+-- Ghostty registers this as a compositor global shortcut (hyprctl globalshortcuts).
+-- The old helper injected Super+Ctrl+Enter into a mapped Ghostty window, or else
+-- launched `ghostty` as a normal window. Hidden group members are unmapped, so
+-- a focused group made the helper take the launch path; group:auto_group then
+-- inserted that window into the group. Second press found the new mapped window
+-- and finally toggled the overlay.
+-- Ghostty 1.3.1 has no +toggle-quick-terminal CLI; the registered id is
+-- `com.mitchellh.ghostty:CTRL+LOGO+Return` (not `ghostty:...`).
 hl.unbind("SUPER + CTRL + RETURN")
-local function toggle_ghostty_quick_terminal()
-    for _, w in pairs(hl.get_windows()) do
-        if w.class == "com.mitchellh.ghostty" then
-            hl.dispatch(hl.dsp.send_shortcut({
-                mods = "CTRL + SUPER",
-                key = "RETURN",
-                window = "class:com.mitchellh.ghostty",
-            }))
-            return
-        end
-    end
-    hl.dispatch(hl.dsp.exec_cmd("uwsm-app -- ghostty --gtk-single-instance=true"))
-end
-o.bind("SUPER + CTRL + RETURN", "Quick terminal", toggle_ghostty_quick_terminal)
+o.bind(
+    "SUPER + CTRL + RETURN",
+    "Quick terminal",
+    hl.dsp.global("com.mitchellh.ghostty:CTRL+LOGO+Return")
+)
 
 -- Quattro default here is nautilus in the current directory.
 -- Unbind must match Omarchy's string exactly (modifier order matters).
