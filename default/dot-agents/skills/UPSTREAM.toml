@@ -40,7 +40,15 @@ upstream_repo = "https://github.com/mattpocock/skills"
 upstream_path = "skills/engineering/grill-with-docs"
 upstream_ref = "master"
 status = "active"
-notes = "Matt Pocock. Invokes grilling + domain-modeling; vendor domain-modeling before relying on this. Keep local frontmatter metadata when porting."
+notes = "Matt Pocock. Invokes grilling + domain-modeling. Keep local frontmatter metadata when porting."
+
+[[skill]]
+local = "domain-modeling"
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/engineering/domain-modeling"
+upstream_ref = "master"
+status = "active"
+notes = "Matt Pocock. Includes ADR-FORMAT.md, CONTEXT-FORMAT.md, agents/openai.yaml. Keep local frontmatter metadata when porting. Required by grill-with-docs."
 
 [[skill]]
 local = ""
@@ -48,4 +56,4 @@ upstream_repo = "https://github.com/mattpocock/skills"
 upstream_path = "skills/"
 upstream_ref = "master"
 status = "planned"
-notes = "Other Matt Pocock skills (tdd, code-review, domain-modeling, implement, ...). Add one [[skill]] row per skill when Kristian installs it; do not import the whole tree unasked."
+notes = "Other Matt Pocock skills (tdd, code-review, implement, ...). Add one [[skill]] row per skill when Kristian installs it; do not import the whole tree unasked."
