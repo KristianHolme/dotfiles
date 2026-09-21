@@ -1,0 +1,27 @@
+# Vendored agent skills — upstream sources for the weekly sync routine.
+# Local copies live beside this file; stow links them into ~/.agents/skills.
+#
+# status: active = sync on schedule; planned = track intent only, do not auto-vendor yet
+
+[[skill]]
+local = "thermo-nuclear-code-quality-review"
+upstream_repo = "https://github.com/cursor/plugins"
+upstream_path = "cursor-team-kit/skills/thermo-nuclear-code-quality-review"
+upstream_ref = "main"
+status = "active"
+notes = "Cursor team kit. Keep local frontmatter metadata (upstream + last_refreshed) when porting."
+
+[[skill]]
+local = "zotero-cli"
+upstream_repo = "https://github.com/zotero/zotero-mcp"
+refresh = "zotero-mcp install-skill"
+status = "active"
+notes = "Refresh via the skill's own recipe in SKILL.md metadata, not raw file copy."
+
+[[skill]]
+local = ""  # pick concrete skill dirs when vendoring starts
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/"
+upstream_ref = "master"
+status = "planned"
+notes = "Matt Pocock engineering skills (tdd, code-review, implement, ...). Add one [[skill]] row per vendored skill when Kristian installs them; do not import the whole tree unasked."
