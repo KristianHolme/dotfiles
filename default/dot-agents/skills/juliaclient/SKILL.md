@@ -34,10 +34,23 @@ kill $(juliaclient --status=json | jq -r '.workers[] | select(.session_label=="<
 
 - Installed by dotfiles (`bin/julia-setup.jl`, see `packages.toml [julia.daemon]`)
   from https://github.com/KristianHolmeAgenticWorkspace/DaemonicCabal.jl (epoll
-  fallback when `io_uring_setup` returns `EPERM`/`ENOSYS`). Re-run
-  `DaemonicCabal.install()` after `juliaup update` or after rebuilding the overlay.
-- Published 0.5.0 artifacts are still io_uring-only. This host overlays a Zig 0.16
-  build via **the first depot**, not `~/.julia`:
-  `$JULIA_DEPOT_PATH/artifacts/Overrides.toml` → `artifacts/overrides/execbundle/`
-  (here: `/cluster/projects/nn9886k/kholme/.julia/artifacts/…`). Source:
-  `/cluster/projects/nn9886k/kholme/src/DaemonicCabal.jl`; compiler: `zig` 0.16.
+  fallback when `io_uring_setup` returns `EPERM`/`ENOSYS`). The fork's Zig has
+  epoll, but `install()` does not compile it: it hardlinks `artifact"execbundle"`,
+  which still downloads tecosaur 0.5.0 (io_uring-only).
+- Overlay lives in **the first depot**, not always `~/.julia`:
+  `$JULIA_DEPOT_PATH/artifacts/Overrides.toml`. Use a **content-hash** line, not a
+  `[uuid]` table — `artifact"execbundle"` never passes the package UUID:
+
+      9855c7292594fe8c8389b5027b010925c5eca2bc = "/absolute/path/to/execbundle"
+
+  That hash is the linux-x86_64 `git-tree-sha1` in the package `Artifacts.toml`.
+  Update the override if it changes. The path must be absolute.
+- Overlay dirs: HPC
+  `/cluster/projects/nn9886k/kholme/.julia/artifacts/overrides/execbundle`
+  (source `/cluster/projects/nn9886k/kholme/src/DaemonicCabal.jl`, `zig` 0.16);
+  laptop `~/.local/share/julia/daemoniccabal-execbundle` (source
+  `~/Code/DaemonicCabal.jl`, toolchain `~/.local/share/zig/zig-x86_64-linux-0.16.0`,
+  not `/tmp`).
+- After `juliaup update`, re-run `DaemonicCabal.install()` only if that hash
+  override is still present. A plain `install()` without it hardlinks the
+  official binary; the conductor then exits (`PermissionDenied` / `SystemOutdated`).

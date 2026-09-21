@@ -25,6 +25,13 @@
           "id": "omarchy.indicators"
         },
         {
+          "id": "omacom.elsewhen",
+          "zones": "Oslo|Europe/Oslo, Delhi|Asia/Kolkata, Tokyo|Asia/Tokyo, Los Angeles|America/Los_Angeles, New York|America/New_York"
+        },
+        {
+          "id": "omarchy.keyboard-layout"
+        },
+        {
           "id": "omarchy.clock",
           "format": "yyyy-MM-dd HH:mm",
           "formatAlt": "d MMMM 'W'ww yyyy",
@@ -32,9 +39,6 @@
           "weekStartDay": "monday",
           "birthYear": 0,
           "lifeExpectancy": 100
-        },
-        {
-          "id": "omarchy.keyboard-layout"
         },
         {
           "id": "omarchy.weather"

@@ -99,7 +99,16 @@ elseif host == "sibir" then
 	})
 
 	if has_monitor("DELL U2424HE") and has_monitor("U32E850") then
-		-- Office desk: portrait Dell + Samsung 4K + laptop
+		-- Office desk: portrait Dell + Samsung 4K + laptop.
+		-- After suspend Hyprland can have the Dell EDID on DP-1 with an empty
+		-- description, so the desc: rule above does not match. Bind DP-1 too.
+		hl.monitor({
+			output = "DP-1",
+			mode = "1920x1080@60",
+			position = "0x-96",
+			scale = 1,
+			transform = 3,
+		})
 		hl.monitor({
 			output = "desc:BOE 0x0AFE",
 			mode = "2560x1440@60",
@@ -114,9 +123,9 @@ elseif host == "sibir" then
 			{ id = 4, monitor = "desc:Samsung Electric Company U32E850", persistent = true },
 			{ id = 5, monitor = "desc:Samsung Electric Company U32E850", persistent = true },
 			{ id = 6, monitor = "desc:Samsung Electric Company U32E850", persistent = true },
-			{ id = 7, monitor = "desc:Dell Inc. DELL U2424HE", persistent = true, default = true },
-			{ id = 8, monitor = "desc:Dell Inc. DELL U2424HE", persistent = true },
-			{ id = 9, monitor = "desc:Dell Inc. DELL U2424HE", persistent = true },
+			{ id = 7, monitor = "DP-1", persistent = true, default = true },
+			{ id = 8, monitor = "DP-1", persistent = true },
+			{ id = 9, monitor = "DP-1", persistent = true },
 			{ id = 10, monitor = "desc:BOE 0x0AFE", persistent = true, default = true },
 		})
 	elseif has_monitor("C27JG5x") then
