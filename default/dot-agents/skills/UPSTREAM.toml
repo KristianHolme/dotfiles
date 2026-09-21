@@ -19,9 +19,33 @@ status = "active"
 notes = "Refresh via the skill's own recipe in SKILL.md metadata, not raw file copy."
 
 [[skill]]
-local = ""  # pick concrete skill dirs when vendoring starts
+local = "grilling"
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/productivity/grilling"
+upstream_ref = "master"
+status = "active"
+notes = "Matt Pocock. Keep local frontmatter metadata when porting."
+
+[[skill]]
+local = "grill-me"
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/productivity/grill-me"
+upstream_ref = "master"
+status = "active"
+notes = "Matt Pocock wrapper that invokes grilling. Keep local frontmatter metadata when porting."
+
+[[skill]]
+local = "grill-with-docs"
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/engineering/grill-with-docs"
+upstream_ref = "master"
+status = "active"
+notes = "Matt Pocock. Invokes grilling + domain-modeling; vendor domain-modeling before relying on this. Keep local frontmatter metadata when porting."
+
+[[skill]]
+local = ""
 upstream_repo = "https://github.com/mattpocock/skills"
 upstream_path = "skills/"
 upstream_ref = "master"
 status = "planned"
-notes = "Matt Pocock engineering skills (tdd, code-review, implement, ...). Add one [[skill]] row per vendored skill when Kristian installs them; do not import the whole tree unasked."
+notes = "Other Matt Pocock skills (tdd, code-review, domain-modeling, implement, ...). Add one [[skill]] row per skill when Kristian installs it; do not import the whole tree unasked."

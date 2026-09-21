@@ -1,7 +1,13 @@
 ---
 name: grilling
 description: Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases.
+metadata:
+  upstream: https://github.com/mattpocock/skills/tree/master/skills/productivity/grilling
+  last_refreshed: "2026-09-21"
+  refresh_interval_days: "14"
 ---
+
+> Vendored from [mattpocock/skills](https://github.com/mattpocock/skills/tree/master/skills/productivity/grilling). Tracked in `UPSTREAM.toml`; weekly sync ports upstream changes.
 
 Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.
 
