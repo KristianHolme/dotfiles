@@ -1,0 +1,59 @@
+# Vendored agent skills — upstream sources for the weekly sync routine.
+# Local copies live beside this file; stow links them into ~/.agents/skills.
+#
+# status: active = sync on schedule; planned = track intent only, do not auto-vendor yet
+
+[[skill]]
+local = "thermo-nuclear-code-quality-review"
+upstream_repo = "https://github.com/cursor/plugins"
+upstream_path = "cursor-team-kit/skills/thermo-nuclear-code-quality-review"
+upstream_ref = "main"
+status = "active"
+notes = "Cursor team kit. Keep local frontmatter metadata (upstream + last_refreshed) when porting."
+
+[[skill]]
+local = "zotero-cli"
+upstream_repo = "https://github.com/zotero/zotero-mcp"
+refresh = "zotero-mcp install-skill"
+status = "active"
+notes = "Refresh via the skill's own recipe in SKILL.md metadata, not raw file copy."
+
+[[skill]]
+local = "grilling"
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/productivity/grilling"
+upstream_ref = "master"
+status = "active"
+notes = "Matt Pocock. Keep local frontmatter metadata when porting."
+
+[[skill]]
+local = "grill-me"
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/productivity/grill-me"
+upstream_ref = "master"
+status = "active"
+notes = "Matt Pocock wrapper that invokes grilling. Keep local frontmatter metadata when porting."
+
+[[skill]]
+local = "grill-with-docs"
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/engineering/grill-with-docs"
+upstream_ref = "master"
+status = "active"
+notes = "Matt Pocock. Invokes grilling + domain-modeling. Keep local frontmatter metadata when porting."
+
+[[skill]]
+local = "domain-modeling"
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/engineering/domain-modeling"
+upstream_ref = "master"
+status = "active"
+notes = "Matt Pocock. Includes ADR-FORMAT.md, CONTEXT-FORMAT.md, agents/openai.yaml. Keep local frontmatter metadata when porting. Required by grill-with-docs."
+
+[[skill]]
+local = ""
+upstream_repo = "https://github.com/mattpocock/skills"
+upstream_path = "skills/"
+upstream_ref = "master"
+status = "planned"
+notes = "Other Matt Pocock skills (tdd, code-review, implement, ...). Add one [[skill]] row per skill when Kristian installs it; do not import the whole tree unasked."
