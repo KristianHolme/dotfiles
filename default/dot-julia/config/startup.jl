@@ -5,23 +5,18 @@ catch e
     @warn "Error initializing Revise" exception = (e, catch_backtrace())
 end
 
-try
-    using About
-catch e
-    @warn "Error initializing About" exception = (e, catch_backtrace())
+if isinteractive()
+    import BasicAutoloads
+    BasicAutoloads.register_autoloads([
+        ["@benchmark", "@btime"] => :(using BenchmarkTools),
+        ["@about"] => :(begin
+            using About
+            macro about(x)
+                return Expr(:call, About.about, x)
+            end
+        end),
+    ])
 end
-
-# if isinteractive()
-#     import BasicAutoloads
-#     BasicAutoloads.register_autoloads([
-#         ["@benchmark", "@btime"] => :(using BenchmarkTools),
-#         ["@test", "@testset", "@test_broken", "@test_deprecated", "@test_logs",
-#         "@test_nowarn", "@test_skip", "@test_throws", "@test_warn", "@inferred"] =>
-#                                     :(using Test),
-#         ["@about"]               => :(using About; macro about(x) Expr(:call, About.about, x) end),
-#     ])
-# end
-
 
 const local_file = joinpath(
     homedir(), "dotfiles", "default", "dot-julia",

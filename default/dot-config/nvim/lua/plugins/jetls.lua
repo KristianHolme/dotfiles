@@ -16,6 +16,11 @@ return {
                     root_markers = { "Project.toml", ".git" },
                     settings = {
                         jetls = {
+                            inlay_hint = {
+                                types = {
+                                    enabled = false,
+                                },
+                            },
                             code_lens = {
                                 references = true,
                                 testrunner = true,
