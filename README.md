@@ -38,8 +38,9 @@ dotfiles-apply-config.sh [PROFILE]    # alias: dac
 ```
 
 Stows `default/` into `~`. Conflicts are resolved interactively with `gum`
-(adopt into the repo, or abort). Also links agent skills/commands into
-`~/.cursor` and `~/.config/opencode`, and reloads Hyprland.
+(adopt into the repo, or abort). It copies agent skills into `~/.codex/skills`,
+links skills/commands into `~/.cursor` and `~/.config/opencode`, and reloads
+Hyprland.
 
 Host-specific Hyprland (monitors, scale, workspace pins) is in
 `default/dot-config/hypr/monitors.lua`: it reads `/etc/hostname` and the

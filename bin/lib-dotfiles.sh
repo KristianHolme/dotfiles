@@ -113,6 +113,34 @@ create_symlink_with_backup() {
     ln -sf "$source_path" "$target_path"
 }
 
+# Copy a directory's contents into a target directory, following source symlinks.
+# Replaces a target symlink so consumers that do not follow directory symlinks
+# can read regular files throughout the copied tree.
+# Existing regular files in the target are updated; unrelated files are kept.
+# Usage: copy_directory_contents "/path/to/source" "/path/to/target" "Description"
+copy_directory_contents() {
+    local source_path="$1"
+    local target_path="$2"
+    local description="$3"
+
+    if [[ ! -d "$source_path" ]]; then
+        log_warning "Source for $description not found: $source_path; skipping"
+        return 0
+    fi
+
+    if [[ -L "$target_path" ]]; then
+        log_info "Replacing symlink for $description: $target_path"
+        rm "$target_path"
+    elif [[ -e "$target_path" && ! -d "$target_path" ]]; then
+        log_error "Cannot copy $description: target is not a directory: $target_path"
+        return 1
+    fi
+
+    mkdir -p "$target_path"
+    cp -LR "$source_path/." "$target_path/"
+    log_success "Copied $description into $target_path"
+}
+
 # True when ~/.ssh/config enables ControlMaster for this alias.
 _ssh_controlmaster_enabled() {
     local cm

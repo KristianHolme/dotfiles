@@ -136,7 +136,7 @@ unapply_configs() {
 	log_success "Configuration unlinking completed"
 }
 
-# Link agent skills/commands to Cursor and OpenCode config directories.
+# Link agent skills/commands to Cursor and OpenCode, and copy skills to Codex.
 link_agent_configs() {
 	local agents_dir="$HOME/.agents"
 
@@ -146,6 +146,7 @@ link_agent_configs() {
 	fi
 
 	log_info "Linking agent skills/commands to Cursor and OpenCode..."
+	copy_directory_contents "$agents_dir/skills" "$HOME/.codex/skills" "Codex skills"
 	create_symlink_with_backup "$agents_dir/skills" "$HOME/.cursor/skills" "Cursor skills"
 	create_symlink_with_backup "$agents_dir/commands" "$HOME/.cursor/commands" "Cursor commands"
 	create_symlink_with_backup "$agents_dir/commands" "$HOME/.config/opencode/commands" "OpenCode commands"
