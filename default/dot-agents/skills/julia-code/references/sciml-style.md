@@ -27,7 +27,9 @@ Fetch those if more detail is needed.
 - Surround most binary operators with single spaces.
 - No spaces around `:`, `^`, or `//`.
 - `for x in xs` (never `=` or `∈`) in loops and comprehensions.
-- Short-form functions only when they fit on one line.
+- Prefer short-form definitions (`f(x) = ...`) when the whole definition fits within
+  the 92-character limit; use a `function` block for longer definitions or multiple
+  statements.
 - Separate positional and keyword arguments with `;` in calls.
 
 ## Naming
