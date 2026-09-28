@@ -77,13 +77,16 @@ stow_replica_package() {
 		return 0
 	fi
 
+	# Default to restow (-R), same as local apply-config: unstow then stow so
+	# renamed/removed package files (e.g. skill.md → SKILL.md) do not leave
+	# dangling target symlinks that break cp -LR into ~/.codex/skills.
 	if [[ ${#stow_flags[@]} -gt 0 ]]; then
 		merge_apply_stow_flags apply_flags "${stow_flags[@]}"
 		if ! stow_flags_include -S "${apply_flags[@]}" && ! stow_flags_include -R "${apply_flags[@]}"; then
-			apply_flags+=(-S)
+			apply_flags+=(-R)
 		fi
 	else
-		apply_flags=(--dotfiles --no-folding -S)
+		apply_flags=(--dotfiles --no-folding -R)
 	fi
 
 	log_info "Stowing default/$package into $target..."
