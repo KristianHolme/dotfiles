@@ -117,11 +117,14 @@ create_symlink_with_backup() {
 # Replaces a target symlink so consumers that do not follow directory symlinks
 # can read regular files throughout the copied tree.
 # Existing regular files in the target are updated; unrelated files are kept.
+# Dangling source symlinks are removed first: cp -LR aborts on them, and they
+# appear when a stowed file is renamed/removed without a restow.
 # Usage: copy_directory_contents "/path/to/source" "/path/to/target" "Description"
 copy_directory_contents() {
     local source_path="$1"
     local target_path="$2"
     local description="$3"
+    local dangling
 
     if [[ ! -d "$source_path" ]]; then
         log_warning "Source for $description not found: $source_path; skipping"
@@ -135,6 +138,11 @@ copy_directory_contents() {
         log_error "Cannot copy $description: target is not a directory: $target_path"
         return 1
     fi
+
+    while IFS= read -r -d '' dangling; do
+        log_warning "Removing dangling symlink before $description copy: $dangling"
+        rm -f "$dangling"
+    done < <(find "$source_path" -xtype l -print0 2>/dev/null)
 
     mkdir -p "$target_path"
     cp -LR "$source_path/." "$target_path/"

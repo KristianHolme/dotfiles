@@ -92,6 +92,8 @@ o.window({ tag = "opaque" }, { opacity = "1.0 override 1.0 override" })
 
 o.window({ class = "^sticky\\.py$" }, { float = true, size = { 300, 250 }, pin = true })
 
+-- Zotero is Firefox/XUL; default opacity makes the library UI look soft/fuzzy.
+o.window({ class = "^Zotero$" }, { tag = "-default-opacity", opacity = "1 1" })
 o.window({ class = "^Zotero$", title = "^Citation Dialog$" }, { float = true, center = true })
 
 -- omarchy-downloads: keep the list as a real window (needed for drag-and-drop)
