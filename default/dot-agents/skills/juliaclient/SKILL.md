@@ -30,6 +30,25 @@ reset a single session. Instead kill only your own worker:
 kill $(juliaclient --status=json | jq -r '.workers[] | select(.session_label=="<label>") | .pid')
 ```
 
+## Stale package code after editing source
+
+A fresh module per call does NOT mean fresh packages. The worker for a project
+stays alive between calls (until culled) and keeps every loaded package. After
+you edit a package's `src/`, the next call runs the OLD code — no error, no
+recompile. Runtime patches (`@eval SomePkg f(...) = ...`) also leak into later
+calls in the same way.
+
+- Use `--revise=yes` on calls that must see `src/` edits, or
+- kill that project's worker before the call:
+
+```sh
+kill $(juliaclient --status=json | jq -r '.workers[] | select(.project=="'"$PWD"'") | .pid')
+```
+
+`juliaclient --project --restart` can report `killed 0 worker(s)` while a
+worker for the project is running, so do not rely on it. Sign of stale code: a
+run that should recompile finishes in a few seconds.
+
 ## Notes
 
 - Installed by dotfiles (`bin/julia-setup.jl`, see `packages.toml [julia.daemon]`)
