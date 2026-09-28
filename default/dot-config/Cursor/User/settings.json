@@ -17,7 +17,7 @@
   "git.openRepositoryInParentFolders": "never",
   "git.confirmSync": false,
   "explorer.confirmDelete": false,
-  "cursor.cpp.disabledLanguages": [],
+  "cursor.cpp.disabledLanguages": ["typst"],
   "explorer.confirmDragAndDrop": false,
   "cursor.cpp.enablePartialAccepts": true,
   "vim.useCtrlKeys": false,
