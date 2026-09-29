@@ -145,6 +145,15 @@ copy_directory_contents() {
     done < <(find "$source_path" -xtype l -print0 2>/dev/null)
 
     mkdir -p "$target_path"
+
+    # cp -L cannot replace a symlink in the target with a real directory
+    local entry
+    for entry in "$source_path"/*; do
+        if [[ -L "$target_path/${entry##*/}" ]]; then
+            log_info "Replacing symlink in $description: ${entry##*/}"
+            rm "$target_path/${entry##*/}"
+        fi
+    done
     cp -LR "$source_path/." "$target_path/"
     log_success "Copied $description into $target_path"
 }
@@ -238,12 +247,15 @@ stow_flags_include() {
 
 # Remove agent symlinks created by link_agent_configs when they point into ~/.agents.
 unlink_agent_configs() {
-    local agents_dir="$HOME/.agents" target resolved
+    local agents_dir="$HOME/.agents" target resolved agents_real
     local -a targets=(
         "$HOME/.cursor/skills"
         "$HOME/.cursor/commands"
         "$HOME/.config/opencode/commands"
     )
+    for target in "$HOME"/.claude/skills/*; do
+        targets+=("$target")
+    done
 
     for target in "${targets[@]}"; do
         [[ -L "$target" ]] || continue

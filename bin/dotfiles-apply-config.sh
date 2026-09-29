@@ -136,7 +136,7 @@ unapply_configs() {
 	log_success "Configuration unlinking completed"
 }
 
-# Link agent skills/commands to Cursor and OpenCode, and copy skills to Codex.
+# Link agent skills/commands to Claude Code, Cursor and OpenCode, and copy skills to Codex.
 link_agent_configs() {
 	local agents_dir="$HOME/.agents"
 
@@ -145,7 +145,14 @@ link_agent_configs() {
 		return 0
 	fi
 
-	log_info "Linking agent skills/commands to Cursor and OpenCode..."
+	log_info "Linking agent skills/commands to Claude Code, Cursor and OpenCode..."
+	# Claude Code only reads ~/.claude/skills/<name>/SKILL.md, and that directory
+	# holds other content (e.g. synced/), so link each skill individually.
+	local skill
+	for skill in "$agents_dir"/skills/*/; do
+		skill="${skill%/}"
+		create_symlink_with_backup "$skill" "$HOME/.claude/skills/${skill##*/}" "Claude skill ${skill##*/}"
+	done
 	copy_directory_contents "$agents_dir/skills" "$HOME/.codex/skills" "Codex skills"
 	create_symlink_with_backup "$agents_dir/skills" "$HOME/.cursor/skills" "Cursor skills"
 	create_symlink_with_backup "$agents_dir/commands" "$HOME/.cursor/commands" "Cursor commands"
