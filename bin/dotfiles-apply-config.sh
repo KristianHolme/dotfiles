@@ -146,13 +146,7 @@ link_agent_configs() {
 	fi
 
 	log_info "Linking agent skills/commands to Claude Code, Cursor and OpenCode..."
-	# Claude Code only reads ~/.claude/skills/<name>/SKILL.md, and that directory
-	# holds other content (e.g. synced/), so link each skill individually.
-	local skill
-	for skill in "$agents_dir"/skills/*/; do
-		skill="${skill%/}"
-		create_symlink_with_backup "$skill" "$HOME/.claude/skills/${skill##*/}" "Claude skill ${skill##*/}"
-	done
+	link_claude_skills
 	copy_directory_contents "$agents_dir/skills" "$HOME/.codex/skills" "Codex skills"
 	create_symlink_with_backup "$agents_dir/skills" "$HOME/.cursor/skills" "Cursor skills"
 	create_symlink_with_backup "$agents_dir/commands" "$HOME/.cursor/commands" "Cursor commands"

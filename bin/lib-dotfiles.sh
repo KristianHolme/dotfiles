@@ -245,6 +245,18 @@ stow_flags_include() {
     return 1
 }
 
+# Symlink each ~/.agents/skills/<name> into ~/.claude/skills/<name>.
+# Claude Code only reads ~/.claude/skills/<name>/SKILL.md, and that directory
+# holds other content (e.g. synced/), so link each skill individually.
+link_claude_skills() {
+    local skill
+    for skill in "$HOME"/.agents/skills/*/; do
+        [[ -d "$skill" ]] || continue
+        skill="${skill%/}"
+        create_symlink_with_backup "$skill" "$HOME/.claude/skills/${skill##*/}" "Claude skill ${skill##*/}"
+    done
+}
+
 # Remove agent symlinks created by link_agent_configs when they point into ~/.agents.
 unlink_agent_configs() {
     local agents_dir="$HOME/.agents" target resolved agents_real

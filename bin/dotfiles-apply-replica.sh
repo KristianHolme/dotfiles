@@ -5,6 +5,7 @@ set -Eeuo pipefail
 # - Stows default/dot-config into ~/.config (nvim, tmux, starship, hypr, etc.)
 # - Stows default/dot-agents into ~/.agents (skills, commands)
 # - Copies skills into ~/.codex/skills (Codex does not read the symlink)
+# - Symlinks skills into ~/.claude/skills (per skill)
 # - Stows default/dot-pi into ~/.pi (agent settings.json)
 # - Creates symlink for Julia config ($JULIA_DEPOT_PATH/config or ~/.julia/config)
 # - Adds source line to server's ~/.bashrc for our dot-bashrc (idempotent)
@@ -120,6 +121,7 @@ run_stow_passthrough() {
 		exit 1
 	}
 	copy_directory_contents "$HOME/.agents/skills" "$HOME/.codex/skills" "Codex skills"
+	link_claude_skills
 	stow_replica_package dot-pi "$HOME/.pi" "${stow_flags[@]}" || {
 		log_error "dot-pi stow failed; aborting"
 		exit 1
@@ -227,6 +229,7 @@ run_selected_steps() {
 			exit 1
 		}
 		copy_directory_contents "$HOME/.agents/skills" "$HOME/.codex/skills" "Codex skills"
+		link_claude_skills
 	fi
 
 	if task_is_selected "$TASK_STOW_PI" "$selection"; then
