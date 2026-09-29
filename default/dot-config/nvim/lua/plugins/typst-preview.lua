@@ -6,6 +6,6 @@ return {
   },
   opts = {
     open_cmd = "omarchy-launch-webapp %s", -- borderless app window instead of a browser tab
-    follow_cursor = false, -- use <leader>cj to sync on demand
+    -- follow_cursor = false, -- use <leader>cj to sync on demand
   },
 }
