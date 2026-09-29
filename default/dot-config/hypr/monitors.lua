@@ -70,8 +70,18 @@ if host == "bengal" then
 	})
 elseif host == "kaspi" then
 	hl.env("GDK_SCALE", "2")
-	hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = 2 })
-	hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+	hl.monitor({
+		output = "eDP-1",
+		mode = "preferred",
+		position = "auto",
+		scale = 2,
+	})
+	hl.monitor({
+		output = "",
+		mode = "preferred",
+		position = "auto",
+		scale = 1,
+	})
 elseif host == "sibir" then
 	hl.env("GDK_SCALE", "1")
 
@@ -151,18 +161,27 @@ elseif host == "sibir" then
 		})
 	else
 		-- Laptop only: scale the panel and mirror unknown extras (projectors)
+		-- Keep the eDP-1 rule on ONE line: omarchy-hyprland-monitor-clamshell greps
+		-- this file (ignoring branches) for a single-line rule to decide the
+		-- internal panel scale, and re-applies it on monitor events.
+		hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = 1.6 })
 		hl.monitor({
-			output = "desc:BOE 0x0AFE",
+			output = "",
 			mode = "preferred",
 			position = "auto",
-			scale = 1.6,
+			scale = 1,
+			mirror = "eDP-1",
 		})
-		hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1, mirror = "eDP-1" })
 	end
 else
 	-- bali and any other host: Quattro generic auto layout
 	local omarchy_gdk_scale = 2
 	local omarchy_monitor_scale = "auto"
 	hl.env("GDK_SCALE", tostring(omarchy_gdk_scale))
-	hl.monitor({ output = "", mode = "preferred", position = "auto", scale = omarchy_monitor_scale })
+	hl.monitor({
+		output = "",
+		mode = "preferred",
+		position = "auto",
+		scale = omarchy_monitor_scale,
+	})
 end
