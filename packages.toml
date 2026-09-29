@@ -160,8 +160,11 @@ install = ["https://github.com/KristianHolme/KristianHolmeRegistry"]
 
 [julia.daemon]
 # DaemonicCabal.jl (juliaclient CLI + julia-daemon service) is not in a registry;
-# bin/julia-setup.jl adds it from this git URL and runs DaemonicCabal.install().
+# bin/julia-setup.jl adds it from this git URL and rev, builds the conductor and
+# client with zig from that source (release binaries lag master), and installs them.
 url = "https://github.com/tecosaur/DaemonicCabal.jl.git"
+rev = "master"
+zig_version = "0.16.0"
 
 [zotero.plugins.better-bibtex]
 display_name = "Better BibTeX"

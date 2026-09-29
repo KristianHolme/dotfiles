@@ -40,7 +40,9 @@ function load_julia_lists(toml_path)
     registries = string_list(get(julia, "registries", Dict{String, Any}()), "install")
     daemon = get(julia, "daemon", Dict{String, Any}())
     daemon_url = get(daemon, "url", "")
-    return (; packages, apps, registries, daemon_url)
+    daemon_rev = get(daemon, "rev", "master")
+    zig_version = get(daemon, "zig_version", "0.16.0")
+    return (; packages, apps, registries, daemon_url, daemon_rev, zig_version)
 end
 
 function parse_app_spec(spec)
@@ -122,7 +124,7 @@ function juliaclient_working()
     end
 end
 
-function installed_daemoniccabal_url()
+function installed_daemoniccabal_tree()
     manifest = joinpath(dirname(Base.active_project()), "Manifest.toml")
     isfile(manifest) || return ""
     data = TOML.parsefile(manifest)
@@ -131,43 +133,77 @@ function installed_daemoniccabal_url()
     entry === nothing && return ""
     rec = entry isa AbstractVector ? get(entry, 1, nothing) : entry
     rec isa AbstractDict || return ""
-    return String(get(rec, "repo-url", ""))
+    return String(get(rec, "git-tree-sha1", ""))
 end
 
-function install_daemoniccabal(url)
+const DAEMON_DIR = joinpath(homedir(), ".local", "share", "julia", "julia-daemon")
+const DAEMON_STAMP = joinpath(DAEMON_DIR, ".built-from-tree")
+
+# The zig compiler needed to build the conductor/client from master; the 0.5.0
+# release binaries do not match master's worker code.
+function ensure_zig(version)
+    found = Sys.which("zig")
+    found !== nothing && readchomp(`$found version`) == version && return found
+    root = joinpath(homedir(), ".local", "share", "zig")
+    zig = joinpath(root, "zig-x86_64-linux-$version", "zig")
+    isfile(zig) && return zig
+    Sys.islinux() && Sys.ARCH === :x86_64 || error("Automatic zig download only supports linux x86_64")
+    mkpath(root)
+    url = "https://ziglang.org/download/$version/zig-x86_64-linux-$version.tar.xz"
+    @info "Downloading zig $version"
+    run(pipeline(`curl -fsSL $url`, `tar -xJ -C $root`))
+    return zig
+end
+
+function build_daemon_binaries(pkgdir, zig, outdir)
+    mkpath(outdir)
+    for (name, src) in (("julia-conductor", "conductor/main.zig"), ("juliaclient", "client/client.zig"))
+        flags = ["-fsingle-threaded", "-fPIE", "-fstrip", "-O", "ReleaseSmall"]
+        run(`$zig build-exe $flags -femit-bin=$(joinpath(outdir, name)) --name $name $(joinpath(pkgdir, src))`)
+    end
+    return outdir
+end
+
+function install_daemoniccabal(url, rev, zig_version)
     if isempty(url)
         @info "No [julia.daemon] url configured; skipping juliaclient setup"
         return nothing
     end
-    url_matches = installed_daemoniccabal_url() == url
-    if url_matches && juliaclient_working()
-        @info "juliaclient already working; skipping (re-run DaemonicCabal.install() after juliaup updates)"
-        return nothing
-    end
     try
-        Pkg.add(; url)
-        @info "Added DaemonicCabal from $url"
+        Pkg.add(; url, rev)
+        Pkg.update("DaemonicCabal")
+        @info "Added DaemonicCabal from $url#$rev"
     catch e
         @warn "Error adding DaemonicCabal; skipping juliaclient setup" exception = (e, catch_backtrace())
         return nothing
     end
+    tree = installed_daemoniccabal_tree()
+    if isfile(DAEMON_STAMP) && read(DAEMON_STAMP, String) == tree && juliaclient_working()
+        @info "juliaclient already built from DaemonicCabal $tree; skipping"
+        return nothing
+    end
     try
-        # @eval runs in the latest world. invokelatest(DaemonicCabal.install) still
-        # looks up DaemonicCabal in this function's older world (Julia 1.12+).
-        @eval begin
-            using DaemonicCabal
-            DaemonicCabal.install()
+        @eval using DaemonicCabal
+        pkgdir = Base.invokelatest(() -> Base.pkgdir(Base.require(Main, :DaemonicCabal)))
+        zig = ensure_zig(zig_version)
+        outdir = build_daemon_binaries(pkgdir, zig, mktempdir())
+        # Installing replaces the binaries, and a running conductor keeps the old
+        # ones open (NFS .nfs* files block rm), so stop the service first.
+        run(ignorestatus(`systemctl --user stop julia-daemon`))
+        # @eval runs in the latest world (Julia 1.12+).
+        @eval DaemonicCabal.install()
+        run(ignorestatus(`systemctl --user stop julia-daemon`))
+        for name in ("julia-conductor", "juliaclient")
+            # Installed files are hardlinks to the release artifact; replace, don't overwrite.
+            cp(joinpath(outdir, name), joinpath(DAEMON_DIR, name); force = true)
+            chmod(joinpath(DAEMON_DIR, name), 0o755)
         end
-        @info "juliaclient installed and julia-daemon service enabled"
+        write(DAEMON_STAMP, tree)
+        run(ignorestatus(`systemctl --user start julia-daemon`))
+        @info "juliaclient built from master and julia-daemon service enabled"
     catch e
-        @warn "DaemonicCabal.install() failed" exception = (e, catch_backtrace())
-        @warn "If this is a headless host, the user manager may need lingering: loginctl enable-linger \$USER, then re-run DaemonicCabal.install()"
-        try
-            @eval DaemonicCabal.install_client_symlink()
-            @info "juliaclient symlink ensured despite service failure"
-        catch e2
-            @warn "Could not ensure juliaclient symlink" exception = (e2, catch_backtrace())
-        end
+        @warn "DaemonicCabal setup failed" exception = (e, catch_backtrace())
+        @warn "If this is a headless host, the user manager may need lingering: loginctl enable-linger \$USER"
     end
     return nothing
 end
@@ -180,7 +216,7 @@ lists = load_julia_lists(toml_path)
 install_packages(lists.packages)
 install_apps(lists.apps)
 install_registries(lists.registries)
-install_daemoniccabal(lists.daemon_url)
+install_daemoniccabal(lists.daemon_url, lists.daemon_rev, lists.zig_version)
 
 # Force hard exit to avoid segfault during Julia cleanup (Julia 1.12 + JETLS issue)
 ccall(:jl_exit, Cvoid, (Int32,), 0)
