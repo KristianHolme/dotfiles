@@ -48,6 +48,7 @@ alias ghd='gh dash'
 alias tvn='nvim "$(tv)"'
 alias dotfiles-help='bat ~/dotfiles/README.md'
 alias codex='codex --yolo'
+alias cc='claude --allow-dangerously-skip-permissions'
 
 export PATH="$HOME/.julia/bin:$PATH"
 
