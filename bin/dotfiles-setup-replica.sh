@@ -7,7 +7,7 @@ set -Eeuo pipefail
 #   use `bin install` for gh (skipped if gh is already on PATH), then require PAT or `gh auth login`,
 #   export token, then `bin install` for the rest (packages.toml [bin.replica]) unless each
 #   tool's CLI already exists on PATH (eza, zoxide, rg, lazygit, fzf, fd, starship, git-lfs,
-#   btop, gum, dust, television, bat, shfmt; bin-managed specs still skip via config).
+#   btop, gum, dua, television, bat, shfmt; bin-managed specs still skip via config).
 # - go-yq (mikefarah/yq): bootstrapped via bin immediately after bin self-install (before packages.toml);
 #   also listed in packages.toml [bin.replica] for updates on re-runs.
 # - GNU stow: built from source into ~/.local (not available via bin).

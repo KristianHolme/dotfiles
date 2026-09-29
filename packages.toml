@@ -84,7 +84,7 @@ install = [
     "github.com/tmux/tmux-builds:tmux",
     "github.com/junegunn/fzf:fzf",
     "github.com/sharkdp/fd:fd",
-    "github.com/bootandy/dust:dust",
+    "github.com/Byron/dua-cli:dua",
     "github.com/git-lfs/git-lfs:git-lfs",
     "github.com/aristocratos/btop:btop",
     "github.com/starship/starship:starship",
