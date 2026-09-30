@@ -1,3 +1,9 @@
+---
+name: suggest-pr
+description: Draft a pull request title and description for the current branch, following the repository's PR template and contributing guidelines, as copyable text blocks. Does not create the PR. Use when the user asks to suggest or draft a PR description.
+disable-model-invocation: true
+---
+
 # suggest-pr
 
 Draft a pull request title and description for the current branch's changes.

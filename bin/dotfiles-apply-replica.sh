@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 # Applies omarchy-tweaks configs for university servers:
 # - Stows default/dot-config into ~/.config (nvim, tmux, starship, hypr, etc.)
-# - Stows default/dot-agents into ~/.agents (skills, commands)
+# - Stows default/dot-agents into ~/.agents (skills)
 # - Copies skills into ~/.codex/skills (Codex does not read the symlink)
 # - Symlinks skills into ~/.claude/skills (per skill)
 # - Stows default/dot-pi into ~/.pi (agent settings.json)

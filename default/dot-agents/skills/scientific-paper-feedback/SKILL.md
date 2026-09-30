@@ -5,7 +5,7 @@ description: Give detailed feedback on scientific papers against established wri
 
 # Scientific Paper Feedback
 
-Provide **detailed** feedback on scientific papers by checking the manuscript against two guideline sources. Fetch and read both before reviewing.
+Provide **detailed** feedback on scientific papers by checking the manuscript against three guideline sources. Read all of them before reviewing.
 
 ## Guideline Sources (fetch first)
 
@@ -16,6 +16,9 @@ Provide **detailed** feedback on scientific papers by checking the manuscript ag
 2. **Stanford technical writing tips (structure, mechanics, grammar)**  
    Fetch the page content (e.g. with a web fetch tool):
    - URL: `https://cs.stanford.edu/people/widom/paper-writing.html`
+
+3. **Local style guide (sentence structure, reader expectations)**  
+   Read [scientific-writing](../scientific-writing/SKILL.md) (Gopen & Swan principles, stakes before detail, tense, authorial "we"). Report violations under Writing, citing e.g. "Gopen & Swan 2: stress position".
 
 Use these as the authority for what counts as a violation. Cite guideline identifiers where they exist (e.g. F:S2, F:L3) or the section/rule from Stanford.
 
@@ -37,7 +40,8 @@ Unless the user asks for a specific feedback format, split feedback into two sec
 - Style (tense, passive voice, sentence length, hyperboles, terminology consistency)
 - Structure (abstract, introduction, story, contributions by page 3)
 - Clarity (ambiguity, "which" vs "that", nonreferential "this/that", etc.)
-- Any other content/style rules from the two guideline sources
+- Sentence structure per Gopen & Swan (topic/stress position, subject-verb proximity, old before new)
+- Any other content/style rules from the guideline sources
 
 ## Reporting Each Violation
 
@@ -61,7 +65,7 @@ Example:
 
 ## Workflow
 
-1. **Fetch** both guideline URLs and read them.
+1. **Fetch** both guideline URLs and read them, and read the scientific-writing skill.
 2. **Obtain** the paper text (full .tex, exported text, or provided excerpt). If only PDF or partial text is available, use what you have and state the limitation.
 3. **Review** section by section; note every violation with location, excerpt, guideline, and suggestion.
 4. **Output** the two-part report (Technical, then Writing), each with violations in order of appearance in the paper.

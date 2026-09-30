@@ -136,7 +136,7 @@ unapply_configs() {
 	log_success "Configuration unlinking completed"
 }
 
-# Link agent skills/commands to Claude Code, Cursor and OpenCode, and copy skills to Codex.
+# Link agent skills to Claude Code and Cursor, and copy skills to Codex.
 link_agent_configs() {
 	local agents_dir="$HOME/.agents"
 
@@ -145,12 +145,10 @@ link_agent_configs() {
 		return 0
 	fi
 
-	log_info "Linking agent skills/commands to Claude Code, Cursor and OpenCode..."
+	log_info "Linking agent skills to Claude Code and Cursor..."
 	link_claude_skills
 	copy_directory_contents "$agents_dir/skills" "$HOME/.codex/skills" "Codex skills"
 	create_symlink_with_backup "$agents_dir/skills" "$HOME/.cursor/skills" "Cursor skills"
-	create_symlink_with_backup "$agents_dir/commands" "$HOME/.cursor/commands" "Cursor commands"
-	create_symlink_with_backup "$agents_dir/commands" "$HOME/.config/opencode/commands" "OpenCode commands"
 }
 
 ensure_hyprland_instance() {

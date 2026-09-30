@@ -22,6 +22,9 @@ Apply this skill for any Julia writing or editing. Read linked references only w
 - **Project.toml / Manifest.toml**: do not edit without user approval; prefer Pkg/MCP APIs (see `julia-project`).
 - **No unsolicited files**: do not create example or test files unless asked; ask first if unsure.
 - **Scope**: only what was asked; do not expand into drive-by refactors.
+- **Generic indexing**: an `AbstractArray` annotation promises any axes; use `eachindex`/`axes`/`firstindex`, or declare `Base.require_one_based_indexing`. See [references/generic-indexing.md](references/generic-indexing.md).
+- **No `@inbounds` by default**: add only with profiling evidence and a local proof of safety. See [references/inbounds.md](references/inbounds.md).
+- **Comments**: state what the code is now, not its history or the plan (see `code-comments`).
 
 ## Keyword arguments and NamedTuples
 
@@ -66,7 +69,7 @@ Prefer Julia’s own tools (via `juliaclient`) before guessing APIs or scraping 
 | `Project.toml`, JLD2 migrations | `julia-project` |
 | Scripts / `_research` / examples | `julia-interactive-scripts` |
 | Performance | `julia-performance-tips` |
-| Profiling | `julia-profiling-agent` |
+| Profiling | `julia-profiling` |
 | Custom `show` | `custom-julia-show` |
 | Plotting | `makie-core`, `makie-dynamic`, `algebra-of-graphics` |
 | Library docs / upstream source | `github-cli` |

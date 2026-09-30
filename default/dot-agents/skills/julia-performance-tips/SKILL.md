@@ -7,6 +7,8 @@ description: Apply Julia performance optimization techniques when writing or opt
 
 Essential performance optimization guidelines for Julia code. Reference: <https://docs.julialang.org/en/v1/manual/performance-tips/>
 
+Measure before optimizing: find the bottleneck with the [julia-profiling](../julia-profiling/SKILL.md) skill, then apply the tips below to it.
+
 ## Core Principles
 
 ### Functions and Globals
@@ -57,13 +59,13 @@ Essential performance optimization guidelines for Julia code. Reference: <https:
 - **`@code_llvm`** - LLVM IR for a call (inlining, other compiler optimizations)
 - **`@code_native`** - native assembly for a call (e.g. verify vectorization)
 - **BenchmarkTools.jl** - `@btime` / `@benchmark` for microbenchmarks with warmup, GC handling, and statistics; complements `@time`
-- **Profiling** - use Profile.jl or ProfileView.jl for bottlenecks
+- **Profiling** - follow the `julia-profiling` skill (headless Profile/FlameGraphs/Allocs workflow)
 - **JET.jl** - static analysis for performance issues
 - **`--track-allocation=user`** - find allocation sources
 
 ## Performance Annotations
 
-- **`@inbounds`** - disable bounds checking (use with caution)
+- **`@inbounds`** - off by default; `eachindex` usually elides bounds checks already. Add only with profiling evidence and a local safety proof — see [julia-code/references/inbounds.md](../julia-code/references/inbounds.md)
 - **`@fastmath`** - allow floating-point optimizations (may change results)
 - **`@simd`** - promise independent loop iterations (experimental, use carefully)
 
@@ -83,3 +85,13 @@ Essential performance optimization guidelines for Julia code. Reference: <https:
 - **Minimize dependencies** - use package extensions for optional features
 - **Avoid heavy `__init__()`** - minimize compilation in initialization
 - **Use `@time_imports`** - diagnose slow package loading
+
+## Exploring alternatives
+
+When comparing candidate implementations:
+
+- Put each candidate in a script under `_research/performance/` (ask before creating the folder). Use `##` sections, notebook-style (see `julia-interactive-scripts`).
+- Run in one warm session: `juliaclient --session=perf-<topic> --revise=yes`, and `includet` the script so edits are picked up. Restart only your own session when state is stale (see `juliaclient`).
+- Check correctness first: `@test` that each candidate matches the current implementation's output.
+- Benchmark with `@benchmark f($x)`, labelling each run with `@info "<candidate>"`. Report median time, allocations, and memory per candidate.
+- When the user asks for a demonstration script, keep the correctness tests and benchmarks in the script so it can be re-run.
