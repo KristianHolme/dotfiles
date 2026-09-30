@@ -150,6 +150,7 @@ install = [
     "About",
     "Profile",
     "FlameGraphs",
+    "TestEnv",
 ]
 
 [julia.apps]
