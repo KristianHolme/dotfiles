@@ -60,3 +60,27 @@ Summary of the result in a sentence or two, with the key numbers inline.
   `Full benchmark results`.
 - Keep small tables (a handful of rows) and anything the reader must see to
   follow the argument outside the block.
+
+## Placeholders for images and figures
+
+An agent cannot upload images to a GitHub comment. Where a figure, plot,
+screenshot, or other binary file belongs, insert a placeholder. The user
+uploads the file (drag and drop into the GitHub editor) and replaces the
+placeholder.
+
+```markdown
+![PLACEHOLDER: dev/reports/speedup_vs_size.png] Speedup against problem size; the crossover is at n = 512.
+```
+
+- Use the form `![PLACEHOLDER: <path>]`, where `<path>` is the repo-relative
+  path of the file, normally under `dev/reports/`. Save or name the file at
+  that path when it exists locally; otherwise give the path where it should be
+  saved.
+- Put a one-line caption after the placeholder that says what the figure shows
+  and which conclusion it supports, so the report reads correctly before the
+  image is uploaded.
+- Use a descriptive snake_case file name. Use one placeholder per file.
+- Refer to the figure in the surrounding prose. Do not rely on the image alone
+  to carry a result; give the key numbers inline.
+- List all placeholders to the user when handing over the draft, so none is
+  posted unreplaced.
