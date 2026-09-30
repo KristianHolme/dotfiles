@@ -31,12 +31,12 @@ another repo.
   a foreign PR or issue silently links to the wrong item. A bare SHA also
   resolves to the current repo.
 - Write the full `owner/repo#N` once, at the first mention, early in the
-  report. That gives the link and the backlink on the target. Later mentions
-  use plain words without `#`, such as "WaterLily PR 337", so the text is not
-  cluttered.
+  report. That gives the link and the backlink on the target. When the item
+  comes up often, define a short label there, for example
+  `WL337 (WaterLily-jl/WaterLily.jl#337)`, and use the label (no `#`) in the
+  rest of the text and in tables.
 - Never write a bare `#N` for a foreign PR anywhere, including table cells
-  and column labels. In a table, name the column after what it holds (for
-  example "WaterLily branch or PR") and write the plain number (`337`).
+  and column labels.
 - Use short SHAs. For a commit in another repo, use a markdown link with the
   short SHA as its text.
 - Full URLs also work; GitHub shortens them to the same form when rendered.
