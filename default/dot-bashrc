@@ -59,12 +59,32 @@ if [[ "$USER" == "kristian" ]]; then
     alias dsp='$HOME/dotfiles/bin/dotfiles-setup-packages.sh'
     alias drs='$HOME/dotfiles/bin/dotfiles-rsync-ssh.sh'
     alias dst='$HOME/dotfiles/bin/dotfiles-ssh-tmux.sh'
-    alias tb='tensorboard --logdir'
     alias viewclaw='virt-viewer -c qemu+ssh://kristian@bengal/system claw'
 else
     alias dsr='dotfiles-setup-replica.sh'
     alias dar='dotfiles-apply-replica.sh'
 fi
+
+# tb <logdir> [color-regex]: tensorboard, opened with runs colored by regex group
+# (default: same color across seeds, i.e. group by everything but cNNN_ prefix and seed)
+tb() {
+  local logdir=${1:?usage: tb <logdir> [regex]}
+  local re=${2:-'c\d+_(.*)_seed=\d+'}
+  local log; log=$(mktemp)
+  tensorboard --logdir "$logdir" >"$log" 2>&1 &
+  local pid=$!
+  trap 'kill $pid 2>/dev/null' INT
+  local url=
+  until url=$(grep -m1 -oE 'http://localhost:[0-9]+/' "$log"); [ -n "$url" ]; do
+    kill -0 $pid 2>/dev/null || { cat "$log"; trap - INT; return 1; }
+    sleep 0.3
+  done
+  local q; q=$(python -c 'import sys,urllib.parse as u;print(u.quote("regex:"+sys.argv[1],safe=""))' "$re")
+  xdg-open "${url}?runColorGroup=${q}" >/dev/null 2>&1
+  wait $pid
+  trap - INT
+  rm -f "$log"
+}
 
 #Operations
 
