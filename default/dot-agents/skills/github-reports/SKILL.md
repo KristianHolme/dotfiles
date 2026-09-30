@@ -20,14 +20,25 @@ another repo.
 | Target | Write | Never write |
 | --- | --- | --- |
 | Same repo | `#45` | `PR 45`, `issue 45` |
-| Other repo, same owner | `repo#45` | `repo #45` |
-| Other repo, other org | `other-org/other-repo#45` | `other-repo#45`, `other-repo #45`, `#45` |
-| Commit, other repo | `other-org/other-repo@abc1234` | `other-repo commit abc1234` |
+| Other repo (same owner or not) | `owner/repo#45` | `repo#45`, `repo #45`, `#45` |
+| Commit, same repo | `abc1234` (short SHA) | `commit abc1234` in backticks |
+| Commit, other repo | `[abc1234](https://github.com/owner/repo/commit/abc1234)` | `repo@abc1234`, bare `abc1234` |
 
+- GitHub auto-links only `#N`, `GH-N`, `owner/repo#N` and full URLs for
+  issues and PRs. `repo#N` without the owner does not link, even when the
+  owner is the same. There is no shorter cross-repo form.
 - `#45` always resolves to the repo where the comment is posted. Using it for
-  a foreign PR or issue silently links to the wrong item.
-- Use `owner/repo#N` in full whenever the target is not the current repo, even
-  if it was already mentioned earlier in the text.
+  a foreign PR or issue silently links to the wrong item. A bare SHA also
+  resolves to the current repo.
+- Write the full `owner/repo#N` once, at the first mention, early in the
+  report. That gives the link and the backlink on the target. Later mentions
+  use plain words without `#`, such as "WaterLily PR 337", so the text is not
+  cluttered.
+- Never write a bare `#N` for a foreign PR anywhere, including table cells
+  and column labels. In a table, name the column after what it holds (for
+  example "WaterLily branch or PR") and write the plain number (`337`).
+- Use short SHAs. For a commit in another repo, use a markdown link with the
+  short SHA as its text.
 - Full URLs also work; GitHub shortens them to the same form when rendered.
 - Do not put the reference inside backticks or code blocks. That disables
   auto-linking.
