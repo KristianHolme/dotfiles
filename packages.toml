@@ -148,6 +148,8 @@ install = [
     "LiveServer",
     "AirspeedVelocity",
     "About",
+    "Profile",
+    "FlameGraphs",
 ]
 
 [julia.apps]
