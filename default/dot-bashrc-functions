@@ -250,3 +250,239 @@ EOF
     }
     echo "Posted: $url"
 }
+
+# owner/repo from a GitHub remote URL.
+_usefork_slug() {
+    local slug="$1"
+    while [[ "$slug" == */ ]]; do
+        slug="${slug%/}"
+    done
+    slug="${slug%.git}"
+    case "$slug" in
+        git@*:*)
+            slug="${slug#*:}"
+            ;;
+        ssh://*)
+            slug="${slug#ssh://}"
+            slug="${slug#*@}"
+            slug="${slug#*/}"
+            ;;
+        https://*|http://*)
+            slug="${slug#*://}"
+            slug="${slug#*/}"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    [[ "$slug" == */* && "$slug" != */*/* ]] || return 1
+    printf '%s\n' "$slug"
+}
+
+# Unit-separator record: me, owner, nwo, is_fork, ssh, https,
+# parent_nwo, parent_ssh, parent_https, fork_nwo, fork_ssh, fork_https.
+# Prints NOTFOUND when GitHub has no such repository.
+_usefork_lookup() {
+    local owner="$1"
+    local name="$2"
+    gh api graphql \
+        -f owner="$owner" \
+        -f name="$name" \
+        -f query='
+query($owner: String!, $name: String!) {
+  viewer { login }
+  repository(owner: $owner, name: $name) {
+    name
+    nameWithOwner
+    isFork
+    sshUrl
+    url
+    owner { login }
+    parent { nameWithOwner sshUrl url }
+    forks(first: 5, affiliations: [OWNER]) {
+      nodes { name nameWithOwner sshUrl url owner { login } }
+    }
+  }
+}' --jq '
+.data as $d
+| $d.repository as $r
+| if $r == null then
+    "NOTFOUND"
+  else
+    ($d.viewer.login) as $me
+    | ($r.forks.nodes // []
+        | map(select((.owner.login | ascii_downcase) == ($me | ascii_downcase)))) as $mine
+    | (([$mine[] | select(.name == $r.name)] | .[0]) // $mine[0]) as $fork
+    | [
+        $me,
+        $r.owner.login,
+        $r.nameWithOwner,
+        (if $r.isFork then "true" else "false" end),
+        $r.sshUrl,
+        $r.url,
+        ($r.parent.nameWithOwner // ""),
+        ($r.parent.sshUrl // ""),
+        ($r.parent.url // ""),
+        ($fork.nameWithOwner // ""),
+        ($fork.sshUrl // ""),
+        ($fork.url // "")
+      ]
+    | join("\u001f")
+  end'
+}
+
+# Point origin at your fork of this clone. The cloned repository stays on upstream.
+# Usage: usefork
+function usefork() {
+    if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+        cat >&2 <<'EOF'
+Usage: usefork
+
+Run inside a cloned GitHub repository.
+
+  If you already have a fork, origin points at that fork and the cloned
+  repository stays on the upstream remote.
+  If you do not have a fork, gum asks whether to create one. Yes runs
+  `gh repo fork` and then sets the same remotes.
+EOF
+        return 0
+    fi
+    if [[ $# -gt 0 ]]; then
+        echo "usefork: unexpected argument: $1" >&2
+        return 1
+    fi
+
+    command -v gh >/dev/null || { echo "usefork: gh not found" >&2; return 1; }
+    git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+        echo "usefork: not in a git repository" >&2
+        return 1
+    }
+
+    local origin_url slug owner name
+    origin_url=$(git remote get-url origin 2>/dev/null) || {
+        echo "usefork: no origin remote" >&2
+        return 1
+    }
+    case "$origin_url" in
+        *github.com*) ;;
+        *)
+            echo "usefork: origin is not a GitHub remote: $origin_url" >&2
+            return 1
+            ;;
+    esac
+    slug=$(_usefork_slug "$origin_url") || {
+        echo "usefork: cannot parse origin URL: $origin_url" >&2
+        return 1
+    }
+    owner="${slug%%/*}"
+    name="${slug#*/}"
+
+    local tsv me repo_owner repo_nwo is_fork repo_ssh repo_https
+    local parent_nwo parent_ssh parent_https fork_nwo fork_ssh fork_https
+    tsv=$(_usefork_lookup "$owner" "$name") || return 1
+    if [[ "$tsv" == "NOTFOUND" ]]; then
+        echo "usefork: GitHub repository not found: ${owner}/${name}" >&2
+        return 1
+    fi
+    # Unit separator keeps empty parent fields. Tab is IFS whitespace and collapses them.
+    IFS=$'\037' read -r me repo_owner repo_nwo is_fork repo_ssh repo_https \
+        parent_nwo parent_ssh parent_https fork_nwo fork_ssh fork_https <<<"$tsv"
+
+    local upstream_nwo upstream_ssh upstream_https
+    if [[ "${repo_owner,,}" == "${me,,}" && "$is_fork" == "true" ]]; then
+        if [[ -z "$parent_nwo" ]]; then
+            echo "usefork: ${repo_nwo} is a fork with no parent" >&2
+            return 1
+        fi
+        fork_nwo=$repo_nwo
+        fork_ssh=$repo_ssh
+        fork_https=$repo_https
+        upstream_nwo=$parent_nwo
+        upstream_ssh=$parent_ssh
+        upstream_https=$parent_https
+    elif [[ "${repo_owner,,}" == "${me,,}" ]]; then
+        echo "usefork: ${repo_nwo} is already your repository" >&2
+        return 1
+    elif [[ -n "$fork_nwo" ]]; then
+        upstream_nwo=$repo_nwo
+        upstream_ssh=$repo_ssh
+        upstream_https=$repo_https
+    else
+        command -v gum >/dev/null || { echo "usefork: gum not found" >&2; return 1; }
+        if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+            echo "usefork: no fork of ${repo_nwo}; a terminal is required to confirm" >&2
+            return 1
+        fi
+        gum confirm "Fork ${repo_nwo}?" || return 0
+        gh repo fork --remote=false || return 1
+
+        local try
+        for try in 1 2 3; do
+            tsv=$(_usefork_lookup "$owner" "$name") || return 1
+            IFS=$'\037' read -r me repo_owner repo_nwo is_fork repo_ssh repo_https \
+                parent_nwo parent_ssh parent_https fork_nwo fork_ssh fork_https <<<"$tsv"
+            [[ -n "$fork_nwo" ]] && break
+            sleep 1
+        done
+        if [[ -z "$fork_nwo" ]]; then
+            echo "usefork: fork of ${owner}/${name} not found after gh repo fork" >&2
+            return 1
+        fi
+        upstream_nwo=$repo_nwo
+        upstream_ssh=$repo_ssh
+        upstream_https=$repo_https
+    fi
+
+    local proto fork_url upstream_url
+    case "$origin_url" in
+        git@*|ssh://*) proto=ssh ;;
+        *) proto=https ;;
+    esac
+    if [[ "$proto" == "ssh" ]]; then
+        fork_url=$fork_ssh
+        upstream_url=$upstream_ssh
+    else
+        fork_url=$fork_https
+        upstream_url=$upstream_https
+    fi
+
+    local origin_nwo upstream_remote_nwo
+    origin_nwo=$(_usefork_slug "$origin_url") || return 1
+    if git remote get-url upstream >/dev/null 2>&1; then
+        upstream_remote_nwo=$(_usefork_slug "$(git remote get-url upstream)") || {
+            echo "usefork: cannot parse upstream URL" >&2
+            return 1
+        }
+    else
+        upstream_remote_nwo=""
+    fi
+
+    if [[ "${origin_nwo,,}" == "${fork_nwo,,}" && "${upstream_remote_nwo,,}" == "${upstream_nwo,,}" ]]; then
+        :
+    elif [[ "${origin_nwo,,}" == "${upstream_nwo,,}" ]]; then
+        # Add upstream from the current origin URL first, then point origin at
+        # the fork. The current branch keeps tracking the remote name origin.
+        if [[ -z "$upstream_remote_nwo" ]]; then
+            git remote add upstream "$origin_url" || return 1
+            git remote set-url origin "$fork_url" || return 1
+        elif [[ "${upstream_remote_nwo,,}" == "${upstream_nwo,,}" ]]; then
+            git remote set-url origin "$fork_url" || return 1
+        else
+            echo "usefork: upstream already points at ${upstream_remote_nwo}" >&2
+            return 1
+        fi
+    elif [[ "${origin_nwo,,}" == "${fork_nwo,,}" ]]; then
+        if [[ -z "$upstream_remote_nwo" ]]; then
+            git remote add upstream "$upstream_url" || return 1
+        else
+            echo "usefork: upstream already points at ${upstream_remote_nwo}" >&2
+            return 1
+        fi
+    else
+        echo "usefork: origin is ${origin_nwo}, expected ${upstream_nwo} or ${fork_nwo}" >&2
+        return 1
+    fi
+
+    printf 'origin   %s\n' "$(git remote get-url origin)"
+    printf 'upstream %s\n' "$(git remote get-url upstream)"
+}
