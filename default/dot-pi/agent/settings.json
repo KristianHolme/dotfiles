@@ -1,11 +1,10 @@
 {
-  "lastChangelogVersion": "0.99.1",
+  "lastChangelogVersion": "1.0.0",
   "defaultProvider": "openrouter",
   "defaultModel": "deepseek/deepseek-v4-pro",
   "packages": [],
   "defaultThinkingLevel": "high",
   "enabledModels": [
-    "openrouter/anthropic/claude-opus-5",
     "openrouter/auto",
     "openrouter/deepseek/deepseek-v4-pro",
     "openrouter/moonshotai/kimi-k3",
@@ -21,8 +20,14 @@
     "openrouter/meta/muse-spark-1.3-contributor",
     "openrouter/openai/gpt-6-astra",
     "openrouter/openai/gpt-6-astra-pro",
-    "openrouter/anthropic/claude-sonnet-5.5",
-    "openrouter/anthropic/claude-opus-5.5"
+    "gpt-uio/gpt-5.4",
+    "gpt-uio/moonshotai/Kimi-K2.6",
+    "gpt-uio/Qwen/Qwen3.8-27B-FP8",
+    "gpt-uio/Inferact/GLM-5.3-NVFP4",
+    "anthropic/claude-opus-5-5",
+    "anthropic/claude-sonnet-5-5",
+    "openrouter/anthropic/claude-opus-5.5",
+    "openrouter/anthropic/claude-sonnet-5.5"
   ],
   "theme": "omarchy-system"
 }

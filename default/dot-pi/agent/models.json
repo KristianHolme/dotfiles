@@ -1,0 +1,43 @@
+{
+  "providers": {
+    "gpt-uio": {
+      "baseUrl": "https://gpt.uio.no/api/v1",
+      "api": "openai-completions",
+      "apiKey": "$GPT_UIO_API_KEY",
+      "models": [
+        {
+          "id": "gpt-5.4",
+          "name": "GPT-5.4",
+          "contextWindow": 200000,
+          "maxTokens": 32768,
+          "input": ["text"],
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        },
+        {
+          "id": "moonshotai/Kimi-K2.6",
+          "name": "Kimi K2.6",
+          "contextWindow": 131072,
+          "maxTokens": 32768,
+          "input": ["text"],
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        },
+        {
+          "id": "Qwen/Qwen3.8-27B-FP8",
+          "name": "Qwen3.8 27B FP8",
+          "contextWindow": 131072,
+          "maxTokens": 32768,
+          "input": ["text"],
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        },
+        {
+          "id": "Inferact/GLM-5.3-NVFP4",
+          "name": "GLM-5.3 NVFP4",
+          "contextWindow": 131072,
+          "maxTokens": 32768,
+          "input": ["text"],
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    }
+  }
+}
