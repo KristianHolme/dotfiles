@@ -51,22 +51,28 @@ end
 local host = hostname()
 
 if host == "bengal" then
+	-- Match by description: amdgpu and nvidia share the global DP-n numbering,
+	-- so the HP's connector name changes with driver load order.
+	local main = "desc:HP Inc. HP E273q"
+	local right = "desc:Philips Consumer Electronics Company PHL 241B8Q"
+	local left = "desc:Dell Inc. DELL 2001FP"
+
 	hl.env("GDK_SCALE", "1")
-	hl.monitor({ output = "DP-1", mode = "2560x1440@59.95", position = "0x0", scale = 1 })
-	hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@74.97", position = "2560x-310", scale = 1, transform = 3 })
-	hl.monitor({ output = "DVI-I-1", mode = "1600x1200@60", position = "-1600x60", scale = 1 })
+	hl.monitor({ output = main, mode = "2560x1440@59.95", position = "0x0", scale = 1 })
+	hl.monitor({ output = right, mode = "1920x1080@74.97", position = "2560x-310", scale = 1, transform = 3 })
+	hl.monitor({ output = left, mode = "1600x1200@60", position = "-1600x60", scale = 1 })
 
 	pin_workspaces({
-		{ id = 1, monitor = "DP-1" },
-		{ id = 2, monitor = "DP-1" },
-		{ id = 3, monitor = "DP-1" },
-		{ id = 4, monitor = "DP-1" },
-		{ id = 5, monitor = "DP-1" },
-		{ id = 6, monitor = "DP-1" },
-		{ id = 7, monitor = "HDMI-A-1", persistent = true },
-		{ id = 8, monitor = "HDMI-A-1", persistent = true },
-		{ id = 9, monitor = "DVI-I-1", persistent = true },
-		{ id = 10, monitor = "DVI-I-1", persistent = true },
+		{ id = 1, monitor = main },
+		{ id = 2, monitor = main },
+		{ id = 3, monitor = main },
+		{ id = 4, monitor = main },
+		{ id = 5, monitor = main },
+		{ id = 6, monitor = main },
+		{ id = 7, monitor = right, persistent = true },
+		{ id = 8, monitor = right, persistent = true },
+		{ id = 9, monitor = left, persistent = true },
+		{ id = 10, monitor = left, persistent = true },
 	})
 elseif host == "kaspi" then
 	hl.env("GDK_SCALE", "2")
