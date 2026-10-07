@@ -4,7 +4,8 @@ description: >-
   Reflect on agent behavior the user disliked or wants done differently, find
   its root cause in the guidance the agent was given, and propose a durable fix
   (edit a skill, create a skill, update AGENTS.md or docs). For passive capture
-  of corrections, see agent-self-improvement.
+  of corrections, see agent-self-improvement. For a whole-session review of the
+  agent's environment, see retro.
 disable-model-invocation: true
 argument-hint: "What should the agent do differently?"
 ---

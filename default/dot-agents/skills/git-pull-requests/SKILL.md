@@ -18,29 +18,22 @@ Use `gh` for all GitHub PR tasks. Never update git config. Do not push unless ne
 
 ## Analyze
 
-Review **all** commits that will be in the PR (not only the latest). Draft summary from the full set.
+Review every commit that will be in the PR.
+The latest commit is not enough.
 
 ## Create
 
-Sequentially:
+Do these steps in order:
 
-1. Create branch if needed
-2. Push with `-u` if needed
-3. Create PR:
-
-```bash
-gh pr create --title "the pr title" --body "$(cat <<'EOF'
-## Summary
-<1-3 bullet points>
-
-## Test plan
-- [ ] ...
-
-EOF
-)"
-```
-
-Return the PR URL when done.
+1. Create the branch if needed.
+2. Push with `-u` if needed.
+3. Draft the title and the body with the [suggest-pr](../suggest-pr/SKILL.md) skill.
+   Use the markdown file it writes.
+   The first heading is the title.
+   The remainder of the file is the body.
+4. Create the PR with `gh pr create --title` and `--body-file`.
+   Pass the body only. Leave the title heading out of the body.
+5. Return the PR URL.
 
 ## Safety
 
