@@ -41,7 +41,7 @@ function load_julia_lists(toml_path)
     daemon = get(julia, "daemon", Dict{String, Any}())
     daemon_url = get(daemon, "url", "")
     daemon_rev = get(daemon, "rev", "master")
-    zig_version = get(daemon, "zig_version", "0.16.0")
+    zig_version = get(daemon, "zig_version", "0.17.0")
     return (; packages, apps, registries, daemon_url, daemon_rev, zig_version)
 end
 

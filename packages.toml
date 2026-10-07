@@ -167,7 +167,7 @@ install = ["https://github.com/KristianHolme/KristianHolmeRegistry"]
 # client with zig from that source (release binaries lag master), and installs them.
 url = "https://github.com/tecosaur/DaemonicCabal.jl.git"
 rev = "master"
-zig_version = "0.16.0"
+zig_version = "0.17.0"
 
 [zotero.plugins.better-bibtex]
 display_name = "Better BibTeX"
