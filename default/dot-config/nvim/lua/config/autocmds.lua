@@ -54,3 +54,15 @@ vim.api.nvim_create_autocmd("User", {
 		end
 	end,
 })
+
+-- Typst math uses one $ on each side. A \ before the cursor inserts one $.
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "typst",
+	callback = function()
+		require("mini.pairs").map_buf(0, "i", "$", {
+			action = "closeopen",
+			pair = "$$",
+			neigh_pattern = "[^\\].",
+		})
+	end,
+})
