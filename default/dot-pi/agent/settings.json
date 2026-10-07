@@ -27,7 +27,8 @@
     "anthropic/claude-opus-5-5",
     "anthropic/claude-sonnet-5-5",
     "openrouter/anthropic/claude-opus-5.5",
-    "openrouter/anthropic/claude-sonnet-5.5"
+    "openrouter/anthropic/claude-sonnet-5.5",
+    "openrouter/openai/gpt-6.1-sol"
   ],
   "theme": "omarchy-system"
 }
