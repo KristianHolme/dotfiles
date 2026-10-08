@@ -2,9 +2,9 @@
 name: julia-project
 description: >-
   Julia project and package workflow: Project.toml/Manifest discipline, Pkg
-  usage, and JLD2 struct migration for saved scientific data. Use when editing
-  environments, adding dependencies, changing Project.toml, or loading old JLD2
-  files after type changes.
+  usage, depot hygiene, and JLD2 struct migration for saved scientific data. Use
+  when editing environments, adding dependencies, changing Project.toml, fixing
+  Pkg/precompile/load errors, or loading old JLD2 files after type changes.
 ---
 
 # Julia project
@@ -14,6 +14,11 @@ description: >-
 - Do **not** edit `Project.toml`, `Manifest.toml`, or similar env files without explicit user approval.
 - Prefer the Julia MCP / Pkg.jl API when available.
 - If Pkg changes are needed and you cannot use those APIs, ask the user to run the Pkg commands or approve the edit.
+
+## Depot (~/.julia)
+
+- When Pkg, precompile or loading fails, find the cause and fix it there, using the documented procedure in AGENTS.md if one exists. If the fix is disruptive or unclear, report and ask; do not hack around it.
+- Never change `JULIA_DEPOT_PATH`, create extra depots, symlink depot directories, or hand-edit `compiled/`, `packages/`, `artifacts/`, `registries/`.
 
 ## Backward compatibility when changing structs
 
