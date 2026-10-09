@@ -16,4 +16,90 @@ esac
 if [[ "$_olivia_on" -eq 1 ]]; then
     export JULIA_CPU_TARGET="generic;znver4,clone_all;znver5,clone_all"
 fi
-unset _olivia_host _olivia_on
+unset _olivia_host
+
+if [[ "$_olivia_on" -eq 1 ]]; then
+
+interactive() {
+    salloc --account=nn9886k --partition=small --ntasks=1 --cpus-per-task=32 --mem=16G --time=01:00:00 "$@"
+}
+
+interactive_gpu() {
+    salloc --account=nn9886k --partition=accel --gpus=1 --ntasks=1 --cpus-per-task=16 --mem=16G --time=01:00:00 "$@"
+}
+
+overlay() {
+    if [[ $# -ne 1 ]]; then
+        printf 'usage: overlay JOBID\n' >&2
+        return 2
+    fi
+    srun --jobid="$1" --overlap --pty bash -l
+}
+
+jobmon() {
+    if [[ $# -ne 1 ]]; then
+        printf 'usage: jobmon JOBID\n' >&2
+        return 2
+    fi
+    local jobid="${1%%.*}"
+    local session="job-${jobid}"
+    local -a sr=(srun --jobid="$jobid" --overlap --pty)
+
+    if ! squeue -h -j "$jobid" -o '%T' | grep -qx RUNNING; then
+        printf 'Job %s is not running\n' "$jobid" >&2
+        return 1
+    fi
+
+    if [[ -n "${TMUX:-}" ]]; then
+        if scontrol show job "$jobid" | grep -Eq 'gres/gpu=[1-9]|TresPerNode=.*gpu:'; then
+            tmux split-window -h -t "$TMUX_PANE" "${sr[@]}" watch -t -n 1 --color nvidia-smi
+        fi
+        "${sr[@]}" btop --force-utf
+        return
+    fi
+
+    if tmux has-session -t "$session" 2>/dev/null; then
+        tmux attach-session -t "$session"
+        return
+    fi
+    tmux new-session -d -s "$session" "${sr[@]}" btop --force-utf
+    if scontrol show job "$jobid" | grep -Eq 'gres/gpu=[1-9]|TresPerNode=.*gpu:'; then
+        tmux split-window -h -t "$session" "${sr[@]}" watch -t -n 1 --color nvidia-smi
+        tmux select-pane -t "$session":0.0
+    fi
+    tmux attach-session -t "$session"
+}
+
+jobstats() {
+    if [[ $# -ne 1 ]]; then
+        printf 'usage: jobstats JOBID\n' >&2
+        return 2
+    fi
+    local jobid="${1%%.*}"
+    if ! [[ "$jobid" =~ ^[0-9]+$ ]]; then
+        printf 'Invalid job ID: %s\n' "$1" >&2
+        return 2
+    fi
+
+    if scontrol show job "$jobid" &>/dev/null; then
+        printf 'Job %s allocation:\n' "$jobid"
+        scontrol show job "$jobid" | tr ' ' '\n' |
+            grep -E '^(JobId|JobName|UserId|Account|Partition|JobState|Reason|RunTime|TimeLimit|StartTime|EndTime|NodeList|NumNodes|NumTasks|NumCPUs|ReqTRES|AllocTRES|ReqMem|ExitCode)='
+        printf '\nLive usage:\n'
+        sstat -j "$jobid" --allsteps --format=JobID,AveCPU,AveRSS,MaxRSS,MaxVMSize -P 2>/dev/null || true
+    fi
+
+    printf '\nAccounting:\n'
+    sacct -j "$jobid" --units=G \
+        --format=JobID%20,JobName%16,State,ExitCode,Elapsed,Timelimit,ReqMem,MaxRSS,MaxVMSize,AveRSS,TotalCPU
+    if command -v seff &>/dev/null; then
+        printf '\nEfficiency:\n'
+        seff "$jobid" 2>/dev/null || true
+    fi
+}
+
+alias proj='cd /cluster/projects/nn9886k/kholme/'
+export SLURM_ACCOUNT=nn9886k
+export CODE_DIR=/cluster/projects/nn9886k/kholme/Code
+fi
+unset _olivia_on
