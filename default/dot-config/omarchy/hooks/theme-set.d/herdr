@@ -1,0 +1,23 @@
+#!/bin/bash
+# Build ~/.config/herdr/config.toml from the static base plus the generated
+# Omarchy theme block, then reload the running herdr server.
+
+set -euo pipefail
+
+dir="${HOME}/.config/herdr"
+base="${dir}/config.base.toml"
+theme="${HOME}/.local/state/omarchy/current/theme/herdr-theme.toml"
+
+[[ -f $base && -f $theme ]] || exit 0
+
+tmp="$(mktemp "${dir}/config.toml.XXXXXX")"
+{
+	cat "$base"
+	echo
+	cat "$theme"
+} >"$tmp"
+mv "$tmp" "${dir}/config.toml"
+
+if pgrep -f 'herdr.*server' &>/dev/null; then
+  herdr server reload-config || true
+fi

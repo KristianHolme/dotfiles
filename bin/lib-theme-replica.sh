@@ -265,6 +265,28 @@ theme_replica_apply_neovim() {
 	ln -snf "$src" "$theme_link"
 }
 
+theme_replica_apply_herdr() {
+	local dir="${HOME}/.config/herdr"
+	local base="${dir}/config.base.toml"
+	local theme="${OMARCHY_CURRENT_THEME}/herdr-theme.toml"
+	local herdr_bin tmp
+
+	[[ -f $base && -f $theme ]] || return 0
+
+	tmp="$(mktemp "${dir}/config.toml.XXXXXX")"
+	{
+		cat "$base"
+		echo
+		cat "$theme"
+	} >"$tmp"
+	mv "$tmp" "${dir}/config.toml"
+
+	herdr_bin="$(command -v herdr || true)"
+	[[ -n $herdr_bin ]] || herdr_bin="${HOME}/.local/bin/herdr"
+	[[ -x $herdr_bin ]] || return 0
+	"$herdr_bin" server reload-config >/dev/null 2>&1 || true
+}
+
 apply_omarchy_theme_replica() {
 	if [[ ! -d $OMARCHY_CURRENT_THEME ]]; then
 		echo "No staged theme at $OMARCHY_CURRENT_THEME" >&2
@@ -276,6 +298,7 @@ apply_omarchy_theme_replica() {
 	theme_replica_apply_claude
 	theme_replica_apply_terminals
 	theme_replica_apply_tmux
+	theme_replica_apply_herdr
 	theme_replica_apply_helix
 	theme_replica_apply_opencode
 	theme_replica_apply_neovim

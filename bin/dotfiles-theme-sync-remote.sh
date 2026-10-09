@@ -121,6 +121,13 @@ push_theme_files() {
 		-e "$ssh_cmd" \
 		"${LOCAL_THEME}/" \
 		"${host}:.local/state/omarchy/current/theme/" || return 1
+	# Static herdr settings; the replica joins them with the theme block.
+	if [[ -f ${HOME}/.config/herdr/config.base.toml ]]; then
+		ssh "${_SSH_SYNC_OPTS[@]}" "$host" "mkdir -p .config/herdr" || return 1
+		rsync -azL -e "$ssh_cmd" \
+			"${HOME}/.config/herdr/config.base.toml" \
+			"${host}:.config/herdr/config.base.toml" || return 1
+	fi
 	if [[ -f ${LOCAL_CURRENT}/theme.name ]]; then
 		rsync -az -e "$ssh_cmd" \
 			"${LOCAL_CURRENT}/theme.name" \
