@@ -1,6 +1,6 @@
 # Single source of truth for machines, groups, and mountable filesystems.
-# Consumed by bin/dotfiles-mounts.sh, bin/dotfiles-rsync-ssh.sh, and
-# bin/dotfiles-ssh-tmux.sh through bin/lib-hosts.sh.
+# Consumed by bin/dotfiles-mounts.sh, bin/dotfiles-rsync-ssh.sh,
+# bin/dotfiles-copy-ssh.sh, and bin/dotfiles-ssh-tmux.sh through bin/lib-hosts.sh.
 #
 # Jump hosts live in ~/.ssh/config (ProxyJump), not here. Every alias used
 # below must resolve via ssh on its own.
@@ -43,6 +43,14 @@ remote_path = "/fp/homes01/u01/ec-kholme"
 local_path = "/mnt/fox"
 sync_root = "/fp/projects01/ec12/ec-kholme/Code"
 login_node = "login-1"
+
+[machines.olivia]
+remote_path = "/cluster/home/kholme"
+local_path = "/mnt/olivia"
+sync_root = "/cluster/projects/nn9886k/kholme/Code"
+# uan01–uan04 round-robin. Pin one so tmux stays on a single node.
+login_node = "uan02"
+install_root = "/cluster/projects/nn9886k/kholme"
 
 # ---- Groups: machines sharing a filesystem. mount_via picks the SSH alias. ----
 

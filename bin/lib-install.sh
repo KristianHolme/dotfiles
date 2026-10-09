@@ -1450,47 +1450,57 @@ marcos_bin_prefer_musl() {
     return 1
 }
 
-# Name globs for unattended bin install (gnu/musl ties, git-lfs archive members).
-# Inner-archive patterns must come before *linux* or bin downloads the tarball
-# then prompts for git-lfs vs install.sh.
+# Globs for `bin install -n`. Text before `/` matches the release asset name.
+# Text after `/` matches a file inside an archive (full path or base name).
+# A glob that matches more than one asset makes bin prompt. Stdin is closed,
+# so that prompt fails. Patterns are specific enough to match one asset:
+# Rust triples name eza/btop (`*x86_64-unknown-linux-musl.tar.gz`), raw Go
+# binaries end in `linux_amd64` (yq, shfmt), and the archive member is the
+# command name (`btop/bin/btop`, `git-lfs`).
 marcos_bin_asset_globs() {
+    local cmd="$1"
+    local arch=""
+    case "$(uname -m)" in
+    aarch64 | arm64) arch='aarch64' ;;
+    *) arch='x86_64' ;;
+    esac
+
     if marcos_bin_prefer_musl; then
-        echo '*musl*'
-        echo '*gnu*'
+        echo "*${arch}-unknown-linux-musl.tar.gz/${cmd}"
+        echo "*${arch}-unknown-linux-gnu.tar.gz/${cmd}"
     else
-        echo '*gnu*'
-        echo '*musl*'
+        echo "*${arch}-unknown-linux-gnu.tar.gz/${cmd}"
+        echo "*${arch}-unknown-linux-musl.tar.gz/${cmd}"
     fi
+
     case "$(uname -m)" in
     aarch64 | arm64)
-        echo '*linux*arm64*/git-lfs'
-        echo '*/git-lfs'
-        echo '*linux*arm64*'
-        echo '*Linux*aarch64*'
+        echo '*linux_arm64'
+        echo "*linux*arm64*/${cmd}"
+        echo "*linux*arm64.tar.gz/${cmd}"
+        echo "*Linux*arm64.tar.gz/${cmd}"
         ;;
     *)
-        echo '*linux*amd64*/git-lfs'
-        echo '*linux-amd64*/git-lfs'
-        echo '*/git-lfs'
-        echo '*linux*amd64*'
-        echo '*Linux*x86_64*'
-        echo '*linux-x86_64*'
+        echo '*linux_amd64'
+        echo "*linux*amd64*/${cmd}"
+        echo "*linux*x86_64.tar.gz/${cmd}"
+        echo "*Linux*x86_64.tar.gz/${cmd}"
         ;;
     esac
-    echo '*linux*'
 }
 
 # Re-install one managed binary with name globs so gnu/musl and archive picks are non-interactive.
 marcos_bin_reinstall_with_libc_glob() {
     local path="$1" url="$2"
-    local g
+    local g cmd
+    cmd="$(basename "$path")"
     export_github_token_from_gh_if_needed
     while IFS= read -r g; do
         [[ -n "$g" ]] || continue
         if bin install -f -n "$g" "$url" "$path" </dev/null; then
             return 0
         fi
-    done < <(marcos_bin_asset_globs)
+    done < <(marcos_bin_asset_globs "$cmd")
     log_warning "No non-interactive asset match for $url -> $path"
     return 1
 }

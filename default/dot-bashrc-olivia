@@ -1,0 +1,19 @@
+# Olivia x86_64 Julia package images.
+# Login and service nodes are Zen 4. CPU compute nodes are Zen 5.
+# Julia keeps the rightmost target the CPU supports, so znver5 stays last.
+# GPU nodes are aarch64 (neoverse-v2). An x86_64 Julia rejects that name.
+_olivia_host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || true)"
+_olivia_on=0
+case "$_olivia_host" in
+*.olivia | *.olivia.* | olivia | uan[0-9]* | svc[0-9]*) _olivia_on=1 ;;
+esac
+case "${SLURM_CLUSTER_NAME:-}" in
+olivia | olivia.*) _olivia_on=1 ;;
+esac
+case "${SLURM_SUBMIT_HOST:-}" in
+*.olivia | *.olivia.* | olivia | uan[0-9]*) _olivia_on=1 ;;
+esac
+if [[ "$_olivia_on" -eq 1 ]]; then
+    export JULIA_CPU_TARGET="generic;znver4,clone_all;znver5,clone_all"
+fi
+unset _olivia_host _olivia_on

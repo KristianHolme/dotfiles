@@ -1,4 +1,6 @@
 # User-local tools (must run before interactive-only return below).
+# Olivia sets JULIA_CPU_TARGET here so non-interactive shells (sbatch, ssh) see it.
+[[ -f "$HOME/dotfiles/default/dot-bashrc-olivia" ]] && . "$HOME/dotfiles/default/dot-bashrc-olivia"
 export PATH="$HOME/.local/bin:$HOME/dotfiles/bin:$PATH"
 # Host-specific prefix (hosts.toml install_root) prepended when replica setup wrote it.
 [[ -f "$HOME/.dotfiles-install-env" ]] && . "$HOME/.dotfiles-install-env"

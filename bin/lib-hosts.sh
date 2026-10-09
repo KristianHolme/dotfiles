@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Shared host inventory helpers backed by a single TOML file.
-# Sourced by dotfiles-mounts.sh, dotfiles-rsync-ssh.sh, and dotfiles-ssh-tmux.sh:
+# Sourced by dotfiles-mounts.sh, dotfiles-rsync-ssh.sh, dotfiles-copy-ssh.sh,
+# and dotfiles-ssh-tmux.sh:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib-hosts.sh"
 #
 # TOML is parsed once per shell via toml_to_json (go-yq) and queried with jq.
@@ -117,15 +118,30 @@ hosts_login_node() {
     jq -r --arg a "$alias" '.machines[$a].login_node // empty' <<<"$_HOSTS_JSON"
 }
 
-# Inventory alias for this machine: hostname, login_node, or $HOME == remote_path.
-# Empty if this host is not in hosts.toml (prints nothing, exit 0).
+# Inventory alias for this machine. Empty if this host is not in hosts.toml.
+# Order: machine key, DNS label in the FQDN, login_node, then a unique remote_path.
+# The FQDN comes before login_node: fox and Saga both pin a node named login-1.
+# Saga and Olivia both use /cluster/home/kholme, so a shared home path is not an identity.
 hosts_local_machine_alias() {
-    local host="" home="" alias=""
+    local host="" home="" alias="" fqdn=""
     _hosts_ensure || return 0
     host="$(hosts_local_hostname)"
     home="$HOME"
+    fqdn="$(hostname -f 2>/dev/null || hostname 2>/dev/null || true)"
 
     alias="$(jq -r --arg a "$host" 'if (.machines[$a] // null) != null then $a else empty end' <<<"$_HOSTS_JSON")"
+    if [[ -n "$alias" ]]; then
+        echo "$alias"
+        return 0
+    fi
+
+    # uan02.olivia and login-1.saga.sigma2.no name the machine alias as a label.
+    alias="$(jq -r --arg fqdn "$fqdn" '
+        .machines // {} | to_entries[]
+        | .key as $k
+        | select($fqdn | test("(^|\\.)" + $k + "(\\.|$)"))
+        | $k
+    ' <<<"$_HOSTS_JSON" | head -n1)"
     if [[ -n "$alias" ]]; then
         echo "$alias"
         return 0
@@ -140,8 +156,9 @@ hosts_local_machine_alias() {
     fi
 
     alias="$(jq -r --arg home "$home" '
-        .machines // {} | to_entries[] | select(.value.remote_path == $home) | .key
-    ' <<<"$_HOSTS_JSON" | head -n1)"
+        [ .machines // {} | to_entries[] | select(.value.remote_path == $home) | .key ]
+        | if length == 1 then .[0] else empty end
+    ' <<<"$_HOSTS_JSON")"
     if [[ -n "$alias" ]]; then
         echo "$alias"
         return 0

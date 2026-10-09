@@ -128,12 +128,37 @@ run_stow_passthrough() {
 	}
 }
 
+# Cluster ~/.bashrc often returns before it sources dot-bashrc when the shell
+# is not interactive. The Olivia snippet has to run above that return.
+ensure_olivia_bashrc_first() {
+	local bashrc_path="$1"
+	local marker="dot-bashrc-olivia"
+	local tmp=""
+	if grep -qF "$marker" "$bashrc_path" 2>/dev/null; then
+		return 0
+	fi
+	tmp="$(mktemp)"
+	cat >"$tmp" <<'EOF'
+# Olivia Julia CPU targets. Keep above any non-interactive return.
+[[ -f "$HOME/dotfiles/default/dot-bashrc-olivia" ]] && . "$HOME/dotfiles/default/dot-bashrc-olivia"
+
+EOF
+	cat "$bashrc_path" >>"$tmp"
+	mv "$tmp" "$bashrc_path"
+	log_info "Added Olivia bashrc snippet to the top of $bashrc_path"
+}
+
 ensure_bashrc_source() {
 	local bashrc_path="$HOME/.bashrc"
 	local source_line="source '$HOME/dotfiles/default/dot-bashrc'"
+	ensure_bash_profile_sources_bashrc "$HOME/.bash_profile" "$bashrc_path"
+	if [[ "$bashrc_path" -ef "$HOME/dotfiles/default/dot-bashrc" ]]; then
+		log_info "$bashrc_path already points to dot-bashrc; skipping"
+		return 0
+	fi
 
 	ensure_basic_bashrc "$bashrc_path"
-	ensure_bash_profile_sources_bashrc "$HOME/.bash_profile" "$bashrc_path"
+	ensure_olivia_bashrc_first "$bashrc_path"
 
 	# Check if already sourced
 	if grep -qF "$source_line" "$bashrc_path" 2>/dev/null; then

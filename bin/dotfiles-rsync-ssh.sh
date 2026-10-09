@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
-# Sync directories between remote machines and ~/Code using hosts.toml sync_root.
+# Sync directories under hosts.toml sync_root, or copy arbitrary files into one folder.
 # Usage: ./dotfiles-rsync-ssh.sh [host] [browse-path] [options]
 #        ./dotfiles-rsync-ssh.sh --remote [source] [target] [browse-path] [options]
+# With no arguments, a menu chooses sync root or free copy.
 
 set -Eeuo pipefail
 
@@ -408,10 +409,13 @@ while [[ $# -gt 0 ]]; do
         echo "Usage: $0 [host] [browse-path] [options]"
         echo "       $0 --remote [source] [target] [browse-path] [options]"
         echo
-        echo "Sync directories between remote machines and local ~/Code using hosts.toml sync_root."
-        echo "Default: pull from remote to local. Use --push to browse local folders and push to remote."
+        echo "With no arguments, choose Sync root or Free."
+        echo "Sync root copies directories under hosts.toml sync_root (local ~/Code)."
+        echo "Free copies any files and directories into one chosen folder."
+        echo "Default sync: pull from remote to local. Use --push to browse local folders and push to remote."
         echo "Use --remote to copy selected folders from one remote host to another."
         echo "Positional browse-path opens the folder browser at that location (does not sync immediately)."
+        echo "Arguments skip the mode menu and run sync root."
         echo
         echo "Options:"
         echo "  --push               Browse local sync root and push selected folders to remote"
@@ -448,6 +452,20 @@ if [[ "$SYNC_REMOTE" == true && "$SYNC_PUSH" == true ]]; then
 fi
 
 ensure_cmd gum yazi
+
+# Flags and positionals select sync root. With no arguments, choose the mode.
+if [[ "$SYNC_REMOTE" == false && "$SYNC_PUSH" == false && "$DELETE_FILES" == true && ${#POSITIONAL[@]} -eq 0 ]]; then
+    copy_mode=$(gum choose --header "Choose copy mode" \
+        "Sync root" \
+        "Free") || exit 0
+    if [[ -z "$copy_mode" ]]; then
+        echo "❌ No selection made. Exiting."
+        exit 0
+    fi
+    if [[ "$copy_mode" == "Free" ]]; then
+        exec "$SCRIPT_DIR/dotfiles-copy-ssh.sh"
+    fi
+fi
 
 FILTERED_DIRECTORIES=()
 declare -A DIR_SIZES
