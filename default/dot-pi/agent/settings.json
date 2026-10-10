@@ -1,5 +1,6 @@
 {
   "lastChangelogVersion": "1.1.0",
+  "defaultTools": ["+codemode"],
   "defaultProvider": "openrouter",
   "defaultModel": "deepseek/deepseek-v4-pro",
   "packages": [],
