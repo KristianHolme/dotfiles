@@ -1,5 +1,5 @@
 # Single source of truth for machines, groups, and mountable filesystems.
-# Consumed by bin/dotfiles-mounts.sh, bin/dotfiles-rsync-ssh.sh,
+# Consumed by bin/dotfiles-mounts.sh, bin/dotfiles-rsync-ssh.sh, bin/dotfiles-herdr-machines.sh,
 # bin/dotfiles-copy-ssh.sh, and bin/dotfiles-ssh-tmux.sh through bin/lib-hosts.sh.
 #
 # Jump hosts live in ~/.ssh/config (ProxyJump), not here. Every alias used
@@ -8,6 +8,11 @@
 # Optional login_node: short name of a specific login node (e.g. login-1).
 # dst hops here so tmux is stable; theme sync applies live tmux/OSC here too.
 # Raw `ssh <alias>` still hits the VIP / round-robin hostname.
+#
+# [herdr]: saved herdr machines, label = SSH target. bin/dotfiles-herdr-machines.sh
+# adds each with --remote-session <label>, so hosts that share a home directory
+# keep separate herdr state. Round-robin clusters use a *-herdr alias pinned to
+# login_node in ~/.ssh/config.
 
 [defaults]
 sync_root = "Code"
@@ -71,3 +76,13 @@ machines = ["ml1", "ml2", "ml3", "ml4", "ml6", "ml7"]
 mount_via = "ml1"
 remote_path = "/itf-fi-ml/home/kholme"
 local_path = "/mnt/uio-ml"
+
+# ---- herdr saved machines: label = SSH target (session name = label). ----
+
+[herdr]
+nam-shub-01 = "nam-shub-01"
+nam-shub-02 = "nam-shub-02"
+ml6 = "ml6"
+ml7 = "ml7"
+saga = "saga-herdr"
+olivia = "olivia-herdr"

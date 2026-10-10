@@ -24,6 +24,9 @@
 #   remote_path = "/home/..."
 #   local_path  = "/mnt/..."
 #
+#   [herdr]                          # saved herdr machines
+#   <label> = "<ssh target>"         # session name = label
+#
 #   [defaults]
 #   sync_root = "Code"               # optional; relative to remote_path, or absolute if starts with /
 #
@@ -109,6 +112,12 @@ hosts_groups() {
 hosts_standalone_machines() {
     _hosts_ensure || return 1
     jq -r '.machines // {} | keys[]' <<<"$_HOSTS_JSON" | sort
+}
+
+# Saved herdr machines as "label<TAB>ssh target" lines, sorted by label.
+hosts_herdr_machines() {
+    _hosts_ensure || return 1
+    jq -r '.herdr // {} | to_entries[] | "\(.key)\t\(.value)"' <<<"$_HOSTS_JSON" | sort
 }
 
 # Pinned login node for dst (empty if unset). Short name used for an intra-cluster hop.
