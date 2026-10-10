@@ -11,6 +11,19 @@ Host saga betzy olivia
     setEnv TERM=xterm-256color
     ControlMaster auto
     ControlPath ~/.ssh/%r@%h:%p
+    ControlPersist 4h
+
+# herdr saved machines: pinned login node (home is shared across round-robin
+# nodes, so the herdr server must always live on one). Reuses the 2FA master above.
+Host saga-herdr
+    Hostname login-4
+    User kholme
+    ProxyJump saga
+
+Host olivia-herdr
+    Hostname uan02
+    User kholme
+    ProxyJump olivia
 
 Host uio
     Hostname login.math.uio.no
