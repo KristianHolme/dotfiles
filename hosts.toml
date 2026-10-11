@@ -11,10 +11,12 @@
 #
 # [herdr]: saved herdr machines, label = SSH target. bin/dotfiles-herdr-machines.sh
 # adds each with --remote-session <label>, so hosts that share a home directory
-# keep separate herdr state. Round-robin clusters use a *-herdr alias pinned to
-# login_node in ~/.ssh/config.
+# keep separate herdr state. Targets are *-herdr aliases in ~/.ssh/config that
+# never prompt (BatchMode) and, on round-robin clusters, pin login_node.
 
 [defaults]
+# 2FA hosts that dotfiles-ssh-login.sh opens a ControlMaster for (uio is the jump host).
+ssh_masters = ["uio", "saga", "olivia"]
 sync_root = "Code"
 
 # ---- Individual SSH aliases. Mount fields => mountable as own filesystem. ----
@@ -80,9 +82,9 @@ local_path = "/mnt/uio-ml"
 # ---- herdr saved machines: label = SSH target (session name = label). ----
 
 [herdr]
-nam-shub-01 = "nam-shub-01"
-nam-shub-02 = "nam-shub-02"
-ml6 = "ml6"
-ml7 = "ml7"
+nam-shub-01 = "nam-shub-01-herdr"
+nam-shub-02 = "nam-shub-02-herdr"
+ml6 = "ml6-herdr"
+ml7 = "ml7-herdr"
 saga = "saga-herdr"
 olivia = "olivia-herdr"

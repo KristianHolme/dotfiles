@@ -29,6 +29,7 @@
 #
 #   [defaults]
 #   sync_root = "Code"               # optional; relative to remote_path, or absolute if starts with /
+#   ssh_masters = ["uio", ...]       # optional; 2FA hosts for dotfiles-ssh-login.sh
 #
 #   [machines.<alias>]
 #   sync_root = "/fp/projects/.../Code"   # optional override; local landing defaults to ~/Code
@@ -112,6 +113,12 @@ hosts_groups() {
 hosts_standalone_machines() {
     _hosts_ensure || return 1
     jq -r '.machines // {} | keys[]' <<<"$_HOSTS_JSON" | sort
+}
+
+# 2FA hosts that need a ControlMaster, one per line ([defaults] ssh_masters).
+hosts_ssh_masters() {
+    _hosts_ensure || return 1
+    jq -r '.defaults.ssh_masters // [] | .[]' <<<"$_HOSTS_JSON"
 }
 
 # Saved herdr machines as "label<TAB>ssh target" lines, sorted by label.

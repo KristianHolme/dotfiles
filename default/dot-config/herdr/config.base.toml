@@ -93,3 +93,13 @@ tab_bar_right = [{ type = "zoom" }, { type = "hostname" }]
 # the basename of the pane cwd. This is what Hyprland shows in the group bar,
 # and it resolves on the server so remote sessions name the remote host.
 window_title = "{hostname}: {workspace}"
+
+# Log in to the 2FA SSH masters that saved machines reuse. Runs on the selected
+# server, so use it with Local selected.
+[[keys.command]]
+key = "prefix+shift+l"
+type = "popup"
+command = "$HOME/dotfiles/bin/dotfiles-ssh-login.sh --pause"
+description = "ssh login (2FA masters)"
+width = "70%"
+height = "60%"
