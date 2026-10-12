@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Push the already-rendered local Omarchy theme to SSH hosts that have a
-# ControlMaster. Never opens a new TCP/2FA session — that races dst and can
-# lock out jump hosts. Also used by dst on connect for a single host.
+# Push the already-rendered local Omarchy theme to SSH hosts reachable through
+# a live ControlMaster. Never opens a new 2FA session. Also used by dst on
+# connect for a single host.
 #
 # Usage:
 #   dotfiles-theme-sync-remote.sh              # all active hosts
@@ -27,7 +27,8 @@ theme files (e.g. light.mode). No Omarchy install is required on the replica.
 
   --host ALIAS   Sync only this inventory alias (e.g. dst after connect)
 
-Active = ControlMaster up (\`ssh -O check\`). Never opens a new SSH session.
+Active = host ControlMaster up, or a Herdr target with a live jump master.
+Never opens a new 2FA session.
 On hosts with login_node (e.g. saga), files rsync to shared home via the VIP
 and live tmux/OSC apply hops to that node — same pin dst uses.
 Skips backgrounds/preview.png. Applies btop, tmux (status + pane OSC),
@@ -79,22 +80,40 @@ resolve_local_theme() {
 	return 1
 }
 
-# Print inventory aliases with a live ControlMaster (one per line), excluding local host.
+# A Herdr target uses its ProxyCommand's ControlMaster for the 2FA hop.
+theme_sync_master_available() {
+	local host="$1" proxy
+	if ssh -O check "$host" >/dev/null 2>&1; then
+		return 0
+	fi
+	proxy="$(ssh -G "$host" 2>/dev/null | awk '$1 == "proxycommand" { print $NF; exit }')"
+	[[ -n $proxy ]] && ssh -O check "$proxy" >/dev/null 2>&1
+}
+
+# Print inventory and Herdr targets with a live ControlMaster, excluding local host.
 hosts_active_ssh() {
-	local host local_host
+	local host local_host entry label target
 	local_host="$(hosts_local_hostname)"
 	while IFS= read -r host; do
 		[[ -n "$host" ]] || continue
 		if [[ "${host,,}" == "${local_host,,}" ]]; then
 			continue
 		fi
-		if ssh -O check "$host" >/dev/null 2>&1; then
+		if theme_sync_master_available "$host"; then
 			echo "$host"
 		fi
 	done < <(hosts_all_machines)
+	while IFS= read -r entry; do
+		label="${entry%%$'\t'*}"
+		target="${entry#*$'\t'}"
+		[[ "${label,,}" == "${local_host,,}" ]] && continue
+		if ! ssh -O check "$label" >/dev/null 2>&1 && theme_sync_master_available "$target"; then
+			echo "$target"
+		fi
+	done < <(hosts_herdr_machines)
 }
 
-# SSH options: never block on interactive MFA. Callers must already have a ControlMaster.
+# SSH options: never block on interactive MFA. A host or its jump must have a ControlMaster.
 _SSH_SYNC_OPTS=(-o BatchMode=yes -o ConnectTimeout=8 -o PreferredAuthentications=publickey -o RequestTTY=no)
 # Intra-cluster hop to hosts.toml login_node (no new 2FA; uses the VIP ControlMaster).
 _SSH_HOP_OPTS=(-o BatchMode=yes -o ConnectTimeout=8 -o RequestTTY=no)
@@ -121,6 +140,13 @@ push_theme_files() {
 		-e "$ssh_cmd" \
 		"${LOCAL_THEME}/" \
 		"${host}:.local/state/omarchy/current/theme/" || return 1
+	# Static herdr settings; the replica joins them with the theme block.
+	if [[ -f ${HOME}/.config/herdr/config.base.toml ]]; then
+		ssh "${_SSH_SYNC_OPTS[@]}" "$host" "mkdir -p .config/herdr" || return 1
+		rsync -azL -e "$ssh_cmd" \
+			"${HOME}/.config/herdr/config.base.toml" \
+			"${host}:.config/herdr/config.base.toml" || return 1
+	fi
 	if [[ -f ${LOCAL_CURRENT}/theme.name ]]; then
 		rsync -az -e "$ssh_cmd" \
 			"${LOCAL_CURRENT}/theme.name" \
@@ -128,26 +154,31 @@ push_theme_files() {
 	fi
 }
 
-# Apply theme on one remote host. Never exits non-zero for the caller.
+# Apply theme on one remote host. Shared homes need the file push only once.
 sync_host() {
 	local host="$1"
 	local theme="$2"
+	local push_files="$3"
 
-	if ! ssh -O check "$host" >/dev/null 2>&1; then
+	if ! theme_sync_master_available "$host"; then
 		log_warning "Skip $host: no ControlMaster (will not open a new SSH/2FA session)"
-		return 0
+		return 1
 	fi
 
-	log_info "Syncing theme '$theme' -> $host"
+	if [[ $push_files == 1 ]]; then
+		log_info "Pushing theme '$theme' -> $host"
+	else
+		log_info "Applying theme '$theme' -> $host"
+	fi
 
 	if ! ssh "${_SSH_SYNC_OPTS[@]}" "$host" "true" >/dev/null 2>&1; then
 		log_warning "Skip $host: SSH not available (BatchMode/auth/timeout)"
-		return 0
+		return 1
 	fi
 
-	if ! push_theme_files "$host"; then
+	if [[ $push_files == 1 ]] && ! push_theme_files "$host"; then
 		log_warning "Theme file push failed on $host"
-		return 0
+		return 1
 	fi
 
 	# Apply hooks from this machine so the remote need not have updated dotfiles yet.
@@ -169,15 +200,35 @@ apply_omarchy_theme_replica
 REMOTE
 	then
 		log_warning "Theme apply failed on $host${login_node:+ (hop $login_node)} (see remote stderr above)"
-		return 0
+		return 1
 	fi
 
 	log_success "Theme synced on $host"
 	return 0
 }
 
+sync_group() {
+	local group="$1" theme="$2" host failed=0 pushed=0
+	shift 2
+	local lock="${HOME}/.cache/dotfiles/remote-theme-sync-${group}.lock"
+	exec 9>"$lock"
+	flock 9
+	for host in "$@"; do
+		if ((pushed)); then
+			sync_host "$host" "$theme" 0 || failed=1
+		elif sync_host "$host" "$theme" 1; then
+			pushed=1
+		else
+			failed=1
+		fi
+	done
+	((pushed)) || return 1
+	return "$failed"
+}
+
 main() {
 	local theme_name
+	mkdir -p "${HOME}/.cache/dotfiles"
 	if [[ ! -d $LOCAL_THEME ]]; then
 		log_error "No local staged theme at $LOCAL_THEME (run omarchy theme set first)"
 		exit 1
@@ -197,10 +248,31 @@ main() {
 		fi
 	fi
 
-	local host
+	local host label group key pid failed=0
+	local -a groups=() members=() pids=()
+	local -A group_targets=()
 	for host in "${targets[@]}"; do
-		sync_host "$host" "$theme_name"
+		label="${host%-herdr}"
+		group="$(hosts_machine_group "$label")"
+		key="${group:-$host}"
+		if [[ ! -v group_targets["$key"] ]]; then
+			groups+=("$key")
+			group_targets["$key"]="$host"
+		else
+			group_targets["$key"]+=$'\n'"$host"
+		fi
 	done
+	for key in "${groups[@]}"; do
+		mapfile -t members <<<"${group_targets[$key]}"
+		sync_group "$key" "$theme_name" "${members[@]}" &
+		pids+=("$!")
+	done
+	for pid in "${pids[@]}"; do
+		if ! wait "$pid"; then
+			failed=1
+		fi
+	done
+	return "$failed"
 }
 
 main "$@"

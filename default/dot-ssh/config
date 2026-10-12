@@ -11,6 +11,61 @@ Host saga betzy olivia
     setEnv TERM=xterm-256color
     ControlMaster auto
     ControlPath ~/.ssh/%r@%h:%p
+    ControlPersist 4h
+
+# herdr saved machines: pinned login node (home is shared across round-robin
+# nodes, so the herdr server must always live on one). Reuses the 2FA master above.
+# Never prompt: herdr reconnects in the background, and a ProxyJump hop would
+# ask for 2FA on herdr's own terminal. Without a master these fail fast and
+# herdr marks the machine; log in with dotfiles-ssh-login.sh (herdr: prefix+shift+l).
+# The uio-jump aliases come before `Host nam-shub*` / `ml*` so their settings win.
+Host saga-herdr
+    Hostname login-4
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p saga
+
+Host olivia-herdr
+    Hostname uan02
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p olivia
+
+Host abacus-as-herdr
+    Hostname abacus-as
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
+
+Host abacus-min-herdr
+    Hostname abacus-min
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
+
+Host nam-shub-01-herdr
+    Hostname nam-shub-01
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
+
+Host nam-shub-02-herdr
+    Hostname nam-shub-02
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
+
+Host ml6-herdr
+    Hostname ml6.hpc.uio.no
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
+
+Host ml7-herdr
+    Hostname ml7.hpc.uio.no
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
 
 Host uio
     Hostname login.math.uio.no

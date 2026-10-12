@@ -1,0 +1,105 @@
+onboarding = false
+
+[remote]
+manage_ssh_config = false
+# Static herdr settings. The [theme] block is generated per Omarchy theme and
+# appended to ~/.config/herdr/config.toml by hooks/theme-set.d/herdr.
+#
+# Mirrors the Omarchy tmux config in config/tmux/tmux.conf
+# tmux session -> herdr workspace, tmux window -> herdr tab, tmux pane -> herdr pane
+
+
+[terminal]
+# Matches -c "#{pane_current_path}" on every split, window, and session
+new_cwd = "follow"
+
+[keys]
+prefix = "ctrl+space"
+
+# Config and help
+reload_config = "prefix+q"
+help = "prefix+?"
+detach = "prefix+d"
+
+# Copy mode
+copy_mode = "prefix+["
+
+# Panes
+split_horizontal = "alt+enter"
+split_vertical = "alt+shift+enter"
+close_pane = ["prefix+x", "alt+esc"]
+zoom = "prefix+z"
+last_pane = "prefix+;"
+
+# prefix+hjkl/arrows; ctrl+alt+arrows are taken by ghostty, alt is used for window switching
+focus_pane_left = ["prefix+h", "prefix+left"]
+focus_pane_down = ["prefix+j", "prefix+down"]
+focus_pane_up = ["prefix+k", "prefix+up"]
+focus_pane_right = ["prefix+l", "prefix+right"]
+
+resize_mode = ["prefix+ctrl+left", "prefix+ctrl+down", "prefix+ctrl+up", "prefix+ctrl+right"]
+
+# Like resize-pane on C-M-S-arrows
+resize_pane_left = "ctrl+alt+shift+left"
+resize_pane_down = "ctrl+alt+shift+down"
+resize_pane_up = "ctrl+alt+shift+up"
+resize_pane_right = "ctrl+alt+shift+right"
+
+# No tmux equivalent; herdr's default prefix+shift+p is taken by previous session
+rename_pane = "prefix+shift+o"
+
+# Windows -> tabs
+new_tab = "prefix+c"
+rename_tab = "prefix+r"
+close_tab = "prefix+shift+x"
+switch_tab = ["prefix+1..9", "alt+1..9"]
+previous_tab = ["prefix+p", "alt+left"]
+next_tab = ["prefix+n", "alt+right"]
+
+# Like swap-window -t -1/+1 on M-S-Left/Right
+move_tab_previous = "alt+shift+left"
+move_tab_next = "alt+shift+right"
+
+# Sessions -> workspaces
+new_workspace = "prefix+shift+c"
+rename_workspace = "prefix+shift+r"
+close_workspace = "prefix+shift+k"
+previous_workspace = ["prefix+shift+p", "alt+up"]
+next_workspace = ["prefix+shift+n", "alt+down"]
+
+[ui]
+accent = "blue"
+
+# tmux drew single-line dividers between adjacent panes and no outer frame
+pane_gaps = false
+pane_outer_borders = false
+
+# tmux had no scrollbar column beside its panes
+pane_scrollbars = false
+
+# kill-window and kill-session never asked
+confirm_close = false
+
+# automatic-rename gave windows a name without prompting
+prompt_new_tab_name = false
+
+# set -g mouse on
+mouse_capture = true
+
+# status-right had the zoom flag followed by #h
+tab_bar_right = [{ type = "zoom" }, { type = "hostname" }]
+
+# set -g set-titles on / set -g set-titles-string '#h:#W', where tmux's #W was
+# the basename of the pane cwd. This is what Hyprland shows in the group bar,
+# and it resolves on the server so remote sessions name the remote host.
+window_title = "{hostname}: {workspace}"
+
+# Log in to the 2FA SSH masters that saved machines reuse. Runs on the selected
+# server, so use it with Local selected.
+[[keys.command]]
+key = "prefix+shift+l"
+type = "popup"
+command = "$HOME/dotfiles/bin/dotfiles-ssh-login.sh --pause"
+description = "ssh login (2FA masters)"
+width = "70%"
+height = "60%"

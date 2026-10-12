@@ -170,7 +170,7 @@ elseif host == "sibir" then
 		-- Keep the eDP-1 rule on ONE line: omarchy-hyprland-monitor-clamshell greps
 		-- this file (ignoring branches) for a single-line rule to decide the
 		-- internal panel scale, and re-applies it on monitor events.
-		hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = 1.6 })
+		hl.monitor({ output = "eDP-1", mode = "preferred", position = "auto", scale = 1.25 })
 		hl.monitor({
 			output = "",
 			mode = "preferred",
