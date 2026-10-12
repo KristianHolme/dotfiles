@@ -5,11 +5,14 @@ set -euo pipefail
 
 mkdir -p "${HOME}/.cache/dotfiles"
 log="${HOME}/.cache/dotfiles/remote-theme-sync.log"
+lock="${HOME}/.cache/dotfiles/remote-theme-sync.lock"
 sync="${HOME}/dotfiles/bin/dotfiles-theme-sync-remote.sh"
 
 [[ -x $sync ]] || exit 0
 
 {
+	exec 9>"$lock"
+	flock 9
 	echo "---- $(date -Iseconds) theme-set hook (theme=${1:-unknown}) ----"
 	"$sync"
 } >>"$log" 2>&1 &

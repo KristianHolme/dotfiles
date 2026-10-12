@@ -21,12 +21,14 @@ Host saga betzy olivia
 # The uio-jump aliases come before `Host nam-shub*` / `ml*` so their settings win.
 Host saga-herdr
     Hostname login-4
+    HostKeyAlias saga.sigma2.no
     User kholme
     BatchMode yes
     ProxyCommand ssh -o BatchMode=yes -W %h:%p saga
 
 Host olivia-herdr
     Hostname uan02
+    HostKeyAlias olivia.sigma2.no
     User kholme
     BatchMode yes
     ProxyCommand ssh -o BatchMode=yes -W %h:%p olivia
