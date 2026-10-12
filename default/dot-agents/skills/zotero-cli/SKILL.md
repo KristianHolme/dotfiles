@@ -3,7 +3,7 @@ name: zotero-cli
 description: Read and write a Zotero library from the shell with the `zotero-cli` command - search papers by keyword or meaning, read PDF full text and page ranges, get and set metadata, manage collections, tags, notes and annotations, add items by DOI/URL/ISBN, and export bibliographies. Use whenever the user asks about their Zotero library, references, citations, papers they have saved, or their reading notes.
 metadata:
   upstream: zotero-mcp install-skill
-  last_refreshed: "2026-09-28"
+  last_refreshed: "2026-10-12"
   refresh_interval_days: "30"
 ---
 
@@ -15,7 +15,7 @@ metadata:
 ## Upstream refresh reminder
 
 Once per session when this skill loads: if today is **30 or more days** after
-`metadata.last_refreshed` (currently `2026-09-28`), remind the user once that
+`metadata.last_refreshed` (currently `2026-10-12`), remind the user once that
 the vendored skill may be stale, and offer to refresh:
 
 1. `tmp=$(mktemp -d) && zotero-mcp install-skill --target agents --root "$tmp" --force`
@@ -106,10 +106,13 @@ with it; `--collection` does not, because a collection lives inside one library.
 ## Reading efficiently
 
 `get fulltext` on a book-length PDF returns a great deal of text. When you
-need one section, use the outline to find it and read only those pages:
+need one section, use the outline to find it and read only those pages. To
+locate a passage by its words, `--find` returns the matching pages with short
+snippets instead of the pages themselves:
 
 ```bash
 zotero-cli --json outline ABCD1234
+zotero-cli --json read ABCD1234 --find "robustness check"
 zotero-cli --json read ABCD1234 --start-page 42 --end-page 55
 ```
 
@@ -138,6 +141,15 @@ zotero-cli notes create --item-key ABCD1234 --text "Key finding: ..."
 zotero-cli batch --item-keys A1B2C3D4,E5F6G7H8 --add-tags screened
 ```
 
+Note text is Markdown, converted to Zotero's note format: headings, lists,
+tables, code, links (`zotero://` ones stay clickable), `$math$` and `$$display$$`,
+plus `<u>`, `<s>`, `<sub>`, `<sup>`, `<mark>` and `<span style="color: red">` or
+`background-color` (red, orange, yellow, green, purple, magenta, blue, gray, or
+`#hex`). Pipe long text with `--text -`. HTML starting with `<p>`/`<div>` is
+kept to the note editor's tags, so a note read with `notes list --raw-html`,
+edited and written back with `notes update` keeps its citations and images;
+`notes update --append` adds to the end.
+
 `add` is idempotent by default: re-running files the existing item into the
 named collection rather than creating a duplicate. Use `--if-exists skip` to
 never touch an existing item.
@@ -152,7 +164,13 @@ item` refuses notes unless `--allow-note` is passed.
 zotero-cli get children ITEM_KEY                          # the PDF's attachment key
 zotero-cli read ITEM_KEY --start-page 1 --end-page 99     # end page clamps to the last page
 zotero-cli path ATTACHMENT_KEY                            # the PDF file on disk
+zotero-cli open ITEM_KEY --page 7                         # show that page in the Zotero reader
+zotero-cli open --annotation ANNOTATION_KEY               # jump to one annotation and select it
 ```
+
+When the user is reading along in Zotero and asks where something is, point
+the reader at it with `open` rather than only quoting a page number.
+`annotations create --open` does both in one step.
 
 Extracted text is reliable for prose and unreliable for math, figures and
 tables: symbols drop out and table cells run together. `read` flags each
