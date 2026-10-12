@@ -35,7 +35,14 @@ Current known examples, to verify on the target before use:
 | Cluster | GPU partition | Notification partition |
 |---------|---------------|------------------------|
 | Saga | `a100` | `normal` |
-| Olivia | `accel` | `small` |
+| Olivia | `accel` | none (see below) |
+
+**Olivia:** only the `accel` partition is usable; submitting to `small` fails with
+`AssocGrpBillingMinutes`, so the wrapper's `failnotify` jobs cannot be created (expect
+"fail-notify: submit failed"; the main jobs still go through). The watcher must cover
+this: check job states with `sacct` at every tick, send the ntfy failure notice itself
+for any FAILED/TIMEOUT/CANCELLED/OUT_OF_MEMORY job, and use a recurring cron
+(`CronCreate`, e.g. `7,37 * * * *`) rather than relying on Slurm-triggered notices.
 
 Both currently use account `nn9886k` and a checkout under
 `/cluster/projects/nn9886k/kholme/Code/DRL_Sphere`. Olivia's GPU nodes are
