@@ -44,6 +44,10 @@ this: check job states with `sacct` at every tick, send the ntfy failure notice 
 for any FAILED/TIMEOUT/CANCELLED/OUT_OF_MEMORY job, and use a recurring cron
 (`CronCreate`, e.g. `7,37 * * * *`) rather than relying on Slurm-triggered notices.
 
+**Olivia MPS is mandatory:** GPUs are in `Exclusive_Process` compute mode, so several
+sim workers per GPU only work through the MPS daemon. Never pass `MPS=0` (all workers
+after the first fail at env setup with a misleading `MethodError ... ::RemoteException`).
+
 Both currently use account `nn9886k` and a checkout under
 `/cluster/projects/nn9886k/kholme/Code/DRL_Sphere`. Olivia's GPU nodes are
 aarch64; check the current job wrapper for its Julia and depot setup.
