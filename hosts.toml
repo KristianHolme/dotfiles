@@ -82,6 +82,8 @@ local_path = "/mnt/uio-ml"
 # ---- herdr saved machines: label = SSH target (session name = label). ----
 
 [herdr]
+abacus-as = "abacus-as-herdr"
+abacus-min = "abacus-min-herdr"
 nam-shub-01 = "nam-shub-01-herdr"
 nam-shub-02 = "nam-shub-02-herdr"
 ml6 = "ml6-herdr"
