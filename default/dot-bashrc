@@ -39,11 +39,9 @@ alias jtemp='julia --project=@temp'
 alias jn='julia +nightly'
 alias jnp='julia +nightly --project'
 alias lg='lazygit'
-unalias r
+# Omarchy defines these aliases on the desktop; replicas may not have them.
+unalias r cd ls lsa 2>/dev/null || true
 alias r='source ~/.bashrc'
-unalias cd  #omarchy aliases to zoxide
-unalias ls
-unalias lsa
 alias l='eza -lh --group-directories-first --icons=auto'
 alias la='l -a'
 alias f='y'
