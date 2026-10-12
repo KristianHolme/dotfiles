@@ -199,6 +199,13 @@ hosts_group_machines() {
     jq -r --arg g "$group" '.groups[$g].machines[]?' <<<"$_HOSTS_JSON"
 }
 
+# Group containing an SSH machine alias, if any.
+hosts_machine_group() {
+    local alias="$1"
+    _hosts_ensure || return 1
+    jq -r --arg a "$alias" '.groups // {} | to_entries[] | select(.value.machines | index($a)) | .key' <<<"$_HOSTS_JSON" | head -n1
+}
+
 # Union of every SSH alias known to this file (machines.* keys + groups.*.machines), deduped, sorted.
 hosts_all_machines() {
     _hosts_ensure || return 1
