@@ -31,6 +31,18 @@ Host olivia-herdr
     BatchMode yes
     ProxyCommand ssh -o BatchMode=yes -W %h:%p olivia
 
+Host abacus-as-herdr
+    Hostname abacus-as
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
+
+Host abacus-min-herdr
+    Hostname abacus-min
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
+
 Host nam-shub-01-herdr
     Hostname nam-shub-01
     User kholme
