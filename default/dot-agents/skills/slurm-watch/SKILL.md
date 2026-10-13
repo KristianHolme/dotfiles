@@ -78,12 +78,28 @@ limits before changing a submitted job's time limit with `scontrol update`.
 
 ## Watch
 
-Use an available recurring check every 30 minutes. If the environment has a
-monitored `/loop`, follow its skill and arm it with a unique
-`AGENT_LOOP_TICK_<N>` sentinel. Smoke-check the process and its child sleep,
-then run the first status check immediately. Track the loop PID and children
-so they can be stopped on completion. Otherwise, monitor for the duration of
-the active session and state when monitoring ends.
+Scheduling the recurring check is part of the launch, not optional. Before
+replying to the user after submission, arm a check every 30 minutes with
+whatever scheduler the harness provides, and tell the user which mechanism is
+running and when it stops. Make the check prompt self-contained: job IDs,
+cluster, account, partitions, resource flags, and the expected trial IDs.
+
+Pick the mechanism by harness:
+
+- Claude Code: load `CronCreate` (deferred; fetch with ToolSearch) and
+  schedule a recurring job at an off-minute such as `7,37 * * * *`. Session
+  only, expires after 7 days. `ScheduleWakeup` is only for `/loop`.
+- Any harness with a monitored `/loop`: follow its skill and arm it with a
+  unique `AGENT_LOOP_TICK_<N>` sentinel. Smoke-check the process and its
+  child sleep, then run the first status check immediately. Track the loop PID
+  and children so they can be stopped on completion.
+- Other harnesses (Cursor, Codex, pi, ...): use its native scheduler or
+  background-task facility if one exists.
+- No scheduler at all: poll for the duration of the active session and tell
+  the user plainly that monitoring ends when the session does. Use this only
+  after confirming nothing above is available.
+
+Run the first status check immediately, then on each tick.
 
 At each check, on the target cluster:
 
