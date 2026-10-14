@@ -1166,7 +1166,13 @@ omarchy_plugin_normalize_url() {
     url="${url#https://}"
     url="${url#http://}"
     url="${url#ssh://}"
-    printf '%s' "${url,,}"
+    url="${url,,}"
+    case "$url" in
+        github.com/kristianholme/ntfy-panel)
+            url="github.com/kristianholme/omarchy-ntfy"
+            ;;
+    esac
+    printf '%s' "$url"
 }
 
 # Return 0 if any checkout under $1 has origin matching $2.
