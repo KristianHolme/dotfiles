@@ -147,10 +147,10 @@ elseif host == "sibir" then
 	elseif has_monitor("C27JG5x") then
 		-- Other office desk: Samsung 27" + laptop
 		hl.monitor({
-			output = "desc:BOE 0x0AFE",
+			output = "eDP-1",
 			mode = "2560x1440@60",
-			position = "-1600x0",
-			scale = 1.6,
+			position = "-2048x0",
+			scale = 1.25,
 		})
 
 		pin_workspaces({
