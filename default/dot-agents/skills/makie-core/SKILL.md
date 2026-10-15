@@ -22,6 +22,7 @@ Use Makie (not a specific backend) for all plotting. Assume all features are ava
 - Use nested layouts with `fig[row, col][subrow, subcol]` to build sections.
 - Prefer explicit `Axis` creation for clarity in complex layouts.
 - Use `Colorbar` and `Legend` in adjacent layout cells rather than overlaying.
+- When lines differ by more than one attribute (colour, line style, marker, …), explain each attribute in its own group of a standalone `Legend` placed outside the axes, e.g. colour = policy, line style = bound: `Legend(fig[1, 2], [policy_entries, style_entries], [policy_labels, style_labels], ["Policy", "Bound"])`. Titles name the quantity only.
 
 ## Modularity Pattern (Recommended)
 - Build figures by composing functions:
@@ -37,4 +38,4 @@ If a static plot may be reused later in dynamic visualizations, ask whether the 
 - Prefer explicit axis labels and titles for clarity.
 
 ## Saving
-Do not `display(fig)` before `save`. `display` opens a GUI window and blocks until that window is closed. Save the file; open it later if you need to inspect it.
+Guard display with `isinteractive() && display(fig)`. A human in a REPL sees the figure; a headless run by the agent only saves, so no window pops up on the user's desktop. Inspect saved files by reading them.

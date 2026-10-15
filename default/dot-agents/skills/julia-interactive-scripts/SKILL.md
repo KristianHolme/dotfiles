@@ -1,6 +1,6 @@
 ---
 name: julia-interactive-scripts
-description: Write Julia scripts for interactive REPL work — sectioned, top-level flow, display-before-save. Use when creating or editing files in scripts/, _research/, or examples/, or when the user asks for analysis, plotting, validation, or one-off experiment scripts (not library code in src/). Covers both DrWatson projects and plain using/Pkg.activate demos without DrWatson.
+description: Write Julia scripts for interactive REPL work — sectioned, top-level flow, display only when interactive. Use when creating or editing files in scripts/, _research/, or examples/, or when the user asks for analysis, plotting, validation, or one-off experiment scripts (not library code in src/). Covers both DrWatson projects and plain using/Pkg.activate demos without DrWatson.
 ---
 
 # Julia Interactive Scripts
@@ -50,9 +50,9 @@ Reserve `const` (section 3) for values that are clearly and permanently fixed �
 
 A short comment block explaining what the script does is fine (before the imports). Don't turn the whole script into a small API.
 
-## Save without display
+## Display only when interactive
 
-Do not `display(fig)` before saving. That opens a GUI window and blocks until it is closed. Save the file; open it if you need to inspect it. See [makie-core](../makie-core/SKILL.md).
+Write `isinteractive() && display(fig)` in the plot section. The human running sections in a REPL/IDE sees the figure; a headless run (`julia script.jl`, `julia -e`, juliaclient) skips it, so no window pops up on the user's desktop. See [makie-core](../makie-core/SKILL.md).
 
 ## Save in its own section
 
@@ -147,12 +147,12 @@ env = make_env(params)
 ##
 ## 1) visualize
 fig, ax = viz!(env; body = true)
-display(fig)
+isinteractive() && display(fig)
 ##
 ## 2) run and inspect (no save)
 data = run_policy(env, ZeroPolicy())
 fig2 = plot_summary(data)
-display(fig2)
+isinteractive() && display(fig2)
 ```
 
 Inline struct/policy definitions in `examples/` are fine when they illustrate API usage.
@@ -160,7 +160,7 @@ Inline struct/policy definitions in `examples/` are fine when they illustrate AP
 ## Anti-patterns
 
 - Wrapping the whole script in `main()` / `run_analysis()` called at the end
-- Calling `display(fig)` before `save` (opens a GUI and blocks)
+- Bare `display(fig)` in a script the agent runs headless (pops up a window on the user's desktop); guard it with `isinteractive()`
 - Putting one-off experiment logic in `src/` instead of `scripts/` or `_research/`
 - Defining many small helpers for code used once in the same file
 - Putting utility functions in usage sections instead of section 2
