@@ -7,7 +7,6 @@
   "bar": {
     "position": "top",
     "transparent": true,
-    "centerAnchor": "omarchy.clock",
     "layout": {
       "left": [
         {
@@ -22,14 +21,6 @@
       ],
       "center": [
         {
-          "id": "omarchy.indicators"
-        },
-        {
-          "id": "omarchy.elsewhen",
-          "zones": "Oslo|Europe/Oslo, Delhi|Asia/Kolkata, Tokyo|Asia/Tokyo, Los Angeles|America/Los_Angeles, New York|America/New_York",
-          "hour24": true
-        },
-        {
           "id": "omarchy.clock",
           "format": "yyyy-MM-dd HH:mm",
           "formatAlt": "d MMMM 'W'ww yyyy",
@@ -37,26 +28,14 @@
           "weekStartDay": "monday",
           "birthYear": 2000,
           "lifeExpectancy": 100
-        },
-        {
-          "id": "omarchy.weather"
-        },
-        {
-          "id": "omarchy.microphone"
-        },
-        {
-          "id": "omarchy.media"
-        },
-        {
-          "id": "omarchy.system-update"
         }
       ],
       "right": [
         {
-          "id": "omarchy.keyboard-layout"
+          "id": "omarchy.tray"
         },
         {
-          "id": "omarchy.tray"
+          "id": "omarchy.keyboard-layout"
         },
         {
           "id": "jankeesvw.downloads"
@@ -97,6 +76,30 @@
         },
         {
           "id": "jankeesvw.notification-center"
+        }
+      ],
+      "centerBegin": [
+        {
+          "id": "omarchy.indicators"
+        },
+        {
+          "id": "omarchy.elsewhen",
+          "zones": "Oslo|Europe/Oslo, Delhi|Asia/Kolkata, Tokyo|Asia/Tokyo, Los Angeles|America/Los_Angeles, New York|America/New_York",
+          "hour24": true
+        }
+      ],
+      "centerEnd": [
+        {
+          "id": "omarchy.weather"
+        },
+        {
+          "id": "omarchy.microphone"
+        },
+        {
+          "id": "omarchy.media"
+        },
+        {
+          "id": "omarchy.system-update"
         }
       ]
     }
