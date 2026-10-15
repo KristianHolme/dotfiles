@@ -3,7 +3,7 @@
 # Sync directories under hosts.toml sync_root, or copy arbitrary files into one folder.
 # Usage: ./dotfiles-rsync-ssh.sh [host] [browse-path] [options]
 #        ./dotfiles-rsync-ssh.sh --remote [source] [target] [browse-path] [options]
-# With no arguments, a menu chooses sync root or free copy.
+# With no arguments, a menu chooses sync root, free copy, or plots-uio.
 
 set -Eeuo pipefail
 
@@ -391,6 +391,39 @@ EOF
     done <<<"$size_output"
 }
 
+# Pull <project>/plots from the uio-math group (via its mount_via host) into the
+# local sync root. Merge mode: local files missing on the server are kept.
+pull_plots_uio() {
+    local group="uio-math" local_root project host context remote_base
+    local_root="$(hosts_expand_path "$(hosts_sync_root_default_local)")"
+
+    project=$(find "$local_root" -mindepth 1 -maxdepth 1 -type d -not -name '.*' -printf '%f\n' | sort |
+        gum filter --header "🔍 Choose a project in $local_root:" \
+            --placeholder "Type to search..." \
+            --prompt "❯ ") || exit 0
+    if [[ -z "$project" ]]; then
+        echo "❌ No selection made. Exiting."
+        exit 0
+    fi
+
+    host="$(hosts_filesystem_host "$group")" || exit 1
+    context="$(load_sync_context_for_host "$host")"
+    IFS=$'\t' read -r _ _ _ _ remote_base _ <<<"$context"
+
+    echo
+    echo "📂 $group ($host): $remote_base/$project/plots/"
+    ensure_ssh_controlmaster "$host"
+    if ! ssh "$host" test -d "$(printf '%q' "$remote_base/$project/plots")"; then
+        echo "⚠️  $host has no $project/plots"
+        exit 1
+    fi
+    mkdir -p "$local_root/$project/plots"
+    rsync -az --info=progress2 --no-inc-recursive \
+        "$host:$remote_base/$project/plots/" "$local_root/$project/plots/"
+    echo
+    echo "🎉 Plots synced to: $local_root/$project/plots"
+}
+
 while [[ $# -gt 0 ]]; do
     case $1 in
     --remote)
@@ -409,9 +442,10 @@ while [[ $# -gt 0 ]]; do
         echo "Usage: $0 [host] [browse-path] [options]"
         echo "       $0 --remote [source] [target] [browse-path] [options]"
         echo
-        echo "With no arguments, choose Sync root or Free."
+        echo "With no arguments, choose Sync root, Free, or plots-uio."
         echo "Sync root copies directories under hosts.toml sync_root (local ~/Code)."
         echo "Free copies any files and directories into one chosen folder."
+        echo "plots-uio pulls <project>/plots from uio-math into ~/Code/<project>/plots."
         echo "Default sync: pull from remote to local. Use --push to browse local folders and push to remote."
         echo "Use --remote to copy selected folders from one remote host to another."
         echo "Positional browse-path opens the folder browser at that location (does not sync immediately)."
@@ -457,13 +491,18 @@ ensure_cmd gum yazi
 if [[ "$SYNC_REMOTE" == false && "$SYNC_PUSH" == false && "$DELETE_FILES" == true && ${#POSITIONAL[@]} -eq 0 ]]; then
     copy_mode=$(gum choose --header "Choose copy mode" \
         "Sync root" \
-        "Free") || exit 0
+        "Free" \
+        "plots-uio") || exit 0
     if [[ -z "$copy_mode" ]]; then
         echo "❌ No selection made. Exiting."
         exit 0
     fi
     if [[ "$copy_mode" == "Free" ]]; then
         exec "$SCRIPT_DIR/dotfiles-copy-ssh.sh"
+    fi
+    if [[ "$copy_mode" == "plots-uio" ]]; then
+        pull_plots_uio
+        exit 0
     fi
 fi
 
