@@ -53,11 +53,18 @@ MENU_OPTIONS=(
 REPLICA_SELECTION=""
 
 setup_julia_config() {
-	local dotfiles_dir="$HOME/dotfiles/"
+	local dotfiles_dir="$HOME/dotfiles"
 	local julia_config_source="$dotfiles_dir/default/dot-julia/config"
 	local julia_config_target="${JULIA_DEPOT_PATH:-$HOME/.julia}/config"
 
 	create_symlink_with_backup "$julia_config_source" "$julia_config_target" "Julia config"
+	# Stow recognizes directory links into dotfiles when their targets are relative.
+	if [[ -L "$julia_config_target" && -d "$julia_config_source" ]] &&
+		[[ "$(realpath "$julia_config_target")" == "$(realpath "$julia_config_source")" ]]; then
+		local relative_source
+		relative_source="$(realpath --relative-to="$(dirname "$julia_config_target")" "$julia_config_source")"
+		ln -sfn "$relative_source" "$julia_config_target"
+	fi
 }
 
 # Stow or unstow a package from default/ into a target directory.
