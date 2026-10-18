@@ -55,6 +55,7 @@ o.bind("SUPER + ALT + R", "Reload Hyprland", "hyprctl reload")
 o.bind("SUPER + CTRL + U", "Update Omarchy", "omarchy-launch-floating-terminal-with-presentation omarchy-update")
 o.bind("SUPER + SHIFT + D", "Docker", { tui = "lazydocker" })
 o.bind("SUPER + D", "Downloads", "omarchy-shell shell toggle jankeesvw.downloads")
+o.bind("SUPER + SHIFT + R", "Screen ruler", { panel = "kristianholme.ruler" })
 
 -- Agent console: the Omarchy Quake console (half-screen drop-down that
 -- launches the default agent), toggled with SUPER + | (the pipe key).

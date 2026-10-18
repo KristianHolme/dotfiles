@@ -37,17 +37,6 @@ local function has_monitor(needle)
 	return display_inventory():find(needle, 1, true) ~= nil
 end
 
-local function pin_workspaces(spec)
-	for _, item in ipairs(spec) do
-		hl.workspace_rule({
-			workspace = tostring(item.id),
-			monitor = item.monitor,
-			persistent = item.persistent == true,
-			default = item.default == true,
-		})
-	end
-end
-
 local host = hostname()
 
 if host == "bengal" then
@@ -61,19 +50,6 @@ if host == "bengal" then
 	hl.monitor({ output = main, mode = "2560x1440@59.95", position = "0x0", scale = 1 })
 	hl.monitor({ output = right, mode = "1920x1080@74.97", position = "2560x-310", scale = 1, transform = 3 })
 	hl.monitor({ output = left, mode = "1600x1200@60", position = "-1600x60", scale = 1 })
-
-	pin_workspaces({
-		{ id = 1, monitor = main },
-		{ id = 2, monitor = main },
-		{ id = 3, monitor = main },
-		{ id = 4, monitor = main },
-		{ id = 5, monitor = main },
-		{ id = 6, monitor = main },
-		{ id = 7, monitor = right, persistent = true },
-		{ id = 8, monitor = right, persistent = true },
-		{ id = 9, monitor = left, persistent = true },
-		{ id = 10, monitor = left, persistent = true },
-	})
 elseif host == "kaspi" then
 	hl.env("GDK_SCALE", "2")
 	hl.monitor({
@@ -131,19 +107,6 @@ elseif host == "sibir" then
 			position = "4152x0",
 			scale = 2,
 		})
-
-		pin_workspaces({
-			{ id = 1, monitor = "desc:Samsung Electric Company U32E850", persistent = true, default = true },
-			{ id = 2, monitor = "desc:Samsung Electric Company U32E850", persistent = true },
-			{ id = 3, monitor = "desc:Samsung Electric Company U32E850", persistent = true },
-			{ id = 4, monitor = "desc:Samsung Electric Company U32E850", persistent = true },
-			{ id = 5, monitor = "desc:Samsung Electric Company U32E850", persistent = true },
-			{ id = 6, monitor = "desc:Samsung Electric Company U32E850", persistent = true },
-			{ id = 7, monitor = "DP-1", persistent = true, default = true },
-			{ id = 8, monitor = "DP-1", persistent = true },
-			{ id = 9, monitor = "DP-1", persistent = true },
-			{ id = 10, monitor = "desc:BOE 0x0AFE", persistent = true, default = true },
-		})
 	elseif has_monitor("C27JG5x") then
 		-- Other office desk: Samsung 27" + laptop
 		hl.monitor({
@@ -151,19 +114,6 @@ elseif host == "sibir" then
 			mode = "2560x1440@60",
 			position = "-2048x0",
 			scale = 1.25,
-		})
-
-		pin_workspaces({
-			{ id = 1, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true, default = true },
-			{ id = 2, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true },
-			{ id = 3, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true },
-			{ id = 4, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true },
-			{ id = 5, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true },
-			{ id = 6, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true },
-			{ id = 7, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true },
-			{ id = 8, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true },
-			{ id = 9, monitor = "desc:Samsung Electric Company C27JG5x H4ZNA00154", persistent = true },
-			{ id = 10, monitor = "desc:BOE 0x0AFE", persistent = true, default = true },
 		})
 	else
 		-- Laptop only: scale the panel and mirror unknown extras (projectors)
