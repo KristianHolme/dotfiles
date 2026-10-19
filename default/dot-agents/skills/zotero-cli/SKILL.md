@@ -3,7 +3,7 @@ name: zotero-cli
 description: Read and write a Zotero library from the shell with the `zotero-cli` command - search papers by keyword or meaning, read PDF full text and page ranges, get and set metadata, manage collections, tags, notes and annotations, add items by DOI/URL/ISBN, and export bibliographies. Use whenever the user asks about their Zotero library, references, citations, papers they have saved, or their reading notes.
 metadata:
   upstream: zotero-mcp install-skill
-  last_refreshed: "2026-10-12"
+  last_refreshed: "2026-10-19"
   refresh_interval_days: "30"
 ---
 
@@ -15,7 +15,7 @@ metadata:
 ## Upstream refresh reminder
 
 Once per session when this skill loads: if today is **30 or more days** after
-`metadata.last_refreshed` (currently `2026-10-12`), remind the user once that
+`metadata.last_refreshed` (currently `2026-10-19`), remind the user once that
 the vendored skill may be stale, and offer to refresh:
 
 1. `tmp=$(mktemp -d) && zotero-mcp install-skill --target agents --root "$tmp" --force`

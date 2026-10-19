@@ -48,7 +48,7 @@ upstream_repo = "https://github.com/mattpocock/skills"
 upstream_path = "skills/engineering/domain-modeling"
 upstream_ref = "main"
 status = "active"
-notes = "Matt Pocock. Includes ADR-FORMAT.md, CONTEXT-FORMAT.md, agents/openai.yaml. Keep local frontmatter metadata when porting. Required by grill-with-docs."
+notes = "Matt Pocock. Includes ADR-FORMAT.md, GLOSSARY-FORMAT.md, agents/openai.yaml. Keep local frontmatter metadata when porting. Required by grill-with-docs."
 
 [[skill]]
 local = ""
