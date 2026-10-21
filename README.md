@@ -39,8 +39,17 @@ dotfiles-apply-config.sh [PROFILE]    # alias: dac
 
 Stows `default/` into `~`. Conflicts are resolved interactively with `gum`
 (adopt into the repo, or abort). It copies agent skills into `~/.codex/skills`,
-links skills/commands into `~/.cursor` and `~/.config/opencode`, and reloads
-Hyprland.
+links skills/commands into `~/.cursor` and `~/.config/opencode`, writes the
+global agent instructions (below), and reloads Hyprland.
+
+### Global agent instructions
+
+`default/dot-agents/AGENTS.md` holds harness-agnostic instructions. Facts about
+one machine or filesystem go in `~/.agents/AGENTS.local.md` on that machine
+(not in this repo). `dac` and `dar` concatenate the two into each harness's
+global instructions file: `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`,
+`~/.pi/agent/AGENTS.md`, and `~/.cursor/rules/global-agents.mdc`
+(`alwaysApply: true`). These are generated copies; edit the sources and rerun.
 
 Host-specific Hyprland (monitors, scale, workspace pins) is in
 `default/dot-config/hypr/monitors.lua`: it reads `/etc/hostname` and the

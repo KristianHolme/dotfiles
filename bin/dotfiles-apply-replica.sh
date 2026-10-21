@@ -7,6 +7,8 @@ set -Eeuo pipefail
 # - Copies skills into ~/.codex/skills (Codex does not read the symlink)
 # - Symlinks skills into ~/.claude/skills (per skill)
 # - Stows default/dot-pi into ~/.pi (agent settings.json)
+# - Writes ~/.agents/AGENTS.md + AGENTS.local.md into each harness's global
+#   instructions file (Claude, Codex, pi, Cursor)
 # - Creates symlink for Julia config ($JULIA_DEPOT_PATH/config or ~/.julia/config)
 # - Adds source line to server's ~/.bashrc for our dot-bashrc (idempotent)
 #
@@ -133,6 +135,9 @@ run_stow_passthrough() {
 		log_error "dot-pi stow failed; aborting"
 		exit 1
 	}
+	if ! stow_flags_include -n "${stow_flags[@]}"; then
+		install_agent_instructions
+	fi
 }
 
 # Cluster ~/.bashrc often returns before it sources dot-bashrc when the shell
@@ -269,6 +274,10 @@ run_selected_steps() {
 			log_error "dot-pi stow failed; aborting"
 			exit 1
 		}
+	fi
+
+	if task_is_selected "$TASK_STOW_AGENTS" "$selection"; then
+		install_agent_instructions
 	fi
 
 	if task_is_selected "$TASK_BASHRC" "$selection"; then

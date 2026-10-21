@@ -7,7 +7,7 @@ description: >-
 
 # GitHub pull requests
 
-Use `gh` for all GitHub PR tasks. Never update git config. Do not push unless needed for the PR and the user asked for a PR (push is implied by creating a PR from a local-only branch).
+Use `gh` for all GitHub PR tasks. Never update git config. Pushing branches to the user's own forks is always allowed, including `--force-with-lease` after rebasing the user's own branches. Ask before you open PRs, comment, or push to repos owned by others.
 
 ## Preflight (parallel)
 
@@ -31,6 +31,7 @@ Do these steps in order:
    Use the markdown file it writes.
    The first heading is the title.
    The remainder of the file is the body.
+   The body has `Closes #N` for each issue the PR resolves. Only PRs into the default branch auto-close issues. Repeat `Closes #N` in the PR that lands a stack in the default branch, and retarget each stacked PR to the default branch once the PR below it merges.
 4. Create the PR with `gh pr create --title` and `--body-file`.
    Pass the body only. Leave the title heading out of the body.
 5. Return the PR URL.

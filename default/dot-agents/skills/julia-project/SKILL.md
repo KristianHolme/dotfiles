@@ -17,7 +17,8 @@ description: >-
 
 ## Depot (~/.julia)
 
-- When Pkg, precompile or loading fails, find the cause and fix it there, using the documented procedure in AGENTS.md if one exists. If the fix is disruptive or unclear, report and ask; do not hack around it.
+- When Pkg, precompile or loading fails, find the cause and fix it there. If the fix is disruptive or unclear, report and ask; do not hack around it.
+- A precompile failure, `CacheFlags` error, or rejected cache → read [PRECOMPILE.md](PRECOMPILE.md) before you act.
 - Never change `JULIA_DEPOT_PATH`, create extra depots, symlink depot directories, or hand-edit `compiled/`, `packages/`, `artifacts/`, `registries/`.
 
 ## Backward compatibility when changing structs

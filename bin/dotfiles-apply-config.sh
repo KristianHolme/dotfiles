@@ -149,6 +149,7 @@ link_agent_configs() {
 	link_claude_skills
 	copy_directory_contents "$agents_dir/skills" "$HOME/.codex/skills" "Codex skills"
 	create_symlink_with_backup "$agents_dir/skills" "$HOME/.cursor/skills" "Cursor skills"
+	install_agent_instructions
 }
 
 ensure_hyprland_instance() {
