@@ -1,0 +1,9 @@
+[Unit]
+Description=Record which hub SSH ControlMasters are up
+# Home is shared NFS; only the hub runs this.
+ConditionHost=abacus-as*
+
+[Service]
+Type=oneshot
+ExecStart=%h/dotfiles/bin/dotfiles-hub-status.sh --write
+SuccessExitStatus=1
