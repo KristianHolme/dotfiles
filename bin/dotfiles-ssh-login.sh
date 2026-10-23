@@ -38,6 +38,17 @@ if [[ ${#hosts[@]} -eq 0 && "$(hostname -s)" != abacus-as ]]; then
 	mapfile -t hosts < <(hosts_ssh_masters)
 fi
 
+# One login run at a time: overlapping runs send duplicate 2FA pushes.
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/dotfiles-ssh-login.lock"
+if ! flock -n 9; then
+	log_warning "Another ssh login is already running"
+	if ((pause)); then
+		read -rsn1 -p "Press any key to close"
+		echo
+	fi
+	exit 1
+fi
+
 failed=0
 machine="$(hostname -s)"
 log_info "Machine: $machine"
