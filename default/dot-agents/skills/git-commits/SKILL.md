@@ -37,6 +37,7 @@ Run in parallel:
 Then:
 
 1. Draft a concise 1–2 sentence message focused on **why** (feat/fix/update accurately)
+   - No `#123`, `owner/repo#123`, `@user`, GitHub URLs or "Fixes/Closes" keywords unless the user asks. GitHub turns them into links, so a pushed commit posts a cross-reference in the user's name on that issue or PR.
 2. Stage relevant files
 3. Commit with HEREDOC:
 
