@@ -1,0 +1,29 @@
+# Saga: Intel Skylake-SP / Cascade Lake and AMD Zen 2 nodes.
+export JULIA_CPU_TARGET="generic;skylake-avx512,clone_all;znver2,clone_all"
+
+# Lmod modules can leave LD_LIBRARY_PATH pointing at libraries that clash with Julia's.
+julia() {
+    env -u LD_LIBRARY_PATH -u __LMOD_REF_COUNT_LD_LIBRARY_PATH command julia "$@"
+}
+
+interactive() {
+    salloc --account=nn9886k --ntasks=1 --cpus-per-task=32 --mem=16G "$@"
+}
+
+interactive_gpu() {
+    salloc --account=nn9886k --partition=accel --gpus=1 --ntasks=1 --cpus-per-task=16 --mem=16G "$@"
+}
+
+export NVM_DIR="$HOME/.nvm"
+# shellcheck source=/dev/null
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+# shellcheck source=/dev/null
+[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"
+
+# Node for pi (installed by hand under ~/.local/share/pi-node).
+_pi_node_bin="$HOME/.local/share/pi-node/node-v22.23.2-linux-x64/bin"
+case ":$PATH:" in
+*":$_pi_node_bin:"*) ;;
+*) [[ -d "$_pi_node_bin" ]] && export PATH="$_pi_node_bin:$PATH" ;;
+esac
+unset _pi_node_bin

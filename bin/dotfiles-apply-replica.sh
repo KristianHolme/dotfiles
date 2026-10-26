@@ -141,23 +141,25 @@ run_stow_passthrough() {
 }
 
 # Cluster ~/.bashrc often returns before it sources dot-bashrc when the shell
-# is not interactive. The Olivia snippet has to run above that return.
-ensure_olivia_bashrc_first() {
+# is not interactive. The per-site snippet has to run above that return.
+ensure_site_bashrc_first() {
 	local bashrc_path="$1"
-	local marker="dot-bashrc-olivia"
+	local marker="dot-bashrc-site"
+	local legacy_marker="dot-bashrc-olivia"
 	local tmp=""
 	if grep -qF "$marker" "$bashrc_path" 2>/dev/null; then
 		return 0
 	fi
 	tmp="$(mktemp)"
 	cat >"$tmp" <<'EOF'
-# Olivia Julia CPU targets. Keep above any non-interactive return.
-[[ -f "$HOME/dotfiles/default/dot-bashrc-olivia" ]] && . "$HOME/dotfiles/default/dot-bashrc-olivia"
+# Per-site settings (Julia CPU targets etc.). Keep above any non-interactive return.
+[[ -f "$HOME/dotfiles/default/dot-bashrc-site" ]] && . "$HOME/dotfiles/default/dot-bashrc-site"
 
 EOF
-	cat "$bashrc_path" >>"$tmp"
+	# Replace the older Olivia-only snippet instead of stacking both.
+	grep -vF -e "$legacy_marker" -e "# Olivia Julia CPU targets." "$bashrc_path" >>"$tmp" || true
 	mv "$tmp" "$bashrc_path"
-	log_info "Added Olivia bashrc snippet to the top of $bashrc_path"
+	log_info "Added per-site bashrc snippet to the top of $bashrc_path"
 }
 
 ensure_bashrc_source() {
@@ -170,7 +172,7 @@ ensure_bashrc_source() {
 	fi
 
 	ensure_basic_bashrc "$bashrc_path"
-	ensure_olivia_bashrc_first "$bashrc_path"
+	ensure_site_bashrc_first "$bashrc_path"
 
 	# Check if already sourced
 	if grep -qF "$source_line" "$bashrc_path" 2>/dev/null; then

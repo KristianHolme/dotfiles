@@ -1,0 +1,3 @@
+# UiO ML nodes shared home (/itf-fi-ml): ml1–ml7.
+export JULIA_CPU_TARGET="generic;skylake-avx512;znver1"
+export EDITOR=nvim

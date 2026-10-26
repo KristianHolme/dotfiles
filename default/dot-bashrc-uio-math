@@ -1,0 +1,20 @@
+# UiO math shared home (/mn/sarpanitu): abacus-as/min, nam-shub-01/02, zadkiel.
+# ~/.bashrc there sources /local/lib/setupfiles/bashrc (provides `module`) before dot-bashrc.
+
+# haswell: abacus-as (Haswell), abacus-min (Broadwell). arrowlake-s: zadkiel (no AVX-512).
+# skylake-avx512: nam-shub-01 (Skylake-SP), nam-shub-02 (Cascade Lake).
+# Keep in sync with ~/.config/systemd/user/julia-daemon.service.d/cpu-target.conf.
+export JULIA_CPU_TARGET="generic;haswell;arrowlake-s;skylake-avx512"
+
+export EDITOR=nvim
+export LC_ALL=C.UTF-8
+export CODEX_TUI_DISABLE_KEYBOARD_ENHANCEMENT=1
+unset MESA_LOADER_DRIVER_OVERRIDE
+
+# Lmod is missing on some hosts (e.g. abacus-min), and absent when this runs
+# above the global setup.
+if command -v module >/dev/null 2>&1; then
+    module load FFmpeg
+    # Load only if the module exists on this host (avoid Lmod errors when Anaconda3 is renamed/removed).
+    module try-add Anaconda3
+fi

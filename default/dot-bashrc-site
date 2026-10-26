@@ -1,0 +1,34 @@
+# Per-site shell settings for remote filesystems (JULIA_CPU_TARGET, modules, Slurm helpers).
+# Sourced from dot-bashrc and from the top of each replica's ~/.bashrc (above any
+# non-interactive return), so it can run twice; site files must be idempotent.
+# Shared homes are matched by $HOME; saga and olivia both use /cluster/home, so by host
+# (Slurm variables cover compute nodes).
+_site_dir="$HOME/dotfiles/default"
+_site_host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || true)"
+_site=""
+case "$HOME" in
+/mn/sarpanitu/*) _site=uio-math ;;
+/itf-fi-ml/*) _site=uio-ml ;;
+esac
+case "$_site_host" in
+*.olivia | *.olivia.* | olivia | uan[0-9]* | svc[0-9]*) _site=olivia ;;
+*.saga | *.saga.*) _site=saga ;;
+esac
+case "${SLURM_CLUSTER_NAME:-}" in
+olivia | olivia.*) _site=olivia ;;
+saga) _site=saga ;;
+esac
+case "${SLURM_SUBMIT_HOST:-}" in
+*.olivia | *.olivia.* | olivia | uan[0-9]*) _site=olivia ;;
+*.saga | *.saga.*) _site=saga ;;
+esac
+
+case "$_site" in
+saga | olivia)
+    # shellcheck source=/dev/null
+    [[ -f "$_site_dir/dot-bashrc-sigma2" ]] && . "$_site_dir/dot-bashrc-sigma2"
+    ;;
+esac
+# shellcheck source=/dev/null
+[[ -n "$_site" && -f "$_site_dir/dot-bashrc-$_site" ]] && . "$_site_dir/dot-bashrc-$_site"
+unset _site_dir _site_host _site
