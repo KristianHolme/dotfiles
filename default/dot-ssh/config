@@ -74,8 +74,8 @@ Host uio
     user kholme
     AddressFamily inet
 
-Host atalanta
-    Hostname atalanta
+Host zadkiel
+    Hostname zadkiel
     ProxyJump uio
     user kholme
     SendEnv TERM
@@ -106,7 +106,7 @@ Host freebio* bioint0* ml*
 # Multiplex through the 2FA jump host: one interactive login, reuse for dst/theme-sync/rsync.
 # dst starts a dedicated `ssh -fN` master. Cursor Remote-SSH must not own this
 # socket (it recycles its tunnel and would drop multiplexed tmux with it).
-Host uio atalanta nam-shub* abacus* freebio* bioint0* ml*
+Host uio zadkiel nam-shub* abacus* freebio* bioint0* ml*
     ControlMaster auto
     ControlPath ~/.ssh/cm-%C
     ControlPersist 4h

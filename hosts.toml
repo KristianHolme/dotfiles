@@ -62,7 +62,7 @@ install_root = "/cluster/projects/nn9886k/kholme"
 # ---- Groups: machines sharing a filesystem. mount_via picks the SSH alias. ----
 
 [groups.uio-math]
-machines = ["atalanta", "abacus-as", "abacus-min", "nam-shub-01", "nam-shub-02"]
+machines = ["zadkiel", "abacus-as", "abacus-min", "nam-shub-01", "nam-shub-02"]
 mount_via = "abacus-min"
 remote_path = "/mn/sarpanitu/ansatte-u6/kholme"
 local_path = "/mnt/uio-math"
