@@ -28,6 +28,9 @@
           "id": "omarchy.weather"
         },
         {
+          "id": "omarchy.agents"
+        },
+        {
           "id": "omarchy.microphone"
         },
         {
@@ -72,7 +75,11 @@
         },
         {
           "id": "akitaonrails.ai-usagebar",
-          "lastSelectedEntryId": "cursor"
+          "lastSelectedEntryId": "cursor",
+          "showCursorModels": true,
+          "showCursorOther": true,
+          "showCursorOnDemand": true,
+          "showCursorCredits": true
         },
         {
           "id": "omarchy.tailscale"
