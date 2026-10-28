@@ -34,6 +34,9 @@ Unless the user asks for a specific feedback format, split feedback into two sec
 - Mechanics (spellcheck, figure fonts, etc.)
 - punctuation rules, including correct usage of "i.e.," and "e.g.,"
 - consistency in placement of footnotes
+- dash and symbol consistency: en dash for numeric ranges, minus sign (U+2212) only for subtraction — check within the same list/table; math symbol case consistent across equations, body, and captions
+- reference hygiene: journal name pasted inside the title field; hyphenated surnames and accents consistent across entries; `doi:` spacing; stray spaces in hyphenated initials
+- hyphenation of compound modifiers in table and caption text; missing articles; every equation/table parameter described in the text
 
 ### 2. Writing
 
@@ -62,6 +65,14 @@ Example:
 - **Guideline:** F:S0 (avoid strong/vague adjectives like "very"); F:S2 (one idea per sentence).
 - **Suggestion:** "Our method is effective in the settings we tested. We show that it applies to scenarios X and Y."
 ```
+
+## Typeset-PDF review (no .tex available)
+
+Verify extraction artifacts before reporting them:
+
+- Extraction silently drops math glyphs lacking ToUnicode maps (AMS/mt-\* fonts). Missing from `pdftotext` output ≠ missing in print — confirm at glyph level (decode embedded fonts) before flagging.
+- Stacked fractions and superscripts flatten in extraction — confirm with `pdftotext -bbox` word coordinates.
+- Doubled words are usually subscript artifacts — check the typeset text, not the flattened extraction.
 
 ## Workflow
 

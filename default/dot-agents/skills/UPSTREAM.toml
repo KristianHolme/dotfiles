@@ -51,6 +51,14 @@ status = "active"
 notes = "Matt Pocock. Includes ADR-FORMAT.md, GLOSSARY-FORMAT.md, agents/openai.yaml. Keep local frontmatter metadata when porting. Required by grill-with-docs."
 
 [[skill]]
+local = "skill-diet"
+upstream_repo = "https://github.com/nicobailon/skill-diet"
+upstream_path = "."
+upstream_ref = "main"
+status = "active"
+notes = "Nico Bailon. Vendored SKILL.md, references/, scripts/, LICENSE only (no package.json/tools/.claude-plugin)."
+
+[[skill]]
 local = ""
 upstream_repo = "https://github.com/mattpocock/skills"
 upstream_path = "skills/"
