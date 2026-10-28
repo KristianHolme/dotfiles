@@ -45,51 +45,13 @@ When that section is absent, put them in the summary section.
 Put implementation background in the template section for details or implementation notes.
 When the template has no such section, add `## Details` after the evidence section.
 
-When no template exists, use this shape:
-
-```markdown
-## Summary
-
-<smallest show-me sketch that makes the change clear>
-
-<Breaking or not. One sentence.>
-
-<Who can hit the change. One sentence.>
-
-## Evidence
-
-- **Tests:** <passed, failed, or not run. Name the test set when you know it.>
-- **Benchmarks:** <key before and after numbers, only when results exist>
-- **Before:** <screenshot, command output, or failing test>
-- **After:** <screenshot, command output, or passing test>
-
-## Details
-
-<implementation background the summary and the evidence do not carry>
-
-<signature line>
-```
+When no template exists, use the default shape in [references/template.md](references/template.md).
 
 ### Summary
 
 The sketch follows [show-me](../show-me/SKILL.md).
 
-**Breaking.** A caller that works today must change, or a public result changes.
-Not breaking: existing callers keep the same result.
-
-**Who can hit it.** Pick one.
-
-- **Low-level internal.** Only code inside the package hits it.
-- **Mid-level internal.** A user hits it only by calling an internal name outside the public API.
-- **User-facing.** A user of the public API can hit it.
-
-For Julia, the public API is the exported and documented interface.
-A low-level internal is an unexported helper that only the package calls.
-A mid-level internal is an unexported name a user can call by reaching into the package.
-
-Write both as plain sentences.
-"This change is not breaking."
-"Only low-level internals change. A public caller does not hit this."
+State whether the change is breaking (one sentence) and who can hit it (one sentence: low-level internal, mid-level internal, or user-facing). Read [references/template.md](references/template.md) for the definitions.
 
 ### Evidence
 

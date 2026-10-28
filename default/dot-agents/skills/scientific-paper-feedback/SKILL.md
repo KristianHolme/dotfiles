@@ -48,21 +48,12 @@ Unless the user asks for a specific feedback format, split feedback into two sec
 
 ## Reporting Each Violation
 
-For **every** place a guideline is violated, report:
-
-| Field          | Requirement                                                                                     |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| **Location**   | Line number(s) preferred; otherwise section + short position description                        |
-| **Excerpt**    | Short verbatim quote of the offending text (1–3 sentences max)                                  |
-| **Guideline**  | Which rule is violated (e.g. "F:S2 – short sentences", "Stanford: avoid nonreferential 'this'") |
-| **Suggestion** | Concrete correction or rewrite                                                                  |
-
-Example:
+For every violation give Location (line number preferred, else section + position), Excerpt (verbatim, 1-3 sentences), Guideline (rule or ID, e.g. "F:S2 – short sentences", "Stanford: avoid nonreferential 'this'"), and Suggestion (concrete rewrite). Example:
 
 ```markdown
 - **Location:** Line 42
 - **Excerpt:** "Our method is very effective and we have shown that it can be applied in a variety of different scenarios."
-- **Guideline:** F:S0 (avoid strong/vague adjectives like "very"); F:S2 (one idea per sentence).
+- **Guideline:** F:S0 (vague adjectives); F:S2 (one idea per sentence).
 - **Suggestion:** "Our method is effective in the settings we tested. We show that it applies to scenarios X and Y."
 ```
 
@@ -76,12 +67,12 @@ Verify extraction artifacts before reporting them:
 
 ## Workflow
 
-1. **Fetch** both guideline URLs and read them, and read the scientific-writing skill.
+1. **Read** the three guideline sources above.
 2. **Obtain** the paper text (full .tex, exported text, or provided excerpt). If only PDF or partial text is available, use what you have and state the limitation.
 3. **Review** section by section; note every violation with location, excerpt, guideline, and suggestion.
 4. **Output** the two-part report (Technical, then Writing), each with violations in order of appearance in the paper.
 5. Optionally end with a **short summary** (counts per category, most critical fixes).
 
-## Reference
+## Look up the rest
 
-- Detailed violation format and guideline IDs: [reference.md](reference.md)
+- Guideline IDs (F:S, F:L, ...) to cite → [reference.md](reference.md)

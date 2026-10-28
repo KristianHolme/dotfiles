@@ -7,17 +7,13 @@ description: Write custom Julia Base.show methods for user-defined types. Use wh
 
 Use this skill when writing or reviewing custom display methods for Julia types. Also apply the `julia-code` skill for style, Runic formatting, and general Julia practices.
 
-References:
-- <https://docs.julialang.org/en/v1/base/io-network/#Base.show-Tuple%7BIO,%20Any%7D>
-- <https://docs.julialang.org/en/v1/base/io-network/#Base.show-Tuple%7BIO,%20Any,%20Any%7D>
-- <https://docs.julialang.org/en/v1/manual/types/#man-custom-pretty-printing>
+Reference: <https://docs.julialang.org/en/v1/manual/types/#man-custom-pretty-printing>
 
 ## Core Rules
 
 - Extend `show` only for types you own. Do not commit type piracy by defining `Base.show` for someone else's type.
 - Prefer `import Base: show` near the top of the module, then add methods as `show(...)`.
-- Always write to `io`; never assume display goes to `stdout`.
-- Use `print(io, ...)`, `show(io, ...)`, or `write(io, ...)` directly. Avoid building large intermediate strings just to print them.
+- Always write to `io`, never `stdout`; print directly rather than building intermediate strings.
 - The 2-argument method `show(io::IO, x::T)` is the Julia-like representation used by `repr(x)` and by fallback display. When practical, make it valid Julia code that reconstructs the value.
 - The 3-argument method `show(io::IO, ::MIME"text/plain", x::T)` is the richer human-readable representation used by the REPL and text displays.
 - Do not overload `display` for custom object formatting. `display` selects a display backend; `show` writes a representation.
@@ -98,12 +94,10 @@ function show(io::IO, ::MIME"text/html", p::SamplePoint)
 end
 ```
 
-Use `MIME"text/plain"` and `MIME"text/html"` for literal MIME types. For dynamic MIME construction, use `MIME("text/plain")` or the parametric form documented by Julia.
-
 ## `print`, `summary`, and `repr`
 
 - Define `print(io, x::T)` only when the plain, undecorated representation should differ from `show`. `print` falls back to `show`.
-- Define `summary(io, x::T)` when a short description is needed for containers or headers.
+- Define `summary(io, x::T)` for a short description in container headers.
 - Use `repr(x)` to test the 2-argument `show` result.
 - Use `repr("text/plain", x)` or `sprint(show, MIME"text/plain"(), x)` to test `text/plain`.
 - Use `sprint(show, x; context = :compact => true)` or `repr("text/plain", x; context = :compact => true)` to test compact behavior.

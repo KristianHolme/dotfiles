@@ -4,157 +4,124 @@ description: Triage and resolve one item from a Julia package's issue tracker, e
 disable-model-invocation: true
 ---
 
-Run inside a package git-repository. The user supplies a link or issue number
-(referencing the `origin` repository) when launching; if not provided, ask.
+Run inside a package git repository. The user supplies an issue number or link
+(for the `origin` repository); if missing, ask.
 
-The goal is to reach the **right** action — which is sometimes a code fix,
-sometimes a doc edit, and sometimes a "no change needed" finding. Do not assume
-the issue is a bug. Reproduce first, decide second, act third.
+The goal is the **right** action: a code fix, a doc edit, or "no change
+needed". Do not assume the issue is a bug. Reproduce first, decide second, act
+third.
 
 ## 1. Gather context
 
-- Read the full issue thread in one structured call (resolve a link to its
-  number first). `gh issue view XYZ --comments` renders for humans but can fold
-  or truncate the body; fetch everything at once instead:
+- Read the whole thread in one structured call (resolve a link to its number
+  first); `gh issue view XYZ --comments` can fold or truncate the body:
 
   ```bash
   gh issue view XYZ --json title,state,labels,body,comments \
     --jq '"# \(.title)  [\(.state)]\nLabels: \(.labels | map(.name) | join(", "))\n\n\(.body)\n\n=== \(.comments | length) comment(s) ===" + (.comments | map("\n\n--- \(.author.login) @ \(.createdAt) ---\n\(.body)") | join(""))'
   ```
 
-  Note the Julia version, package version, and OS the reporter used, plus any
-  stack trace or reproducer they provided.
-- Read the conversation in this session and any reference material it points to
-  (linked issues/PRs, the relevant source, the docs).
-- Skim recent history for an already-landed fix: `git log --oneline -20` and, if
-  a commit looks relevant, `git log -S<symbol>` or `gh pr list --search XYZ`.
+  Note the reporter's Julia version, package version, OS, stack trace and
+  reproducer.
+- Read this session's conversation and any material it points to (linked
+  issues/PRs, relevant source, docs).
+- Look for an already-landed fix: `git log --oneline -20`, then
+  `git log -S<symbol>` or `gh pr list --search XYZ`.
 
-## 2. Reproduce — build a MWE
+## 2. Reproduce with a MWE
 
-Construct a minimal working example that triggers the reported behavior.
+Build a minimal working example of the reported behavior.
 
-- Match the reporter's environment where it matters: the Julia version and the
-  local `Project.toml` environment. To pin a version, prefer juliaup's stable
-  channel shortcuts — `julia +lts`, `julia +release`, or an exact `julia +1.x` —
-  rather than a bare `julia`, whose default channel can be re-linked over time
-  and is not guaranteed to be the LTS.
+- Match the reporter's Julia version and the local `Project.toml`. Pin versions
+  with juliaup channels (`julia +lts`, `+release`, `+1.x`); a bare `julia`
+  uses the default channel, which can change.
 - Iterate with `juliaclient --project --session=issue-XYZ --revise=yes` (see
-  the `juliaclient` skill), so edits to `src/` take effect without full
-  recompilation. `juliaclient` uses the default Julia channel; when the
-  reporter's Julia version matters, run the reproduction with `julia +<channel>`
-  instead. The exception: a few packages need a fresh, standalone process for
-  *every* run because their behavior depends on precompilation/load state that
-  Revise cannot hot-patch — notably Revise itself and its dependencies, and
-  tools like SnoopCompile. When the issue is in (or sensitive to) such a
-  package, drive each attempt with a fresh `julia` process.
-- Fail fast: if the MWE does **not** reproduce the behavior, that is itself a
-  result — do not paper over it with a speculative fix. It points toward
-  "already fixed," "reporter-error," or "cannot replicate" (see step 4).
+  the `juliaclient` skill) so `src/` edits apply without recompiling.
+  `juliaclient` uses the default channel; when the reporter's version matters,
+  use `julia +<channel>`. Packages whose behavior depends on precompile/load
+  state that Revise cannot hot-patch (Revise and its dependencies,
+  SnoopCompile) need a fresh `julia` process for every attempt.
+- If the MWE does **not** reproduce, that is a result. Do not paper over it
+  with a speculative fix; it points to already fixed, reporter-error, or
+  cannot replicate.
 
 ## 3. Decide
 
-From the MWE and root cause, pick exactly one path:
-
-- **Bug to fix** → step 4a.
-- **Limitation that should be documented** → step 4b.
-- **No package change needed** (reporter-error, already fixed, awaiting upstream
-  fix, or cannot replicate) → step 4c.
+Pick one: **bug to fix** → 4a; **limitation to document** → 4b; **no package
+change** (reporter-error, already fixed, blocked upstream, cannot replicate)
+→ 4c.
 
 ## 4. Act
 
-When you are about to **prepare a change** (4a or 4b), first do a *narrow*
-related-work check — this is scoped to getting the current fix right, not to
-triaging the tracker:
+Before preparing a change (4a, 4b), do a narrow related-work check for this
+fix only:
 
-- Search open PRs and issues for the same root cause:
-  `gh pr list --search "<keyword>"` and `gh issue list --search "<keyword>"`.
-- If an open PR already fixes it, stop and report that instead of duplicating
-  work. If several open issues share one root cause, widen the fix and tests to
-  cover them, and list those numbers for the user.
+- `gh pr list --search "<keyword>"` and `gh issue list --search "<keyword>"`.
+- If an open PR already fixes it, stop and report that. If several open issues
+  share the root cause, widen the fix and tests to cover them and list their
+  numbers for the user.
 
-Full duplicate-hunting and tracker cleanup are a separate task; do not expand
-into them here.
+Tracker-wide duplicate hunting and cleanup are a separate task.
 
-Then create a fresh branch off the **up-to-date** default branch. Do this
-**before** committing anything — never commit on the default branch and branch
-afterward, as that lands the work on the default branch and leaves the new
-branch with no commits relative to it (the push/PR then fails with "No commits
-between … and …"). Compute the default branch name rather than hardcoding it,
-and confirm the switch actually happened:
+Then branch off the **up-to-date** default branch **before** committing
+anything. Committing on the default branch and branching afterward leaves the
+new branch with no commits (push/PR fails with "No commits between"). Compute
+the default branch and confirm the switch:
 
 ```bash
 git fetch origin
 default=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)
-# --no-track is REQUIRED. Branching off a remote-tracking ref otherwise sets the
-# new branch's upstream to origin/$default. A later push — especially an IDE
-# "sync" like VSCode's *Synchronize Changes* — would then fast-forward your
-# commits straight onto the default branch instead of publishing a feature
-# branch, silently bypassing review. With no upstream, a bare `git push` fails
-# fast and VSCode offers *Publish Branch* (→ origin/kh/fixXYZ) instead.
+# --no-track is REQUIRED: otherwise upstream becomes origin/$default and a later
+# push (e.g. VSCode "Synchronize Changes") would fast-forward your commits onto
+# the default branch, bypassing review. With no upstream, a bare `git push`
+# fails and VSCode offers "Publish Branch" instead.
 git switch --no-track -c kh/fixXYZ "origin/$default"   # or the branch name the user gave
 git branch --show-current                                # must print kh/fixXYZ, NOT $default
-# Guard: the branch must have NO upstream. If this prints one, you used the wrong
-# flag — delete the branch and recreate it with --no-track.
+# Guard: must have NO upstream; if one prints, recreate with --no-track.
 git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null \
-  && echo "ERROR: upstream is set (see above); recreate kh/fixXYZ with --no-track" \
+  && echo "ERROR: upstream is set; recreate kh/fixXYZ with --no-track" \
   || echo "ok: no upstream"
 ```
 
-`kh` = user initials, `XYZ` = issue number; the user may instead supply a
-branch name at invocation. If `git switch -c` fails for any reason (e.g. a
-naming clash), stop and resolve it — do **not** continue on the default branch.
-Any uncommitted edits already made while reproducing are carried onto the new
-branch by the switch.
+`kh` = user initials, `XYZ` = issue number. If `git switch -c` fails (e.g. a
+name clash), stop and resolve it; never continue on the default branch.
+Uncommitted edits from reproducing carry over to the new branch.
 
 ### 4a. Fix the bug
 
-- Add the MWE as a regression test. When the issue concerns an error or its
-  message, prefer `@test_throws "message users actually see" expr` over (or in
-  addition to) the exception type — the message is usually the meaningful target.
+- Add the MWE as a regression test. For errors, prefer
+  `@test_throws "message users actually see" expr` over (or alongside) the
+  exception type.
 - Implement the fix. Annotate argument types only as specifically as the
-  implementation requires (see the style guide); fail-fast on genuinely
-  unexpected input rather than silently continuing.
-- Reference the issue in a code comment (a statement of intent, e.g.
-  `# issue #XYZ: ...`), not a history note — the comment must state what is true
-  of the code now, not its past (see the `code-comments` skill). Do **not** put the
-  issue number in the commit subject.
-- Run the test as you iterate, using whichever session model step 2 selected
-  (the `juliaclient` session, or a fresh process for the fresh-session packages). Reserve
-  `Pkg.test()` for a final full-suite pass once you believe the fix is complete.
+  implementation requires; fail fast on unexpected input.
+- Reference the issue in a code comment that states what is true of the code
+  now (`# issue #XYZ: ...`; see `code-comments`), never in the commit subject.
+- Iterate in the session model step 2 chose; reserve `Pkg.test()` for a final
+  full-suite pass.
 
 ### 4b. Document the limitation
 
-- Edit the relevant source — README, docstrings, or the Documenter `docs/`.
-- If a jldoctest or example demonstrates the behavior, keep it runnable.
+Edit the README, docstrings, or Documenter `docs/`. Keep any jldoctest or
+example runnable.
 
-### Commit (4a and 4b)
+### Commit (4a, 4b)
 
-- **Guard first:** confirm you are on the issue branch, not the default branch.
-  If `git branch --show-current` returns `main`/`master` (or whatever the
-  default is), branching was skipped or failed — stop and create the branch
-  (which carries your working changes with it) before committing. Never run
-  `git commit` while on the default branch.
-- Commit locally, following the `git-commits` skill. **Do not push** until the user has reviewed the change and the
-  commit message.
-- Subject ≤ 50 chars (72 max), no issue number. Put `Fixes #XYZ` in the body so
-  GitHub auto-closes on merge (multiple: `Fixes #abc; fixes #def`).
-- When the user approves the push, publish the *feature* branch explicitly —
-  `git push -u origin HEAD` (creates `origin/kh/fixXYZ` and sets the matching
-  upstream). Never push to the default branch. If the user pushes from an IDE
-  instead, the `--no-track` branch above will offer *Publish Branch*, which does
-  the same thing safely; a *Synchronize Changes* prompt would mean the upstream
-  is misconfigured — stop and fix it before pushing.
+- Guard: if `git branch --show-current` shows the default branch, stop and
+  create the issue branch (it carries your changes) first. Never `git commit`
+  on the default branch.
+- Commit locally per the `git-commits` skill. **Do not push** until the user
+  has reviewed the change and message.
+- Subject ≤ 50 chars (72 max), no issue number. Put `Fixes #XYZ` in the body
+  (several: `Fixes #abc; fixes #def`).
+- On approval, push the feature branch explicitly: `git push -u origin HEAD`.
+  Never push to the default branch. A *Synchronize Changes* prompt in an IDE
+  means the upstream is misconfigured; stop and fix it first.
 
 ### 4c. Report findings (no change)
 
-Print a concise summary to the user. **Do not post it to GitHub** — the user
-handles all communication with the reporter. This path covers:
-
-- the issue is demonstrably reporter-error;
-- the issue was already fixed by an earlier commit (include the commit/PR# in
-  your summary);
-- you cannot replicate the issue (state what you tried and which Julia version —
-  e.g. the `+lts` / `+release` / `+1.x` channel you used).
-- the issue is still relevant, but fixing it is blocked on an upstream issue.
+Print a concise summary to the user. **Do not post it to GitHub**; the user
+handles all communication with the reporter. Cases: reporter-error; already
+fixed (include the commit/PR#); cannot replicate (state what you tried and the
+Julia channel); still relevant but blocked on an upstream issue.
 
 <!-- Adapted from Tim Holy, timholy/claude_config (MIT); see dot-agents/THIRD_PARTY_LICENSES.md -->

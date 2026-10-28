@@ -44,17 +44,14 @@ Corollaries:
   stay ≥ ε — zero triggers a singular solve"), not as a story about the past.
 - **Intent and invariants, not motivation or biography.** No "motivating
   example", no roadmap, no "for now".
-- **Match the surrounding code** in density, detail, and abstraction level.
-  Sparse code gets sparse comments.
+- **Match the surrounding code** in density and detail. Sparse code gets
+  sparse comments.
 - **Write for a human**, not for an agent and not for yourself mid-task.
 
-The same principle governs commit messages and docstrings: describe the change
-and the invariant it establishes for a reader who has only the repository.
-
-This applies with special force right after you have worked from a plan. The
-plan, the session handoff, and the accumulated working-knowledge you just read
-are scaffolding for *you*. The code, its comments, and the commit message must
-read as if that scaffolding never existed.
+The same principle governs commit messages and docstrings. It applies with
+special force right after working from a plan or handoff: that scaffolding is
+for you, and the code, comments, and commit message must read as if it never
+existed.
 
 For wording (jargon, intensifiers, em-dash chains), see the Wording section of
 [agent-communication](../agent-communication/SKILL.md). To clean up existing prose

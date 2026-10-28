@@ -4,19 +4,15 @@ description: Review a Julia package's public API for consistency with modern Jul
 disable-model-invocation: true
 ---
 
-Review the Julia package in the current working directory for API design convention issues. The goal is not to fix bugs or deprecated syntax — assume the code runs correctly on modern Julia. The goal is to identify places where the package's own API would feel surprising or inconsistent to a user who learned Julia in the modern era (1.6+), by comparison with the conventions established by Base and the standard library.
-
-This skill produces a tiered report and a short modernization-policy discussion. It does not implement changes.
-
-The package module name is determined from `Project.toml`.
+Review the Julia package in the current working directory for API convention issues: places where its API would surprise a user who learned Julia in the modern era (1.6+), compared with Base and the standard library. Assume the code runs; do not hunt bugs or deprecated syntax. Produce a tiered report and a short modernization-policy discussion; do not implement changes. The module name is in `Project.toml`.
 
 ---
 
 ## Phase 1 — Inventory the public API
 
-Delegate the read to a subagent so the full source stays out of the main
+Delegate the read to a subagent (a fast, cheap model is enough) so the full source stays out of the main
 context. Give it [references/api-inventory.md](references/api-inventory.md) as its prompt and the
-package path. A fast, cheap model is enough for this extraction. If no subagent
+package path. If no subagent
 is available, follow the same prompt inline, then continue from its output only.
 
 It returns a structured inventory of all public method signatures. Work from that inventory — do not re-read the source — to run the convention checks below. Read single source lines only to confirm a specific finding.
@@ -25,7 +21,7 @@ It returns a structured inventory of all public method signatures. Work from tha
 
 ## Phase 2 — Check each convention category
 
-For each item in the public API, work through the following checks. For each finding, record: the function name, file and line number, the current signature or pattern, the suggested change, and whether the change would be breaking.
+For each public item, run these checks. For each finding, record: the function name, file and line number, the current signature or pattern, the suggested change, and whether the change would be breaking.
 
 ### 2a. Dimension arguments
 
@@ -45,7 +41,7 @@ In Julia, the convention is: data comes first, configuration/options come after 
 
 For every function ending in `!` (mutating), check whether a non-mutating counterpart exists with the same base name. For every non-mutating function, check whether an in-place variant would be natural (i.e., the function produces an array-valued result of the same shape/type as an input). Flag asymmetric pairs.
 
-Do not flag `!`-functions where an out-of-place version would not make sense (e.g., `push!` has no natural non-mutating pair in Base either).
+Do not flag `!`-functions with no natural out-of-place form (like `push!`).
 
 ### 2d. Boolean and integer flags as positional arguments
 
@@ -91,19 +87,11 @@ Argument types should generally be tight enough to control dispatch. Look for si
 
 ### 2l. Parametric struct constructor design
 
-For each type with type parameters, examine its constructor methods in the inventory. This check may read the constructor method bodies specifically (an exception to the inventory-only rule), since signatures alone do not reveal coercion logic. Flag:
-
-- **Inner constructor that constrains its value arguments.** Written `MyStruct{A,B}(a::A, b::B) where {A,B}` (arguments echoing the parameters) rather than `MyStruct{A,B}(a, b) where {A,B}`. The constrained form disables the conversion the field declarations + `new` would otherwise perform, so a call like `MyStruct{Float64}(1, 0)` fails with a `MethodError`. Constraints in the `where` that express *relationships among parameters* (e.g. `A<:AbstractArray{T,N}`) are correct and must stay — the flag is only for constraints on the argument *values*.
-- **Custom constructors that duplicate the auto-generated ones.** by default Julia creates two constructors, an inner
-constructor `MyStruct{A,B}(a,b) = new{...}(...)` and an outer constructor `MyStruct(a::A, b::B) = MyStruct{A,B}(a, b)`. Constructors that only duplicate this can be flagged for deletion.
-- **A missing or broken constructor cascade.** `MyStruct(args...)`, `MyStruct{A}(args...)`, and `MyStruct{A,B}(args...)` should all reach the same coercion path, typically by delegating inwards. Flag call forms implemented as separate, divergent code paths instead of each delegating one step inward. Also flag when partially-parameterized forms are absent; an exception to this rule are trailing parameters that exist to confer inferrability but are not typically expected to be directly manipulated by users, e.g., `MyStruct{A,B}(a, b, c, d)` → `MyStruct{A,B,typeof(cA),typeof(dB)}(a, b, cA, dB)` might be fine if the `struct` declaration places restrictions on `C` and `D` that depend on `A` and `B`, and `cA` and `dB` have been `converted` to suitable form, e.g., `cA = convert(AbstractArray{A}, c)::AbstractArray{A}` if `C<:AbstractArray{A}`.
-- **Argument validation or initialization that belongs in the inner constructor** Often the primary job of outer constructors is to determine type parameters (`promote_type`, `eltype`, `float`, …) and delegate inward. Only the inner constructor can prevent construction of broken `struct`s, initialize appropriate internal caches, etc.
-
-The suggested change for any such finding should include a test that the reachable call forms produce equal results for the same inputs. Fixing these is normally non-breaking (a looser signature accepts a strict superset; cascade methods are additions) — place them in Tier 2 unless a specific change drops a previously-accepted call.
+For each type with type parameters, check its constructors (inner/outer cascade, coercion, validation). This is the one check that reads constructor bodies. Read [references/constructors.md](references/constructors.md) first. Findings are normally Tier 2.
 
 ### 2m. `one` vs `oneunit`
 
-`one(T)` is *multiplicative identity* and not strictly required to be of type `T` (example: unitful quantities); `oneunit(T)` is *additive unity* and must be of type `T`.
+`one(T)` is the multiplicative identity and need not have type `T` (e.g. unitful quantities); `oneunit(T)` must have type `T`. Flag `one(T)` where a value of type `T` is required.
 
 ---
 

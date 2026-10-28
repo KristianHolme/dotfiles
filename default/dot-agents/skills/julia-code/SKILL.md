@@ -10,7 +10,7 @@ paths: "**/*.{jl,jmd}"
 
 # Julia code
 
-Apply this skill for any Julia writing or editing. Read linked references only when needed.
+Read linked references only when needed.
 
 ## Non-negotiables
 
@@ -50,12 +50,7 @@ Full detail when needed:
 
 ## Docs and introspection
 
-Prefer Julia’s own tools (via `juliaclient`) before guessing APIs or scraping the web:
-
-- REPL help: `?Foo` / `?Foo.bar` (or `@doc Foo`)
-- Dispatch: `methods(f)`, `methodswith(T)`, `which(f, types)`
-- Types/values: `typeof`, `eltype`, `fieldnames`, `propertynames`, `dump`, `names(Module)`
-- Search: `apropos("keyword")`
+Use Julia's own tools via `juliaclient` (`?Foo`, `methods`, `which`, `names`, `apropos`) before guessing APIs or scraping the web.
 
 ## Analysis (optional)
 

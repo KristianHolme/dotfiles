@@ -4,142 +4,119 @@ description: Rewrite a package's prose (docstrings, comments, docs pages, README
 disable-model-invocation: true
 ---
 
-Rewrite the prose in a package so that it reads as if written by someone who
-has only the repository in front of them. The argument (`$ARGUMENTS`) may be a
-file, a directory, or a list of paths; if omitted, cover the whole package:
-`src/`, `ext/`, `test/`, `docs/src/`, `README.md`, and any sibling subdir
-packages in a monorepo. Skip generated files, golden/expected fixtures, and
-anything under `assets/` except where step 3 proposes removing it.
+Rewrite the prose in a package as if written by someone with only the
+repository in front of them. `$ARGUMENTS` may be a file, directory, or list of
+paths; if omitted, cover the whole package: `src/`, `ext/`, `test/`,
+`docs/src/`, `README.md`, and sibling subdir packages in a monorepo. Skip
+generated files, golden/expected fixtures, and `assets/` except where step 3
+proposes removing one.
 
-This is a prose-only pass. Do not change code, identifiers, signatures,
-behavior, or test assertions. The only non-prose edits permitted are those
-needed to keep a docs build working after a page or asset removal approved in
-step 3.
+Prose only. Do not change code, identifiers, signatures, behavior, or test
+assertions. The only other edits allowed keep a docs build working after a
+page or asset removal approved in step 3.
 
-Before starting, read the [code-comments](../code-comments/SKILL.md) skill and
-the Wording section of [agent-communication](../agent-communication/SKILL.md).
-They define the standard; this skill is the procedure for applying it after the
-fact.
-
-## Why this pass exists
-
-Prose written while working from a plan, a review, or a debugging session
-tends to carry that context with it: it argues for decisions, addresses a
-reviewer, records what the code used to do, describes call sites that live
-elsewhere, and repeats the same justification in every sibling. None of that
-helps a reader who arrives later. This pass strips it out, rewording and
-shortening in a single sweep over each file.
+First read [code-comments](../code-comments/SKILL.md) and the Wording section
+of [agent-communication](../agent-communication/SKILL.md); they define the
+standard, this skill is the procedure. Prose written during a plan, review, or
+debugging session carries that context (argues for decisions, addresses a
+reviewer, records old behavior, describes other call sites); this pass strips
+it in one sweep per file.
 
 ## 1. Scope and baseline
 
-List the files in scope. If `docs/make.jl` exists, note the page list and
-asset references so step 4 can verify the build. Require a clean working
-tree so the final diff contains only this pass's edits.
+List the files in scope. If `docs/make.jl` exists, note its page list and asset
+references for step 4. Require a clean working tree so the diff holds only
+this pass.
 
 ## 2. Rewrite
 
-Work file by file. For each docstring, comment block, or Markdown section,
-first decide what it should cover (2b), then write it in plain wording (2a).
+Per file, for each docstring, comment block, or Markdown section: decide what
+it should cover (2b), then write it plainly (2a).
 
 ### 2a. Wording
 
-Apply every rule in the Wording section of agent-communication. In addition,
-replace:
+Apply every rule in the Wording section of agent-communication. Also replace:
 
-- **Intensifiers and reassurance** typical of agent-written docs: "small",
-  "clear", "actionable", "on purpose", "correctly so", "not a gap".
-- **History and planning language** in its document-specific forms: "today's
-  semantics, unchanged", "historical", "pre-flag", "existing", "for the
-  record", "rejected alternative", "the round-2 report", "the sweep", "an
-  upstream fix is in progress". A rejected design becomes "X is not supported"
-  plus the one-sentence reason, if the reason protects a future editor from
-  re-adding it.
-- **Commentary addressed to a reviewer** with nothing: "The real test:",
-  "verified by probe, not assumed", "pinned rather than silently assumed
-  safe", "this whole function is a workaround for …".
-- **Section titles named after process** ("Where they sit in the layer plan")
-  with titles named after content ("Architecture").
+- **Intensifiers and reassurance**: "small", "clear", "actionable", "on
+  purpose", "correctly so", "not a gap".
+- **History and planning language**: "today's semantics, unchanged",
+  "historical", "pre-flag", "existing", "for the record", "rejected
+  alternative", "the round-2 report", "the sweep", "an upstream fix is in
+  progress". A rejected design becomes "X is not supported" plus a one-sentence
+  reason if it stops a future editor from re-adding it.
+- **Reviewer-addressed commentary** ("The real test:", "verified by probe, not
+  assumed", "pinned rather than silently assumed safe", "this whole function is
+  a workaround for …") with nothing.
+- **Process-named section titles** ("Where they sit in the layer plan") with
+  content-named ones ("Architecture").
 
 Use American spelling.
 
 ### 2b. Length
 
-The target for each unit of prose is the length a competent reader needs to
-use the code correctly, and no more.
+Target: what a competent reader needs to use the code correctly.
 
-**Docstrings.** Keep: the signature line, what the function returns or
-produces, what it requires of its inputs, what it rejects or throws, and any
-contract the caller must honor (ownership, who frees, layout such as
-column-major, thread-safety). For an internal helper this is usually one to
+**Docstrings.** Keep the signature line, what it returns, what it requires of
+inputs, what it rejects or throws, and caller contracts (ownership, who frees,
+column-major layout, thread-safety). An internal helper is usually one to
 three sentences. Remove:
 
-- descriptions of *other* functions, call sites, or "the two places that rely
-  on this";
-- field-by-field restatement of a struct whose definition is visible in the
-  same file;
-- the rationale for why a parameter is passed in rather than hard-coded, or
-  why recognition is by shape rather than by package;
-- enumerations of cases that do not occur ("no known output produces this");
+- descriptions of other functions or call sites ("the two places that rely on
+  this");
+- field-by-field restatement of a struct defined in the same file;
+- why a parameter is passed in rather than hard-coded, or why recognition is by
+  shape rather than package;
+- enumerations of cases that do not occur;
 - boilerplate repeated across siblings ("Target-independent: operates on
   `ABIInfo` only"); if it matters, say it once in a file-header comment;
-- chains of `(see X for the rationale)` pointing at a rationale that was
-  itself removed.
+- `(see X for the rationale)` chains to a removed rationale.
 
-**Comments.** One line stating the invariant or the non-obvious reason; the
-code states the mechanism. A comment that paraphrases the next line goes.
-A multi-paragraph comment explaining why a branch exists becomes one
-sentence stating the condition it handles.
+**Comments.** One line stating the invariant or non-obvious reason. A comment
+paraphrasing the next line goes. A multi-paragraph comment on why a branch
+exists becomes one sentence naming the condition it handles.
 
-**Test comments.** One line naming what the testset verifies. No "the same
-pattern any Julia caller would use", no explanation of the fixture's origin.
+**Test comments.** One line naming what the testset verifies; no fixture
+origin story.
 
-**Docs pages.** Propose, but do not perform without approval: merging a page
-that re-explains types already documented on another page; removing a
-diagram that restates a struct layout shown in a code block; deleting
-subsections that only justify a design. Present each as "page/asset → what
-would absorb it → what is lost."
+**Docs pages.** Propose, do not perform without approval: merging a page that
+re-explains types documented elsewhere; removing a diagram that restates a
+struct layout shown in code; deleting subsections that only justify a design.
+Format: "page/asset → what would absorb it → what is lost."
 
-**Preserve, even when shortening**, anything in these categories — condense
-the wording, but do not drop the content:
+**Preserve, condensing wording but not content:**
 
-- an invariant a future editor would otherwise break ("`dims` precedes
-  `data`; the C emitter depends on this order");
-- an issue or PR reference that records context the code cannot (`# see #123`),
-  including upstream issues that mark a workaround as removable once they
-  ship — these are real TODO items; keep them terse, but keep them;
-- a hazard: a view that must not outlive its buffer, a function that must not
-  be called twice, a size limit that throws;
-- `@ref` targets, doctests, and cross-references that the docs build needs;
-- warnings in user-facing docs about behavior that differs from what a user
-  would assume (e.g. a numpy array must be Fortran-contiguous).
+- invariants a future editor would break ("`dims` precedes `data`; the C
+  emitter depends on this order");
+- issue/PR references recording context the code cannot (`# see #123`),
+  including upstream issues marking a workaround removable; keep them terse;
+- hazards: a view that must not outlive its buffer, a function not to call
+  twice, a size limit that throws;
+- `@ref` targets, doctests, and cross-references the docs build needs;
+- user-facing warnings about behavior differing from assumption (e.g. a numpy
+  array must be Fortran-contiguous).
 
 ## 3. Review with the user
 
-Present: the `git diff --stat`; the list of docs-page/asset proposals
-awaiting a decision; and a **judgment-call list** of removed passages that
-contained information (not just wording) — one line each, so the user can
-ask for any of them to be restored. Deleted issue/PR references and deleted
-hazard warnings go at the top of that list. **[pause for approval]** Then
-apply approved page/asset changes (updating `docs/make.jl` accordingly) and
-restore anything the user asked for.
+Present: `git diff --stat`; the docs-page/asset proposals awaiting a decision;
+and a **judgment-call list** of removed passages that held information (not
+just wording), one line each. Deleted issue/PR references and hazard warnings
+go first. **[pause for approval]** Then apply approved page/asset changes
+(updating `docs/make.jl`) and restore anything the user asks for.
 
 ## 4. Verify
 
-- Confirm no code changed: `git diff` should touch only comment lines,
-  docstring bodies, Markdown, and (if approved) `docs/make.jl` and assets.
-  Spot-check any hunk that is not obviously prose.
-- If a docstring was removed entirely, make sure nothing still links to it
-  with `@ref`, and that the symbol is not listed in a `@docs` block.
-- If `docs/make.jl` exists, build the docs (`juliaclient --project=docs docs/make.jl`)
-  and confirm no missing-docs or cross-reference warnings were introduced.
-  If doctests live in the test suite rather than the docs build, run them.
+- `git diff` touches only comment lines, docstring bodies, Markdown, and (if
+  approved) `docs/make.jl` and assets. Spot-check any non-obvious hunk.
+- For a fully removed docstring, ensure no `@ref` links to it and no `@docs`
+  block lists the symbol.
+- If `docs/make.jl` exists, build (`juliaclient --project=docs docs/make.jl`)
+  and confirm no new missing-docs or cross-reference warnings. If doctests
+  live in the test suite, run them.
 
 ## 5. Commit and report
 
-Commit once, with a subject such as "Simplify and condense prose". Report
-lines removed vs. added; the docs proposals and their outcomes; the
-judgment-call list with what the user decided; and any passage you left
-alone because you could not tell whether it was history or a live
-constraint, so the user can resolve it.
+Commit once, subject like "Simplify and condense prose". Report lines removed
+vs added; docs proposals and outcomes; the judgment-call list with decisions;
+and any passage left alone because history vs live constraint was unclear.
 
 <!-- Adapted from Tim Holy, timholy/claude_config (MIT); see dot-agents/THIRD_PARTY_LICENSES.md -->

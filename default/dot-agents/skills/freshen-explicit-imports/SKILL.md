@@ -22,19 +22,15 @@ Check how test dependencies are currently specified in this project:
   - **Julia 1.11+**: `julia --project -e 'using Pkg; Pkg.add("ExplicitImports"; target=:extras)'`
   - **Julia 1.10**: `julia --project -e 'using Pkg; Pkg.add("ExplicitImports")'`, then manually move the entry from `[deps]` to `[extras]` and add `"ExplicitImports"` to the `test` list under `[targets]`.
 
-  In either case, add a `[compat]` bound for ExplicitImports. Set the lower bound to the minor version `Pkg.add` just installed — read it straight from the install output (`ExplicitImports v1.15.0` → `ExplicitImports = "1.15"`). Do **not** use a looser bound like `"1"`: step 4 uses `test_explicit_imports`, which only exists from v1.15 onward, so an older resolved version would break the suite with an `UndefVarError`. A tight lower bound is harmless here — ExplicitImports is a test-only dependency, so it never constrains which Julia or package versions users can install.
+  In either case, add a `[compat]` bound for ExplicitImports at the minor version `Pkg.add` just installed (`ExplicitImports v1.15.0` → `"1.15"`). Do **not** use a looser bound like `"1"`: Step 4 uses `test_explicit_imports`, which exists only from v1.15, so an older version breaks the suite with `UndefVarError`. A tight bound is harmless for a test-only dependency.
 
-  `juliaup` channels: `julia +release --project ...` runs the current release and `julia +lts --project ...` runs the LTS.
+  `juliaup` channels: `julia +release --project ...` (current release), `julia +lts --project ...`.
 
 ## 2. Run ExplicitImports analysis
 
 `<PackageModule>` below is the name of the package defined in this repository.
 
-Run the analysis on the **current Julia release** (1.11+), e.g. with
-`juliaclient --project` if the default channel is 1.11+, otherwise
-`julia +release --project`. The
-`public`/non-public distinction does not exist before 1.11, so this is the only
-version on which all checks are authoritative:
+Run the analysis on the **current Julia release** (1.11+) with `juliaclient --project` if the default channel is 1.11+, otherwise `julia +release --project`:
 
 ```julia
 using TestEnv
@@ -44,23 +40,9 @@ print_explicit_imports(<PackageModule>; report_non_public=true)
 test_explicit_imports(<PackageModule>)
 ```
 
-`print_explicit_imports` gives a readable summary, centered on implicit and
-non-public *imports*. `test_explicit_imports` is the call Step 4 installs as a
-regression guard: it runs seven checks — implicit imports, stale explicit
-imports, import and qualified-access ownership and public-ness, and
-self-qualified accesses — several of which `print_explicit_imports` does not
-surface. In particular, `check_all_qualified_accesses_are_public` flags
-non-public *qualified accesses* such as `Base.Meta.parse`. Treat any failing
-check as a problem to fix in Step 3 — do not rely on the
-`print_explicit_imports` summary alone.
+`print_explicit_imports` is a readable summary of implicit and non-public *imports*. `test_explicit_imports` is the regression guard Step 4 installs; it runs seven checks, several of which the summary does not surface (e.g. non-public *qualified accesses* such as `Base.Meta.parse`). Treat any failing check as a problem to fix in Step 3; do not rely on the summary alone.
 
-**Julia-version caveat.** The two public-ness checks
-(`all_explicit_imports_are_public`, `all_qualified_accesses_are_public`)
-determine "public" via `Base.ispublic` on Julia 1.11+, but fall back to
-`Base.isexported` on older Julia. On a pre-1.11 Julia they therefore
-*false-positive* on any binding that is `public` but not exported. So do not
-analyse on a pre-1.11 Julia, and gate those two checks in the installed guard
-(Step 4). The other five checks are version-robust.
+**Julia-version caveat.** The two public-ness checks (`all_explicit_imports_are_public`, `all_qualified_accesses_are_public`) use `Base.ispublic` on 1.11+ but `Base.isexported` before, so on pre-1.11 they false-positive on `public`-but-unexported bindings. Do not analyse on pre-1.11, and gate those two checks in the installed guard (Step 4). The other five are version-robust.
 
 For a quick overview without the test environment, the CLI also works
 (`julia -m ExplicitImports <path>`, or the `explicit-imports-jl` wrapper if

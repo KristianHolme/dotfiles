@@ -69,33 +69,7 @@ sequenceDiagram
 
 - Use `diff` when the point is what changes and the surrounding shape already exists. Match the diff shape to the topic.
 
-For a layout change:
-
-```diff
- Figure
- └── GridLayout (root)
-     ├── fig[1, 1] Axis            # field heatmap
-+    ├── fig[1, 2] Colorbar
-     └── fig[2, :] GridLayout      # summary row
-         ├── [1, 1] Axis           # timeseries
--        └── [1, 2] Axis           # residual
-+        └── [1, 2] Axis           # histogram
-```
-
-For a file-layout change:
-
-```diff
- src/
- ├── commands/
-+│   └── expand_skill.jl   # expands the slash command
- ├── sessions/
--└── transport.jl
-+└── transport/
-+    ├── client.jl
-+    └── stream.jl
-```
-
-For a call-tree or call-stack change:
+Diffs work on any of the shapes above (layout, file tree, call tree, pseudocode). Example on a call tree:
 
 ```diff
  solve(prob)
@@ -109,21 +83,10 @@ For a call-tree or call-stack change:
 +    write_restart
 ```
 
-For a state or control-flow change:
-
-```diff
- on(save)
--  write content
-+  if content is unchanged
-+    return cached result
-+  write new content
-+  invalidate cache
-```
-
 - Show the whole sketch when most of it is new, or when omitted context would hide ownership or order.
 
 ### guidance
 
 Place each visual next to the short text it supports. Keep only the calls, files, layouts, states, and boundaries needed to answer the user's current question or the options to resolve the current discussion point.
 
-You may use one of these, you may use several, it is unlikely you will use all of them. Use your judgement and don't overwhelm the user.
+Use one or several of these as fits; rarely all.

@@ -10,26 +10,15 @@ disable-model-invocation: true
 
 # Write Methods
 
-You are producing a **methods document** for an analysis project. A methods section in the
-classic sense — a paper-ready account of what was done — is a welcome byproduct, but it is not
-the goal. The goal is **human-agent alignment**: this document is the verbal counterpart to the
-project's figures. Where a figure exposes the *data and results*, this document exposes the
-overall shape of an analysis, in a form a busy human can skim and be productively
-skeptical about.
+Produce a **methods document** for an analysis project. A paper-ready account of what was done is a welcome byproduct; the goal is **human-agent alignment**. Where a figure exposes the data and results, this document exposes the overall shape of the analysis, in a form a busy human can skim and be productively skeptical about.
 
-The core constraint on a methods documents is that it must remain 
-**readable and interpretable** by the human partner. Statements below about data provenence
-are strictly secondary, and taken too far have a tendency to create long documents full
-of cross references to minor details that may be understandable to an agent but are overwhelming
-for a busy human reader.
+It must stay **readable and interpretable** by the human partner. Data provenance is strictly secondary: taken too far it yields long documents of cross references to minor details that overwhelm a human reader. If most of the document is provenance, cut it.
 
 Topics of interest:
 
-- the mathematical foundation: models, metrics for analysis, and invariants retained and violated
+- the mathematical foundation: models, metrics, invariants retained and violated
 - which analyses were run on which problems/outcomes/types of data
-- data provenance — which data actually fed a conclusion. Do *not* go overboard
-  on this one. If 80% of your document is on data provenance and burrowing into
-  every corner-case, it likely isn't human-readable anymore
+- data provenance: which data actually fed a conclusion
 - key assumptions and important open questions
 
 ## Step 1: Orient — mode and scope
@@ -51,19 +40,14 @@ Then settle two axes with the user (infer if obvious, ask if not):
 If there is no such account, ask the user to point you at the code and the result(s) to
 document, then proceed.
 
-A common case: a single session explores **many flavors of the same analysis**, and only one is
-worth documenting. Steer this with the invocation itself — e.g. "`/write-methods`, document only
-the variant that uses …" — and honor an explicit selection; if which variant matters is unclear,
-ask rather than guess. 
+If a session explored **many flavors of the same analysis**, document only the variant the user selects (e.g. "`/write-methods`, document only the variant that uses …"); if unclear which, ask.
 
 State the scope of the document at the beginning.
 
 ## Step 2: Delegate the investigation to a subagent where appropriate
 
 The investigation is the expensive part: reading source code, tracing a result back to the data
-and parameters that produced it, and checking that against the project's own account. Doing this
-in the main session risks filling the context window and degrading your later judgment — including the
-quality of the alignment conversation in Step 5. Where this risk seems real, delegate to a subagent.
+and parameters that produced it, and checking that against the project's own account. Delegate to a subagent where it would otherwise fill the main context and degrade the Step 5 conversation.
 
 Practice **targeted skepticism**, not exhaustive audit. Spend the budget only on the
 choices that are *load-bearing* for the result(s) in scope — the data subset, the transform and
@@ -71,23 +55,9 @@ its parametrization, the ground-truth procedure. Take the project's own notes at
 everything else. Verify against the code only where a wrong answer would actually change a conclusion.
 
 Instruct the subagent to read **the code and data as the source of truth**, the plan/Notes as
-claims to check against, and to return — for each key result in scope — a brief of this shape:
+claims to check against, and to return a brief per key result.
 
-```markdown
-### Key operations
- - **Code locations**: file:line ranges that correspond to models or analyses
- - **Purpose**: what this block exists to do
- - **Operation**: the mathematical equivalent of the same operation (TeX-style math)
-
-### Result: [what it is — a number, a figure, a claim]
-- **Origin chain**: data subset used → transform/model → parametrization → output
-- **Code locations**: file:line for the load-bearing steps
-- **Ground-truth handling**: how ground truth was generated/used, if applicable
-- **Verified**: which steps were checked against the code (vs. taken from the plan/Notes)
-- **Discrepancies**: where the code disagrees with the plan/Notes, or "none found"
-- **Risk flags**: assumptions most likely to be misaligned with user intent;
-  results that look "too good" or "too bad" to be true
-```
+Brief shape: [references/investigation-brief.md](references/investigation-brief.md) (read it when writing the subagent prompt).
 
 If a value or rationale cannot be recovered from the artifacts, the subagent must report it as a
 **gap** — never invent a plausible-sounding parameter or justification. Surfacing the gap is
@@ -113,9 +83,7 @@ source format). Structure it around results, not around code organization:
    - "Ground truth was assumed to be generated by process P."
 6. **Gaps** — important limitations that might circumscribe some of the conclusions.
 
-Write equations as TeX-style math (`$…$`, `$$…$$`): Pandoc converts it to Typst math, Word
-equations, and MathJax. Use
-American spellings. Use standard terminology and avoid agent-invented jargon.
+Write equations as TeX math (`$…$`, `$$…$$`). Use American spellings and standard terminology; no agent-invented jargon.
 
 If the document is a living document, give some consideration to the risk of
 loss:
@@ -130,11 +98,10 @@ loss:
 
 ## Step 4: Render to a rich format
 
-The canonical artifact is Markdown; rich formats are **render targets** produced by
-**Pandoc**. Markdown is reviewable as-is in any editor or on GitHub.
+The canonical artifact is Markdown; rich formats are Pandoc render targets.
 
 1. **Always** write the Markdown first; it is the commit-worthy object.
-2. Default: **PDF via Typst** (both `pandoc` and `typst` are installed on this machine):
+2. Default: **PDF via Typst**:
 
    ```sh
    pandoc methods.md -o methods.typ --standalone
@@ -158,11 +125,7 @@ output). Do not introduce Quarto as a new dependency.
 
 ## Step 5: Active confirmation checkpoint
 
-The point of all of this is alignment, so do not write-and-leave. Close by
-giving the user the opportunity to ask for upgrades. Surface any issues
-that you think merit particular attention from the user.
-
-This step should be done only after the document has been successfully rendered in human-readable format.
+Do not write-and-leave. After the document has rendered successfully, surface the issues that merit the user's attention and invite requests for upgrades.
 
 ## Step 6: Persist or discard
 
@@ -174,8 +137,7 @@ This step should be done only after the document has been successfully rendered 
 
 ## Important notes
 
-- **Source of truth is the code, not the project's self-description.** The plan and Notes are
-  claims to verify. Re-narrating a possibly-wrong self-account defeats the purpose.
+- **Source of truth is the code, not the project's self-description** (Steps 1-2).
 - **Never fabricate.** A recovered gap reported honestly is worth more than a fluent invention.
 - Do **not** modify analysis code or rerun the pipeline here — this skill documents and verifies;
   it does not implement. If it uncovers a bug or misalignment, report it to the user.
