@@ -50,7 +50,7 @@
     "abacus-min": "linux"
   },
   "python.terminal.activateEnvironment": false,
-  "workbench.colorTheme": "Omarchy",
+  "workbench.colorTheme": "flexoki-light",
   "remote.autoForwardPortsSource": "hybrid",
   "git.suggestSmartCommit": false,
   "editor.cursorSurroundingLines": 8,
@@ -72,5 +72,7 @@
   "julia.additionalArgs": [],
   "julia.editor": "nvim",
   "julia.inlayHints.static.variableTypes.enabled": false,
-  "cursor.composer.queueMessageDefaultBehavior": "steer"
+  "cursor.composer.queueMessageDefaultBehavior": "steer",
+  "claudeCode.hideOnboarding": true,
+  "claudeCode.preferredLocation": "panel"
 }
