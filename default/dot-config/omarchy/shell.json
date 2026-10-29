@@ -1,45 +1,13 @@
 {
+  "version": 1,
+  "idle": {
+    "screensaver": 150,
+    "lock": 300
+  },
   "bar": {
-    "background": "opaque",
+    "position": "top",
+    "transparent": true,
     "layout": {
-      "center": [
-        {
-          "birthYear": 2000,
-          "format": "yyyy-MM-dd HH:mm",
-          "formatAlt": "d MMMM 'W'ww yyyy",
-          "id": "omarchy.clock",
-          "lifeExpectancy": 100,
-          "verticalFormat": "HH\n—\nmm",
-          "weekStartDay": "monday"
-        }
-      ],
-      "centerBegin": [
-        {
-          "id": "omarchy.indicators"
-        },
-        {
-          "hour24": true,
-          "id": "omarchy.elsewhen",
-          "zones": "Oslo|Europe/Oslo, Delhi|Asia/Kolkata, Tokyo|Asia/Tokyo, Los Angeles|America/Los_Angeles, New York|America/New_York"
-        }
-      ],
-      "centerEnd": [
-        {
-          "id": "omarchy.weather"
-        },
-        {
-          "id": "omarchy.agents"
-        },
-        {
-          "id": "omarchy.microphone"
-        },
-        {
-          "id": "omarchy.media"
-        },
-        {
-          "id": "omarchy.system-update"
-        }
-      ],
       "left": [
         {
           "id": "omarchy.menu"
@@ -49,6 +17,17 @@
         },
         {
           "id": "omarchy.active-window"
+        }
+      ],
+      "center": [
+        {
+          "id": "omarchy.clock",
+          "format": "yyyy-MM-dd HH:mm",
+          "formatAlt": "d MMMM 'W'ww yyyy",
+          "verticalFormat": "HH\n—\nmm",
+          "weekStartDay": "monday",
+          "birthYear": 2000,
+          "lifeExpectancy": 100
         }
       ],
       "right": [
@@ -62,9 +41,9 @@
           "id": "jankeesvw.downloads"
         },
         {
+          "id": "io.github.elevate08.qs-bitwarden-cli",
           "autoLockMinutes": 60,
           "clearClipboardSec": 300,
-          "id": "io.github.elevate08.qs-bitwarden-cli",
           "pinUnlock": true
         },
         {
@@ -95,18 +74,39 @@
           "id": "jankeesvw.notification-center"
         }
       ],
+      "centerBegin": [
+        {
+          "id": "omarchy.indicators"
+        },
+        {
+          "id": "omarchy.elsewhen",
+          "zones": "Oslo|Europe/Oslo, Delhi|Asia/Kolkata, Tokyo|Asia/Tokyo, Los Angeles|America/Los_Angeles, New York|America/New_York",
+          "hour24": true
+        }
+      ],
+      "centerEnd": [
+        {
+          "id": "omarchy.weather"
+        },
+        {
+          "id": "omarchy.agents"
+        },
+        {
+          "id": "omarchy.microphone"
+        },
+        {
+          "id": "omarchy.media"
+        },
+        {
+          "id": "omarchy.system-update"
+        }
+      ],
       "tray": []
-    },
-    "position": "top"
-  },
-  "idle": {
-    "lock": 300,
-    "screensaver": 150
+    }
   },
   "plugins": [
     {
       "id": "kristianholme.ruler"
     }
-  ],
-  "version": 1
+  ]
 }
