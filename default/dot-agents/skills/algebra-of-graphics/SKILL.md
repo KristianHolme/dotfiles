@@ -21,6 +21,7 @@ draw(spec; figure = (; size=(800, 600)), axis = (; xlabel="Time (s)"),
 - Analyses: `density()`, `histogram(bins=20)`, `frequency()`, `linear()`, `smooth()`, `expectation()`.
 - `draw` takes `figure`, `axis` (Makie Axis attributes), `legend`, `colorbar`, `scales` keyword NamedTuples.
 - Facet by multiplying `mapping(col=:island)` onto any spec.
+- Map styles to columns (`mapping(color=:policy, linestyle=:bound)`) so `draw` builds the legend, with one group per attribute. Do not explain styles in titles or axis labels (see makie-core).
 
 ## Troubleshooting
 

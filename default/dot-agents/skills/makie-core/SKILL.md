@@ -22,7 +22,8 @@ Use Makie (not a specific backend) for all plotting. Assume all features are ava
 - Use nested layouts with `fig[row, col][subrow, subcol]` to build sections.
 - Prefer explicit `Axis` creation for clarity in complex layouts.
 - Use `Colorbar` and `Legend` in adjacent layout cells rather than overlaying.
-- When lines differ by more than one attribute (colour, line style, marker, …), explain each attribute in its own group of a standalone `Legend` placed outside the axes, e.g. colour = policy, line style = bound: `Legend(fig[1, 2], [policy_entries, style_entries], [policy_labels, style_labels], ["Policy", "Bound"])`. Titles name the quantity only.
+- Explain what colour, line style or marker means in a `Legend`, not in titles or axis labels: no `"Reward (dashed: run1, solid: baseline)"`. Titles name the quantity only. A direct label or annotation next to a line is fine when it reads better.
+- When visuals vary along more than one attribute (colour, line style, marker, …), use a multi-group `Legend` with one group per attribute, e.g. colour = policy, line style = bound: `Legend(fig[1, 2], [policy_entries, style_entries], [policy_labels, style_labels], ["Policy", "Bound"])`.
 
 ## Ask Before Building Static Plots
 If a static plot may be reused later in dynamic visualizations, ask whether the user wants the data inputs wired through `Observable`s from the start.
