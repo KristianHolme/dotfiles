@@ -159,6 +159,8 @@ function build_daemon_binaries(pkgdir, zig, outdir)
     mkpath(outdir)
     for (name, src) in (("julia-conductor", "conductor/main.zig"), ("juliaclient", "client/client.zig"))
         flags = ["-fsingle-threaded", "-fPIE", "-fstrip", "-O", "ReleaseSmall"]
+        # Set on hosts that share the executables over NFS; otherwise zig targets this CPU.
+        haskey(ENV, "JULIA_DAEMON_CPU") && push!(flags, "-mcpu=$(ENV["JULIA_DAEMON_CPU"])")
         run(`$zig build-exe $flags -femit-bin=$(joinpath(outdir, name)) --name $name $(joinpath(pkgdir, src))`)
     end
     return outdir

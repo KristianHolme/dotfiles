@@ -24,3 +24,9 @@ Read when installing, rebuilding, or debugging the daemon executables.
 - After `juliaup update`, re-run `DaemonicCabal.install()` if the artifact
   override is present, then verify that the installed executables still match
   the worker source revision.
+- On the UiO shared home, build both Zig programs with `JULIA_DAEMON_CPU=haswell`
+  (exported by `default/dot-bashrc-uio-math`, read by `bin/julia-setup.jl` as
+  `-mcpu=haswell`). The default native target emits AVX-512, and `juliaclient` then
+  dies with `Illegal instruction` (exit 132) on abacus-as and abacus-min, which lack
+  it. Single machines leave it unset. Check a build with
+  `objdump -d <exe> | grep -c -E 'zmm|%k[0-7]'`; the count is 0.

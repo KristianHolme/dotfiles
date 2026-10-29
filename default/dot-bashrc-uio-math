@@ -5,6 +5,9 @@
 # skylake-avx512: nam-shub-01 (Skylake-SP), nam-shub-02 (Cascade Lake).
 # Keep in sync with ~/.config/systemd/user/julia-daemon.service.d/cpu-target.conf.
 export JULIA_CPU_TARGET="generic;haswell;arrowlake-s;skylake-avx512"
+# julia-daemon executables live on the shared home, so bin/julia-setup.jl builds them for
+# the oldest host (Haswell, no AVX-512); a native build dies with SIGILL on abacus-*.
+export JULIA_DAEMON_CPU=haswell
 
 export EDITOR=nvim
 export LC_ALL=C.UTF-8
