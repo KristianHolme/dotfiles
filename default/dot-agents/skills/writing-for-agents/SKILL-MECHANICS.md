@@ -1,6 +1,6 @@
 # Skill mechanics
 
-The skill-specific branch of [`writing-for-agents`](SKILL.md): what changes when the document is a skill (frontmatter, the invocation choice, and router skills). Everything else about writing it is the universal reference in `SKILL.md`.
+Skill-specific branch of [`writing-for-agents`](SKILL.md): invocation choice, splitting by invocation, router skills. Everything else is in `SKILL.md`.
 
 ## Invocation
 

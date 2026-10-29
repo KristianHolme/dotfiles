@@ -5,90 +5,38 @@ description: Write Julia scripts for interactive REPL work — sectioned, top-le
 
 # Julia Interactive Scripts
 
-Scripts are for **interactive REPL work** (include / run section-by-section), not reusable library code. Prefer flat, sectioned scripts over wrapping logic in functions.
+Scripts are for **interactive REPL work** (include / run section by section), not library code. Prefer flat, sectioned scripts over wrapping logic in functions. A short comment before the imports saying what the script does is fine; don't turn the script into a small API.
 
-## Section markers
+## Layout
 
-Use `##` to split setup, plot, save, etc. so blocks can be re-run independently in the IDE/REPL.
+`##` markers split sections so blocks re-run independently. Order:
 
-Imports and activation stay **above** the first `##` — load packages in one block, then sections start.
-
-### Script layout
-
-Keep a consistent section order:
-
-1. **Imports** — `using`, `@quickactivate`, etc. (no `##`)
-2. **Utilities** — helper functions reused within the file (first `##`)
-3. **Constants** — truly immutable values only (second `##`, rare; skip when nothing qualifies)
-4. **Usage** — setup, compute, plot, save, etc. (remaining `##` sections)
-
-Put utility functions in section 2, not scattered through usage sections. Put `const` values in section 3 only when they are obviously never meant to change — not mixed into imports or buried after setup code.
-
-Numbered sections (`## 1) …`, `## 2.5) …`) are fine in `examples/` when the script is a tutorial with multiple demos; use them for usage sections (4+), not for utilities or constants.
+1. **Imports and activation**: above the first `##`, in one block (no `##`).
+2. **Utilities**: helper functions reused within the file (first `##`), following [julia-code](../julia-code/SKILL.md) (explicit `return`, Runic).
+3. **Constants**: only truly immutable values (a physical dimension baked into the model, a fixed file extension); skip when nothing qualifies. Not for colors, sizes, spacing or other knobs you tweak between runs.
+4. **Usage**: setup, compute, plot, save (remaining `##`). Numbered sections (`## 1) …`) are fine in tutorial-style `examples/` usage sections only.
 
 ## Top-level flow
 
-Compute at script scope in usage sections. Use plain assignments for values that feed into later computation (`ny = 64`, `params = …`, `y_correct = …`).
-
-Avoid helper functions unless the logic is genuinely reused within the same file. When functions are needed, define them in the utilities section (section 2) and follow [julia-code](../julia-code/SKILL.md) (explicit `return`, Runic formatting). Put tunable defaults in keyword arguments (`function plot_result(data; color = :steelblue, linewidth = 2)`) so callers can override without editing the function body.
-
-**Call-site knobs go inline.** When overriding helper kwargs (figure size, colors, spacing, markersize, etc.), pass them directly in the call — do **not** declare locals and then forward them:
-
-```julia
-# preferred
-fig = plot_field(u; figsize = (800, 600), colormap = :viridis)
-
-# avoid — pointless assign-then-pass
-figsize = (800, 600)
-colormap = :viridis
-fig = plot_field(u; figsize, colormap)
-```
-
-Reserve `const` (section 3) for values that are clearly and permanently fixed — e.g. a physical dimension baked into the model, a file extension that the script always uses, a literal that would be nonsensical to change. Do **not** use `const` for visual or experimental knobs the user might adjust between REPL runs.
-
-## Brief context at top
-
-A short comment block explaining what the script does is fine (before the imports). Don't turn the whole script into a small API.
+- Compute at script scope with plain assignments (`ny = 64`, `params = …`). Avoid helpers unless the logic is reused in the same file.
+- Tunable defaults are keyword arguments (`function plot_result(data; color = :steelblue)`), not buried in bodies.
+- **Call-site knobs go inline.** Pass overrides directly (`plot_field(u; figsize = (800, 600), colormap = :viridis)`); don't declare locals only to forward them (`x = …; f(; x)`).
+- No `main()` / `run_thing()` wrappers or auto-run functions at the end; the sequential top-level code is the script.
 
 ## Display only when interactive
 
-Write `isinteractive() && display(fig)` in the plot section. The human running sections in a REPL/IDE sees the figure; a headless run (`julia script.jl`, `julia -e`, juliaclient) skips it, so no window pops up on the user's desktop. See [makie-core](../makie-core/SKILL.md).
+Write `isinteractive() && display(fig)` in the plot section. A REPL/IDE user sees the figure; a headless run (`julia script.jl`, `julia -e`, juliaclient) skips it, so no window pops up on the user's desktop. See [makie-core](../makie-core/SKILL.md).
 
 ## Save in its own section
 
-When saving, use a separate `##` block at the bottom — never hide save logic inside a wrapper function.
+Use a separate `##` block at the bottom, never a wrapper function.
 
-**DrWatson projects** (`scripts/`, `_research/`): use `plotsdir(...)` / `datadir(...)` and `wsave(path, fig)` (or `safesave`).
-
-**Without DrWatson** (`examples/`, standalone demos): saving is optional. Many demos only `display(fig)` and stop. When you do save, use an explicit path next to the script:
-
-```julia
-path = joinpath(@__DIR__, "my_plot.png")
-wsave(path, fig)  # or save(path, fig)
-```
-
-Create parent dirs with `mkpath(dirname(path))` when needed. Prefer `wsave`/`save` over custom `@info` + save wrappers.
-
-## No auto-run functions
-
-Don't end with `save_thing()` / `run_thing()` that hide the steps. Let the sequential top-level code be the script.
-
-## Where to put scripts
-
-| Location | Use for |
-|----------|---------|
-| `scripts/` | Work-relevant workflows: training-run analysis, baseline sweeps, validation, HPC submit wrappers, experiment setup |
-| `_research/` | Debugging, one-off probes, small temporary tests while developing |
-| `examples/` | Demos and illustrative usage; often display-only, may omit DrWatson |
-| `src/` | Structured library code only (functions, keyword args, entry points) — **not** this script style |
-
-Respect project-specific layout from `AGENTS.md` when present.
+- **DrWatson** (`scripts/`, `_research/`): `plotsdir(...)` / `datadir(...)` with `wsave(path, fig)` (or `safesave`), not ad-hoc paths.
+- **Without DrWatson** (`examples/`, demos): saving is optional; don't force a save section in display-only demos. When saving, use a path next to the script: `path = joinpath(@__DIR__, "my_plot.png"); wsave(path, fig)` (`mkpath(dirname(path))` if needed).
 
 ## Project activation
 
-Pick one import block style; keep it at the top before the first `##`.
-
-**DrWatson project** (typical for `scripts/`, `_research/`):
+DrWatson (typical for `scripts/`, `_research/`):
 
 ```julia
 using DrWatson
@@ -96,82 +44,24 @@ using DrWatson
 using MyPackage, CairoMakie
 ```
 
-**Without DrWatson** (typical for `examples/`, package demos, standalone probes):
+Without DrWatson (`examples/`, demos; don't require `@quickactivate` there):
 
 ```julia
 using MyPackage, CairoMakie
 # or: using Pkg; Pkg.activate("."); using MyPackage
 ```
 
-## Templates
+## Where to put scripts
 
-**DrWatson workflow** — utilities, setup, plot, save:
+| Location | Use for |
+|----------|---------|
+| `scripts/` | Work workflows: training-run analysis, sweeps, validation, HPC submit wrappers, experiment setup |
+| `_research/` | Debugging, one-off probes, temporary tests |
+| `examples/` | Demos and illustrative usage; often display-only, may omit DrWatson |
+| `src/` | Structured library code only; one-off experiment logic does not go here |
 
-```julia
-# one-line description of what the script does
-using DrWatson
-@quickactivate :ProjectName
-using CairoMakie
-##
-# utilities
-function summarize(x)
-    return mean(x), std(x)
-end
+Respect project-specific layout from `AGENTS.md`.
 
-function plot_field(u; figsize = (800, 600), colormap = :viridis)
-    fig = Figure(size = figsize)
-    ax = Axis(fig[1, 1])
-    heatmap!(ax, u; colormap = colormap)
-    return fig
-end
-##
-# setup: params, derived quantities, arrays
-ny = 64
-u = rand(ny, ny)
-## plot
-fig = plot_field(u; figsize = (800, 600), colormap = :viridis)
-##
-path = plotsdir("my_plot.png")
-wsave(path, fig)
-```
+## Look up the rest
 
-**Example / demo** — display-first, save optional:
-
-```julia
-# demonstrate feature X step by step
-using MyPackage, WGLMakie
-##
-# setup
-params = default_params(; ny = 64)
-env = make_env(params)
-##
-## 1) visualize
-fig, ax = viz!(env; body = true)
-isinteractive() && display(fig)
-##
-## 2) run and inspect (no save)
-data = run_policy(env, ZeroPolicy())
-fig2 = plot_summary(data)
-isinteractive() && display(fig2)
-```
-
-Inline struct/policy definitions in `examples/` are fine when they illustrate API usage.
-
-## Anti-patterns
-
-- Wrapping the whole script in `main()` / `run_analysis()` called at the end
-- Bare `display(fig)` in a script the agent runs headless (pops up a window on the user's desktop); guard it with `isinteractive()`
-- Putting one-off experiment logic in `src/` instead of `scripts/` or `_research/`
-- Defining many small helpers for code used once in the same file
-- Putting utility functions in usage sections instead of section 2
-- Using `const` for colors, sizes, spacing, or other values you'd tweak while iterating
-- Burying tunable defaults inside function bodies instead of keyword arguments
-- Declaring locals only to forward them as kwargs (`x = …; f(; x)` / `f(; x = x)`) — put the values inline in the call instead
-- Requiring DrWatson/`@quickactivate` in `examples/` when plain `using` suffices
-- Ad-hoc save paths in DrWatson projects instead of `plotsdir` / `datadir`
-- Forcing a save section in display-only demos
-
-## Related skills
-
-- Plotting: [makie-core](../makie-core/SKILL.md)
-- Julia style and formatting: [julia-code](../julia-code/SKILL.md)
+- Full script templates (DrWatson workflow, example/demo) → read [references/templates.md](references/templates.md) when writing a new script from scratch.

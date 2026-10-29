@@ -9,7 +9,6 @@
 install = [
     "zotero-bin",
     "cursor-bin",
-    "ai-usagebar-bin",
     "diffnav",
     "dust",
     "dua-cli",
@@ -124,7 +123,6 @@ install = ["https://github.com/euandeas/omarchy-flexoki-dark-theme"]
 # manifest default), non-bar plugins are appended to plugins[] in shell.json.
 # Install-if-missing only; existing clones are left alone.
 install = [
-    "https://github.com/akitaonrails/ai-usagebar.git",
     "https://github.com/robzolkos/omarchy-github.git",
     "https://github.com/KristianHolme/omarchy-ntfy.git",
     "https://github.com/KristianHolme/omarchy-ruler.git",

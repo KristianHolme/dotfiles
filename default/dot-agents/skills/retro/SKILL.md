@@ -38,6 +38,6 @@ A single disliked behavior, or a preference for how to work from now on, is `rem
 
 ## Reference
 
-Implementation carries the context pressure: exploration, writing, debugging. Review sees a diff. Put judgement rules on the review skill, not in the always-loaded `AGENTS.md`. Keep `AGENTS.md` to navigation pointers and facts the agent cannot look up.
+Put judgement rules on a review skill (review sees a diff), not in the always-loaded `AGENTS.md`. Keep `AGENTS.md` to navigation pointers and facts the agent cannot look up.
 
 Skills live in `~/dotfiles/default/dot-agents/skills/`. There is no `CODING_STANDARDS.md`. Do not create one to hold a rule a skill or a check can hold.

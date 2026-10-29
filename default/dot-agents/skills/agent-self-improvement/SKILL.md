@@ -39,11 +39,6 @@ Skip trivial typos, one-off preferences, or secrets.
 
 Keep additions **short** — one sharp rule beats a paragraph. Link out only if needed.
 
-### Example proposal shape
-
-> Worth capturing so this does not recur — add to `makie-core` Themes:
-> `Theme` merge priority is the **opposite** of `merge` on Julia `Dict`s (later themes do not override the same way dict values do). OK to add?
-
 ## Anti-patterns
 
 - Do not dump long postmortems into skills

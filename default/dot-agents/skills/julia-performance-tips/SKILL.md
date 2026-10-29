@@ -5,7 +5,7 @@ description: Apply Julia performance optimization techniques when writing or opt
 
 # Julia Performance Tips
 
-Essential performance optimization guidelines for Julia code. Reference: <https://docs.julialang.org/en/v1/manual/performance-tips/>
+Reference: <https://docs.julialang.org/en/v1/manual/performance-tips/>
 
 Measure before optimizing: find the bottleneck with the [julia-profiling](../julia-profiling/SKILL.md) skill, then apply the tips below to it.
 
@@ -52,16 +52,7 @@ Measure before optimizing: find the bottleneck with the [julia-profiling](../jul
 
 ## Performance Tools
 
-- **`@time`** - measure time and allocations (ignore first run, it's compilation)
-- **`@code_warntype`** - find type instabilities (red = non-concrete types)
-- **`@allocated`** - measure memory allocations
-- **`@code_typed`** - typed IR from inference (next step when `@code_warntype` is not enough detail)
-- **`@code_llvm`** - LLVM IR for a call (inlining, other compiler optimizations)
-- **`@code_native`** - native assembly for a call (e.g. verify vectorization)
-- **BenchmarkTools.jl** - `@btime` / `@benchmark` for microbenchmarks with warmup, GC handling, and statistics; complements `@time`
-- **Profiling** - follow the `julia-profiling` skill (headless Profile/FlameGraphs/Allocs workflow)
-- **JET.jl** - static analysis for performance issues
-- **`--track-allocation=user`** - find allocation sources
+`@time`, `@allocated`, `@code_warntype`, `@code_typed`/`@code_llvm`/`@code_native`, BenchmarkTools, JET.jl, `--track-allocation=user`. Profiling: follow `julia-profiling` (headless Profile/FlameGraphs/Allocs). Ignore the first `@time` run (compilation).
 
 ## Performance Annotations
 
@@ -71,13 +62,11 @@ Measure before optimizing: find the bottleneck with the [julia-profiling](../jul
 
 ## Miscellaneous
 
-- **Avoid unnecessary arrays** - `x+y+z` not `sum([x,y,z])`
-- **Use `abs2` for complex numbers** - `abs2(z)` not `abs(z)^2`
-- **Use `div`, `fld`, `cld`** - not `trunc(x/y)`, `floor(x/y)`, `ceil(x/y)`
-- **Fix deprecation warnings** - they add lookup overhead
-- **Avoid string interpolation for I/O** - `println(file, a, " ", b)` not `println(file, "$a $b")`
-- **Use `LazyString` for conditional strings** - `lazy"..."` for error paths
-- **Set `OPENBLAS_NUM_THREADS=1`** when using `JULIA_NUM_THREADS>1` for multithreaded code
+- Avoid temporary arrays: `x+y+z` not `sum([x,y,z])`
+- `abs2(z)` not `abs(z)^2`; `div`/`fld`/`cld` not `trunc(x/y)` etc.
+- Fix deprecation warnings (lookup overhead)
+- `println(file, a, " ", b)` not `println(file, "$a $b")`; `lazy"..."` for error-path strings
+- Set `OPENBLAS_NUM_THREADS=1` when `JULIA_NUM_THREADS>1`
 
 ## Package Performance
 

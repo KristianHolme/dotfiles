@@ -9,8 +9,7 @@ description: >-
 
 # GitHub reports
 
-Text posted on GitHub is rendered as GitHub-flavored markdown. Write it so
-references become links and long content does not bury the conclusion.
+Write so references become links and long content does not bury the conclusion.
 
 ## Reference issues and PRs with full GitHub syntax
 
@@ -37,9 +36,7 @@ another repo.
   rest of the text and in tables.
 - Never write a bare `#N` for a foreign PR anywhere, including table cells
   and column labels.
-- Use short SHAs. For a commit in another repo, use a markdown link with the
-  short SHA as its text.
-- Full URLs also work; GitHub shortens them to the same form when rendered.
+- Full URLs also work; GitHub shortens them when rendered.
 - Do not put the reference inside backticks or code blocks. That disables
   auto-linking.
 - Find the current repo with `gh repo view --json nameWithOwner` when unsure
@@ -67,8 +64,6 @@ Summary of the result in a sentence or two, with the key numbers inline.
 
 - Keep the blank lines after `<p>` and before `</p>`. Without them GitHub does
   not render the markdown inside the block.
-- Make the `<summary>` text specific when useful, for example
-  `Full benchmark results`.
 - Keep small tables (a handful of rows) and anything the reader must see to
   follow the argument outside the block.
 
@@ -90,8 +85,7 @@ placeholder.
 - Put a one-line caption after the placeholder that says what the figure shows
   and which conclusion it supports, so the report reads correctly before the
   image is uploaded.
-- Use a descriptive snake_case file name. Use one placeholder per file.
-- Refer to the figure in the surrounding prose. Do not rely on the image alone
-  to carry a result; give the key numbers inline.
+- Use a descriptive snake_case file name, one placeholder per file.
+- Refer to the figure in the prose and give the key numbers inline.
 - List all placeholders to the user when handing over the draft, so none is
   posted unreplaced.

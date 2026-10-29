@@ -28,9 +28,8 @@ state would not carry over. Use `--revise=yes` when you will edit `src/` between
 Never add them to the project's `Project.toml`. Optional: `Cthulhu`. Do not use ProfileView:
 it is GUI-only; FlameGraphs is its data layer.
 
-Keep output small: print reports into an `IOBuffer` and return only the first 20–40
-lines or an aggregated table. Write profile output to a file only when the user wants to
-inspect it.
+Keep output small: print reports into an `IOBuffer` and return the first 20–40 lines or an
+aggregated table. Write profile output to a file only when the user wants it.
 
 ## 1. Warm up
 
@@ -45,12 +44,12 @@ t = @benchmark myfunc($arg1, $arg2)
    gc_frac = gctime(median(t)) / time(median(t)))
 ```
 
-- Interpolate every external value with `$`. Without it you measure global lookup.
-- Use `@benchmark` (returns a `Trial`), not `@btime` (prints; returns the expression value).
+- Interpolate every external value with `$`.
+- Use `@benchmark` (returns a `Trial`), not `@btime`.
 - For runs of seconds or more, use `@timed` once instead; `@benchmark` would run it
   several times for one usable sample.
 
-A large GC fraction points to step 4. Sub-millisecond code needs `@bprofile` in step 3.
+A large GC fraction points to the allocation recipe. Sub-millisecond code needs `@bprofile` in step 3.
 
 ## 3. CPU profile
 
@@ -82,58 +81,11 @@ join(first(split(String(take!(io)), '\n'), 35), '\n')
 in the same session without re-profiling: `Profile.callers("funcname", data, lidict)`,
 or `Profile.print(io, data, lidict; format = :tree, maxdepth = 15, mincount = 5)`.
 
-### Dispatch and GC sites (FlameGraphs)
+### Dispatch, GC and allocation sites
 
-`flamegraph()` returns a traversable tree. Each `node.data` has `sf` (a `StackFrame`),
-`span` (`length(span)` = samples), and `status`, a bitfield with
-`FlameGraphs.runtime_dispatch` (`0x01`) and `FlameGraphs.gc_event` (`0x02`). Runtime
-dispatch frames are the prime optimization target.
+Read [references/recipes.md](references/recipes.md) when step 2 showed allocations or GC time, or you need runtime-dispatch frames. It has FlameGraphs code for dispatch/GC frames and a `Profile.Allocs` recipe (use Julia >= 1.11 for allocation work). Runtime dispatch frames are the prime optimization target.
 
-```julia
-function flatten_fg(node, rows = Any[])
-    total = length(node.data.span)
-    childtotal = 0
-    for c in node
-        childtotal += length(c.data.span)
-        flatten_fg(c, rows)
-    end
-    push!(rows, (; sf = node.data.sf, total, self = total - childtotal, status = node.data.status))
-    return rows
-end
-
-rows = sort!(flatten_fg(flamegraph()); by = r -> -r.self)
-dispatch = filter(r -> r.status & FlameGraphs.runtime_dispatch != 0, rows)
-gc = filter(r -> r.status & FlameGraphs.gc_event != 0, rows)
-first(rows, 15), first(dispatch, 10), first(gc, 10)
-```
-
-One function appears once per call path; aggregate `self`/`total` by
-`(sf.func, sf.file, sf.line)` for a per-function view.
-
-## 4. Allocation profile
-
-When step 2 showed allocations or GC time:
-
-```julia
-Profile.Allocs.clear()
-Profile.Allocs.@profile sample_rate = 0.1 myfunc(arg1, arg2)
-allocs = Profile.Allocs.fetch().allocs
-bytes_by_type = Dict{Any, Int}()
-bytes_by_site = Dict{Any, Int}()
-for a in allocs
-    bytes_by_type[a.type] = get(bytes_by_type, a.type, 0) + a.size
-    isempty(a.stacktrace) && continue
-    bytes_by_site[a.stacktrace[1]] = get(bytes_by_site, a.stacktrace[1], 0) + a.size
-end
-first(sort(collect(bytes_by_type); by = last, rev = true), 10),
-first(sort(collect(bytes_by_site); by = last, rev = true), 10)
-```
-
-`sample_rate`: `1.0` exact but slow, `0.1` default, `0.01` or lower for long runs (counts
-are then estimates). On Julia 1.10 some types show as `Profile.Allocs.UnknownType`; use
-Julia ≥1.11 for allocation work.
-
-## 5. Type instabilities
+## 4. Type instabilities
 
 For the costliest dispatch frames:
 
@@ -144,7 +96,7 @@ For the costliest dispatch frames:
 - Cthulhu's `@descend` is a TUI, not agent-drivable; follow chains manually with
   `@code_warntype` on each unstable callee.
 
-## 6. Report and propose
+## 5. Report and propose
 
 - Baseline numbers: time, allocations, GC fraction.
 - Top self-cost frames with `file:line`.

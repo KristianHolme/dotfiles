@@ -1,60 +1,44 @@
 ---
 name: dotfiles-omarchy-setup
-description: Instructions for updating system configuration. Use when modifying dotfiles, Hyprland/Wayland configs, system configs, Cursor skills, or other configurations that typically live in ~/.config inside ~/dotfiles. This system uses omarchy at /usr/share/omarchy (and ~/.local/share/omarchy); read-only access there is allowed for understanding commands and idiomatic usage, but never edit files there.
+description: Instructions for updating system configuration. Use when modifying dotfiles, Hyprland/Wayland configs, system configs, or other configurations that typically live in ~/.config inside ~/dotfiles. This system uses omarchy at /usr/share/omarchy (and ~/.local/share/omarchy); read-only access there is allowed for understanding commands and idiomatic usage, but never edit files there.
 ---
 
 # Dotfiles Setup
 
-## Quick Start
+- Edit only inside `~/dotfiles/default/`, the single stow package. Never edit `/usr/share/omarchy/` or `~/.local/share/omarchy`; read them to learn commands and idioms.
+- For omarchy tasks, invoke the `omarchy` skill.
+- Do not commit or amend unless asked. Do not add tests or example files unless asked.
+- Make minimal, targeted edits.
 
-1. Identify the target area in `~/dotfiles/`.
-2. Edit files in the stow structure under `~/dotfiles/` only.
-3. Omarchy package files live in `/usr/share/omarchy/` (scripts/configs); `~/.local/share/omarchy` may still exist. Read-only access is OK for understanding commands and idioms, but do not edit.
-4. When working with omarchy-related tasks, invoke the omarchy skill: `@omarchy`
-5. Do not commit unless explicitly asked.
+## Layout
 
-## Workflow Checklist
+`dot-X` files map to `~/.X`; `dot-config/` maps to `~/.config`. Stow runs with `--no-folding`, so everything is symlinked file by file: each file under `default/` and its home path are the same file. Edit one path only.
 
-- [ ] Determine scope within `~/dotfiles/` only.
-- [ ] Edit `default/` (the only stow package). Host-specific Hyprland goes in Lua:
-  - `default/dot-config/hypr/monitors.lua` branches on `/etc/hostname` and connected monitor descriptions
-  - `default/dot-config/nvim/lua/plugins/jetls.lua` disables JETLS on hostname `kaspi`
-- [ ] Locate the config:
-  - Hyprland: `dot-config/hypr/*.lua` (plus `hyprsunset.conf`)
-  - Omarchy shell / idle: `dot-config/omarchy/shell.json`
-  - Cursor: `dot-config/Cursor/User/`
-  - Shell utilities: `bin/`
-  - Other app configs: `dot-config/` (e.g. `dot-config/tmux/`), `dot-local/`, `dot-ssh/`, etc.
-- [ ] Make minimal, targeted edits with clear intent.
-- [ ] When working with omarchy-related tasks, invoke the omarchy skill: `@omarchy`
-- [ ] Apply changes via existing dotfiles apply tooling or stow when necessary.
-- [ ] Avoid creating tests or example files unless explicitly asked.
-- [ ] Do not commit or amend unless explicitly requested.
+| Area | Path under `default/` |
+| --- | --- |
+| Hyprland | `dot-config/hypr/*.lua`, `hyprsunset.conf` |
+| Omarchy shell / idle | `dot-config/omarchy/shell.json` |
+| Cursor | `dot-config/Cursor/User/` |
+| Agent skills | `dot-agents/skills/` → `~/.agents/skills/` |
+| Other apps | `dot-config/`, `dot-local/`, `dot-ssh/`, … |
+| Shell utilities | `bin/` (repo root) |
 
-## Notes on Stow Layout
+Host-specific settings:
 
-- Dotfiles are stored in package directories (e.g., `default/`) using `dot-` prefix for home files and `dot-config/` for `~/.config`.
-- The Cursor skills path is stowed from `default/dot-cursor/skills/` to `~/.cursor/skills/`.
-- Omarchy files and scripts live at `/usr/share/omarchy/`; read-only access is OK for understanding the system.
-- **Local-only generated files** (app lockfiles, package-manager plugins, etc.) must not live in dotfiles. Stow uses `--no-folding` so config dirs are symlinked file-by-file. Reset links with `dac -- -D`, then re-apply with `dac`.
+- Hyprland: `dot-config/hypr/monitors.lua` branches on `/etc/hostname` and connected monitor descriptions.
+- Neovim: `dot-config/nvim/lua/plugins/jetls.lua` disables JETLS on hostname `kaspi`.
 
-## Examples
+Generated, local-only files (app lockfiles, package-manager plugins) must not live in dotfiles.
 
-**Hyprland config change**
+## Apply
 
-- Shared bindings: `~/dotfiles/default/dot-config/hypr/bindings.lua`
-- Monitors / host layouts: `~/dotfiles/default/dot-config/hypr/monitors.lua`
-- Apply with `dac`, then `hyprctl reload` and `hyprctl configerrors`.
+Run `dac`. To reset links: `dac -- -D`, then `dac`.
 
-**Cursor settings change**
+After changing Hyprland configs, always run `hyprctl reload` and `hyprctl configerrors`.
 
-- Edit `~/dotfiles/default/dot-config/Cursor/User/settings.json`
-- Apply changes using the existing dotfiles apply workflow.
+## Theme sync to replicas
 
-ALWAYS run `hyprctl configerrors` after changing hyprland configs, to check if there are any errors.
+Replicas do not clone Omarchy. `dotfiles-theme-sync-remote.sh` rsyncs the locally staged theme (`~/.local/state/omarchy/current/theme`) and applies terminal/tmux/neovim hooks.
 
-**Omarchy integration (dotfiles-only)**
-
-- If dotfiles reference omarchy paths or scripts, update those references in `~/dotfiles/` only.
-- Replicas do not clone Omarchy. Theme sync rsyncs the locally staged theme (`~/.local/state/omarchy/current/theme`) and applies terminal/tmux/neovim hooks via `dotfiles-theme-sync-remote.sh` (nvim needs `~/.config/nvim/lua/plugins/theme.lua` → staged `neovim.lua`, or LazyVim stays on tokyonight). Lazy reloads that spec; `autocmds.lua` finishes the colorscheme apply (`highlight clear` + `background` + `colorscheme`) so leftover groups like CursorLine do not survive a light→dark switch.
-- UiO Herdr targets use the `uio` jump ControlMaster; they do not need a per-target master for theme sync.
+- Neovim needs `~/.config/nvim/lua/plugins/theme.lua` → staged `neovim.lua`, or LazyVim stays on tokyonight. `autocmds.lua` finishes the apply (`highlight clear` + `background` + `colorscheme`) so groups like CursorLine do not survive a light→dark switch.
+- UiO Herdr targets use the `uio` jump ControlMaster; theme sync needs no per-target master.

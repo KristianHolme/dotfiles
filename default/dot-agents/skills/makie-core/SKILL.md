@@ -11,7 +11,7 @@ description: >-
 Use Makie (not a specific backend) for all plotting. Assume all features are available.
 
 ## Core Principles
-- Prefer modular plotting functions that accept a `GridPosition` or `Axis`, e.g. `plot_part_A!(ax, data; kwargs...)`.
+- Prefer modular plotting functions that accept a `GridPosition` or `Axis`, e.g. `build_summary_panel!(ax, data; kwargs...)`, composed by `build_figure(data; kwargs...) -> Figure`.
 - For complex figures, organize code by layout areas and use nested `GridLayout` sections to keep structure readable.
 - Keep functions small and focused: one axis/plot per function when possible.
 - Use mutating plot methods (`lines!`, `scatter!`, etc.) when plotting into existing axes.
@@ -23,12 +23,6 @@ Use Makie (not a specific backend) for all plotting. Assume all features are ava
 - Prefer explicit `Axis` creation for clarity in complex layouts.
 - Use `Colorbar` and `Legend` in adjacent layout cells rather than overlaying.
 - When lines differ by more than one attribute (colour, line style, marker, …), explain each attribute in its own group of a standalone `Legend` placed outside the axes, e.g. colour = policy, line style = bound: `Legend(fig[1, 2], [policy_entries, style_entries], [policy_labels, style_labels], ["Policy", "Bound"])`. Titles name the quantity only.
-
-## Modularity Pattern (Recommended)
-- Build figures by composing functions:
-  - `build_summary_panel!(ax, data; kwargs...)`
-  - `build_detail_panel!(ax, data; kwargs...)`
-  - `build_figure(data; kwargs...) -> Figure`
 
 ## Ask Before Building Static Plots
 If a static plot may be reused later in dynamic visualizations, ask whether the user wants the data inputs wired through `Observable`s from the start.

@@ -28,6 +28,9 @@
           "id": "omarchy.weather"
         },
         {
+          "id": "omarchy.agents"
+        },
+        {
           "id": "omarchy.microphone"
         },
         {
@@ -69,10 +72,6 @@
         },
         {
           "id": "robzolkos.github"
-        },
-        {
-          "id": "akitaonrails.ai-usagebar",
-          "lastSelectedEntryId": "cursor"
         },
         {
           "id": "omarchy.tailscale"

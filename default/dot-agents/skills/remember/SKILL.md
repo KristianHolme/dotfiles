@@ -65,6 +65,5 @@ unclear, ask one question.
   an agent assumption; do not invent a cause.
 - Do not turn a one-off request into a permanent rule. If it might be
   one-off, ask whether it should apply generally.
-- Do not paste long postmortems into skills.
-- Do not add a new skill for one line when an existing skill fits.
+- Extend an existing skill before adding a new one.
 - Never edit files under `/usr/share/omarchy` or other read-only system paths.

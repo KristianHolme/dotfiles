@@ -4,19 +4,17 @@ description: Review a Julia package's conceptual design — scope, type hierarch
 disable-model-invocation: true
 ---
 
-Review the Julia package in the current working directory for conceptual design issues. This is not a correctness check or a convention check — assume the code runs and follows modern Julia idioms. The question is whether the package's design is internally coherent: does it have a clear identity, a sensible type hierarchy, a consistent level of abstraction, and an API that composes naturally without exposing implementation accidents?
+Review the Julia package in the current working directory for conceptual design issues. Assume the code runs and follows modern Julia idioms; this is neither a correctness nor a convention check. Ask whether the design is coherent: clear identity, sensible type hierarchy, consistent abstraction level, an API that composes without exposing implementation accidents.
 
-This skill produces a structured report. Many findings will be questions for the author rather than clear recommendations, because the right answer often depends on design intent that only the author knows. Do not implement any changes in this skill.
-
-The package module name is determined from `Project.toml`.
+Produce a structured report. Many findings are questions for the author, since the answer depends on design intent. Do not implement changes. The module name is in `Project.toml`.
 
 ---
 
 ## Phases 1 + 2 — Understand the package and build a conceptual map
 
-Delegate the read to a subagent so the full source stays out of the main
+Delegate the read to a subagent (a fast, cheap model is enough) so the full source stays out of the main
 context. Give it [references/conceptual-mapper.md](references/conceptual-mapper.md) as its prompt and the
-package path. A fast, cheap model is enough for this extraction. If no subagent
+package path. If no subagent
 is available, follow the same prompt inline, then continue from its output only.
 
 It returns a **purpose summary** (Phase 1) and a **conceptual map** of types and operations (Phase 2). Work from those two artifacts — do not re-read the source — to run the coherence checks below. Read single source lines only to confirm a specific finding.
@@ -25,7 +23,7 @@ It returns a **purpose summary** (Phase 1) and a **conceptual map** of types and
 
 ## Phase 3 — Coherence checks
 
-Work through each of the following. For each finding, record: what you observed, why it may be a problem, and what question you would ask the author to determine whether it is intentional.
+For each finding, record: what you observed, why it may be a problem, and what question you would ask the author to determine whether it is intentional.
 
 ### 3a. Scope coherence
 
@@ -60,7 +58,7 @@ Given the operations that exist, are there natural operations that are absent?
 - If `f!` exists, is there a natural use case for the non-mutating `f` that users would expect?
 - If the package defines a container type, does it support the iteration and indexing operations that users would expect from a Julia container?
 
-- If a type has a custom `show` method whose output contains all the information needed to unambiguously reconstruct the object, but that output is not valid Julia syntax, consider whether a `Base.parse` method should exist. The test: could a user copy the REPL output and paste it back to recreate the value? If the answer is "no, but all the information is there," that is a gap worth flagging.
+- A custom `show` whose output holds everything needed to rebuild the object but is not valid Julia syntax: should a `Base.parse` method exist? Test: can a user paste the REPL output back to recreate the value?
 
 Do not flag absences that are obviously out of scope — focus on things a user would reasonably look for and be surprised not to find.
 
@@ -77,7 +75,7 @@ Do the package's own functions compose naturally with each other and with Base?
 - Output types of one function that cannot be passed directly to another related function — requires unpacking and repacking
 - Functions that return results in a format that is inconvenient to use with standard Julia tools (`map`, broadcasting, comprehensions)
 - Types that participate in the package's own operations but do not implement standard Julia interfaces (`iterate`, `getindex`, `show`, etc.) that would make them broadly usable
-- Types that define `==` (i.e., extend `Base.:(==)`) but do not define a matching `Base.hash` — the default `hash` is identity-based, so such types will silently misbehave as `Dict` keys or `Set` elements. Conversely, check that any custom `hash` is consistent with `==`: `isequal(x, y)` must imply `hash(x) == hash(y)`. Note that `isequal` falls back to `==` for most types, so defining `==` without `hash` is the common failure mode.
+- Types that define `==` (i.e., extend `Base.:(==)`) but do not define a matching `Base.hash` — the default `hash` is identity-based, so such types will silently misbehave as `Dict` keys or `Set` elements. Conversely, check that any custom `hash` is consistent with `==`: `isequal(x, y)` must imply `hash(x) == hash(y)`. `isequal` falls back to `==`, so `==` without `hash` is the common failure.
 
 ### 3g. Relationship to Base and the standard library
 
