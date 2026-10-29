@@ -9,6 +9,8 @@ Host saga betzy olivia
     Hostname %h.sigma2.no
     ForwardAgent yes
     setEnv TERM=xterm-256color
+    # IPv6 to olivia.sigma2.no stalls from the UiO hosts; IPv4 connects at once.
+    AddressFamily inet
     ControlMaster auto
     ControlPath ~/.ssh/%r@%h:%p
     ControlPersist 4h

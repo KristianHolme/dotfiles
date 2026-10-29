@@ -15,6 +15,7 @@ Use Makie (not a specific backend) for all plotting. Assume all features are ava
 
 ## Animations and Recording
 - For recording, use `record(fig, "out.mp4", iterator) do frame ... end` and update observables inside the loop.
+- Format numbers in per-frame text (time, step, value) to a fixed width so the text does not shift between frames: zero-pad with `@sprintf("%05.2f", t)` (Printf; a padding space is narrower than a digit), not `round(t; digits = 2)`, which prints 1.5 and 1.25 at different widths. Put text that changes between frames in its own `Label`, so it does not move the text next to it.
 - Avoid manual `sleep` loops or `@async` timers for animation.
 - Use `events(fig).tick` for frame-aligned updates in interactive sessions.
 
