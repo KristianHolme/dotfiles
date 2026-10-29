@@ -27,6 +27,14 @@ Scripts are for **interactive REPL work** (include / run section by section), no
 
 Write `isinteractive() && display(fig)` in the plot section. A REPL/IDE user sees the figure; a headless run (`julia script.jl`, `julia -e`, juliaclient) skips it, so no window pops up on the user's desktop. See [makie-core](../makie-core/SKILL.md).
 
+## Progress for long runs
+
+A loop that can take more than about 2 minutes (time stepping, sweeps, training, Makie `record`) reports progress: steps done of total, elapsed time and ETA.
+
+- One loop: ProgressMeter.jl, `@showprogress` or `p = Progress(n; desc = "sim", dt = 10)` with `next!(p)` in the loop. For `record(fig, path, frames)`, call `next!(p)` in the frame function.
+- Parallel tasks or workers: MultiProgressManagers.jl, one bar per task.
+- Headless runs (log file, juliaclient, `nohup`) have no terminal, so a redrawing bar is hard to read with `tail`. Use a large `dt` (30–60 s), or print a plain line every N steps: `@info "step $i/$n" elapsed eta`.
+
 ## Save in its own section
 
 Use a separate `##` block at the bottom, never a wrapper function.
