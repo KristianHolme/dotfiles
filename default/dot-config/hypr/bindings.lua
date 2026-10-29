@@ -3,21 +3,11 @@
 
 local home = os.getenv("HOME") or ""
 
--- SUPER+CTRL+RETURN is Herdr when preinstalled bindings are on; keep Ghostty QT.
--- Ghostty registers this as a compositor global shortcut (hyprctl globalshortcuts).
--- The old helper injected Super+Ctrl+Enter into a mapped Ghostty window, or else
--- launched `ghostty` as a normal window. Hidden group members are unmapped, so
--- a focused group made the helper take the launch path; group:auto_group then
--- inserted that window into the group. Second press found the new mapped window
--- and finally toggled the overlay.
--- Ghostty 1.3.1 has no +toggle-quick-terminal CLI; the registered id is
--- `com.mitchellh.ghostty:CTRL+LOGO+Return` (not `ghostty:...`).
+-- SUPER+CTRL+RETURN is Herdr when preinstalled bindings are on; keep it free for
+-- the Ghostty quick terminal. Ghostty (>= 1.4) claims the key itself through the
+-- Wayland hotkeys protocol (`global:` keybind in ghostty/config). A Hyprland bind
+-- on the same key makes Ghostty's request fail with `.already_bound`.
 hl.unbind("SUPER + CTRL + RETURN")
-o.bind(
-    "SUPER + CTRL + RETURN",
-    "Quick terminal",
-    hl.dsp.global("com.mitchellh.ghostty:CTRL+LOGO+Return")
-)
 
 -- Quattro default here is nautilus in the current directory.
 -- Unbind must match Omarchy's string exactly (modifier order matters).

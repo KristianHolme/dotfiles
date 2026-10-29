@@ -71,6 +71,10 @@ Host ml7-herdr
     BatchMode yes
     ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
 
+Host bali-herdr
+    Hostname bali
+    BatchMode yes
+
 Host uio
     Hostname login.math.uio.no
     user kholme
