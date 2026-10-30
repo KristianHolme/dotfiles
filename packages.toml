@@ -62,7 +62,7 @@ remove = ["HEY", "Basecamp", "WhatsApp", "Google Photos", "ChatGPT", "Figma"]
 
 [cargo]
 # Use "crate:command" when the binary name differs from the crate name.
-install = ["mdv", "tree-sitter-cli:tree-sitter"]
+install = ["cargo-update:cargo-install-update", "mdv", "tree-sitter-cli:tree-sitter"]
 
 [uv]
 # Desktop Python CLI tools (uv tool install). package or package[extras]:command.

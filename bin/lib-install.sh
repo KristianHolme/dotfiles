@@ -520,38 +520,13 @@ cargo_crate_is_installed() {
     cargo install --list 2>/dev/null | grep -qE "^${crate} "
 }
 
-cargo_crate_installed_version() {
-    local crate="$1"
-    cargo install --list 2>/dev/null | awk -v c="$crate" '$1 == c {
-        v = $2
-        sub(/^v/, "", v)
-        sub(/:$/, "", v)
-        print v
-        exit
-    }'
-}
-
-cargo_crate_latest_version() {
-    local crate="$1"
-    curl -fsSL --max-time "${CURL_TIMEOUT:-30}" \
-        -A "dotfiles-setup (cargo crate version check)" \
-        "https://crates.io/api/v1/crates/${crate}" |
-        jq -r '.crate.max_stable_version // .crate.max_version // empty'
-}
-
 cargo_install_crate() {
-    local crate="$1" cmd="$2" force="${3:-0}"
-    local -a args=("$crate")
+    local crate="$1" cmd="$2"
     local target_dir=""
-    if [[ "$force" == "1" ]]; then
-        args+=(--force)
-        log_info "Updating $crate via cargo (binary: $cmd)..."
-    else
-        log_info "Installing $crate via cargo (binary: $cmd)..."
-    fi
+    log_info "Installing $crate via cargo (binary: $cmd)..."
     target_dir=$(mktemp -d)
     trap 't="${target_dir:-}"; [[ -n "$t" ]] && rm -rf "$t"' RETURN
-    if CARGO_TARGET_DIR="$target_dir" cargo install "${args[@]}"; then
+    if CARGO_TARGET_DIR="$target_dir" cargo install "$crate"; then
         cargo_prepend_path
         if command -v "$cmd" >/dev/null 2>&1; then
             log_success "Installed $cmd -> $(command -v "$cmd")"
@@ -567,7 +542,7 @@ cargo_install_crate() {
 }
 
 # Install crates from packages.toml [cargo].install (crate or crate:command per entry).
-# With DOTFILES_SETUP_UPGRADE=1, cargo-installed crates are updated when crates.io is newer.
+# Afterwards every cargo-installed crate is updated via cargo-install-update (cargo-update).
 setup_cargo_crates() {
     local -a entries=()
 
@@ -583,7 +558,7 @@ setup_cargo_crates() {
         return 1
     fi
 
-    local entry crate cmd installed_ver latest_ver
+    local entry crate cmd
     for entry in "${entries[@]}"; do
         if [[ "$entry" == *:* ]]; then
             crate="${entry%%:*}"
@@ -595,22 +570,7 @@ setup_cargo_crates() {
 
         cargo_prepend_path
         if cargo_crate_is_installed "$crate"; then
-            if ! dotfiles_setup_upgrade_enabled; then
-                log_info "$cmd already installed via cargo; skipping $crate"
-                continue
-            fi
-            installed_ver=$(cargo_crate_installed_version "$crate" || true)
-            latest_ver=$(cargo_crate_latest_version "$crate" || true)
-            if [[ -n "$installed_ver" && -n "$latest_ver" ]] && ver_ge "$installed_ver" "$latest_ver"; then
-                log_info "$crate already up to date ($installed_ver)"
-                continue
-            fi
-            if [[ -z "$latest_ver" ]]; then
-                log_warning "Could not query crates.io for $crate; forcing cargo install"
-            else
-                log_info "$crate ${installed_ver:-unknown} older than $latest_ver"
-            fi
-            cargo_install_crate "$crate" "$cmd" 1
+            log_info "$cmd already installed via cargo; skipping $crate"
             continue
         fi
         if [[ -z "${DOTFILES_INSTALL_ROOT:-}" ]] && command -v "$cmd" >/dev/null 2>&1; then
@@ -618,8 +578,15 @@ setup_cargo_crates() {
             continue
         fi
 
-        cargo_install_crate "$crate" "$cmd" 0
+        cargo_install_crate "$crate" "$cmd"
     done
+
+    if command -v cargo-install-update >/dev/null 2>&1; then
+        log_info "Updating cargo-installed crates"
+        cargo install-update -a || log_warning "cargo install-update failed; continuing"
+    else
+        log_warning "cargo-install-update not found; skipping crate updates"
+    fi
 }
 
 # Bootstrap uv via the official standalone installer (replica servers, no sudo).
