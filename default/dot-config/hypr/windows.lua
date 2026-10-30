@@ -10,6 +10,10 @@ o.window({ class = "^cursor$" }, { workspace = "2" })
 
 o.window({ class = "^md\\.obsidian\\.Obsidian$" }, { workspace = "name:O" })
 
+-- Fain (Rex client) is a terminal: Omarchy's universal Super+C/V then sends it
+-- Ctrl+Shift+C/V, and terminal-specific theming applies.
+o.window({ class = "^fain$" }, { tag = "+terminal" })
+
 -- Obsidian sets the Settings title after map, so a static float rule never matches.
 -- 1333x1149 on HDMI-A-1 (3840x2160 @ 1.25 → layout 3072x1728).
 local OBSIDIAN_SETTINGS_RATIO = { w = 1333 / 3072, h = 1149 / 1728 }
