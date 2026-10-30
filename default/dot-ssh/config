@@ -59,6 +59,12 @@ Host nam-shub-02-herdr
     BatchMode yes
     ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
 
+Host zadkiel-herdr
+    Hostname zadkiel
+    User kholme
+    BatchMode yes
+    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
+
 Host ml6-herdr
     Hostname ml6.hpc.uio.no
     User kholme
