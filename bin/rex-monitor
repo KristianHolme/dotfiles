@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Builds the Rex "monitor" session on zadkiel: a local tab, then one tab per
+# machine running btop, nvidia-smi, slurry, cost and dusage over SSH.
+# Running it again replaces those tabs; every other tab in the session (such as
+# "master agent") is kept, after the local "monitor" tab.
+# Usage: rex-monitor [SESSION]   (default: monitor)
+set -Eeuo pipefail
+
+session=${1:-monitor}
+mon=${REX_MONITOR_SSH:-rex-monitor-ssh}
+rex=(rex)
+[[ "$(hostname -s)" == zadkiel ]] || rex=(rex -S zadkiel)
+
+# Tab definitions: the tab name, then its first pane's command.
+tabs=(monitor abacus-as abacus-min nam-shub-01 nam-shub-02 ml6 ml7 saga olivia)
+
+first_command() {
+	case $1 in
+	monitor) echo "btop" ;;
+	saga | olivia) echo "$mon $1 slurry" ;;
+	*) echo "$mon $1 btop" ;;
+	esac
+}
+
+# Splits beside the tab's first pane (block $2).
+add_splits() {
+	local t=$1 b=$2 r
+	case $t in
+	monitor)
+		r=$(split "$b" right 50 "watch -n 360 df -h")
+		split "$r" below 64 "watch -n 600 dust" >/dev/null
+		;;
+	nam-shub-01 | nam-shub-02 | ml6 | ml7)
+		split "$b" right 34 "$mon $t 'watch -n 1 nvidia-smi'" >/dev/null
+		;;
+	saga | olivia)
+		r=$(split "$b" right 37 "$mon $t 'watch -n 300 cost --details'")
+		split "$r" below 50 "$mon $t 'watch -n 600 dusage'" >/dev/null
+		;;
+	esac
+}
+
+split() { # anchor direction ratio command -> new block id
+	"${rex[@]}" split -s "$session" -b "$1" --split="$2" --ratio "$3" \
+		--focus=false --json -- sh -c "$4" | jq -er '.block_ids[0]'
+}
+
+if ! "${rex[@]}" ls --json | jq -e --arg s "$session" '.. | objects | select(.label? == $s)' >/dev/null; then
+	"${rex[@]}" new "$session" --window placeholder >/dev/null
+fi
+
+# The managed tabs that exist now, closed after the new ones are up.
+old=$("${rex[@]}" window ls -s "$session" --json | jq -r --argjson names "$(printf '%s\n' "${tabs[@]}" placeholder | jq -R . | jq -s .)" \
+	'.windows[] | select(.label as $l | $names | index($l)) | .window_id')
+
+first_window=
+for t in "${tabs[@]}"; do
+	created=$("${rex[@]}" window new -s "$session" "$t" --focus=false --json -- sh -c "$(first_command "$t")")
+	add_splits "$t" "$(jq -er '.block_ids[0]' <<<"$created")"
+	[[ -n $first_window ]] || first_window=$(jq -er '.window_id' <<<"$created")
+	echo "built $t"
+done
+
+# shellcheck disable=SC2086
+[[ -z $old ]] || "${rex[@]}" window close -s "$session" $old >/dev/null
+"${rex[@]}" window move -s "$session" "$first_window" --index 1 >/dev/null
+# Kept tabs go right after the local tab, before the machine tabs.
+pos=2
+while read -r w; do
+	"${rex[@]}" window move -s "$session" "$w" --index "$pos" >/dev/null
+	pos=$((pos + 1))
+done < <("${rex[@]}" window ls -s "$session" --json | jq -r --argjson names "$(printf '%s\n' "${tabs[@]}" | jq -R . | jq -s .)" \
+	'.windows[] | select(.label as $l | $names | index($l) | not) | .window_id')
+echo "monitor session ready: ${#tabs[@]} tabs rebuilt"

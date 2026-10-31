@@ -63,3 +63,28 @@ rex.action{
   end,
 }
 rex.bind("ctrl+shift+l", "ssh_login")
+
+-- Rebuilds the "monitor" session on zadkiel with dotfiles' rex-monitor: one tab
+-- per machine (btop, nvidia-smi, slurry, cost, dusage). Other tabs there, such
+-- as "master agent", are kept. Use it after a server restart; a lost connection
+-- needs only a login, as the panes reconnect.
+rex.action{
+  name     = "monitor_rebuild",
+  title    = "Rebuild Monitor",
+  category = "Scripts",
+  keywords = "monitor btop nvidia slurry cost dusage machines",
+  run      = function(ctx)
+    local r, err = rex.session.new_layer{
+      bounds = { 0.25, 0.3, 0.5, 0.4 },
+      layout = { block = {
+        flavor  = "com.superlogical.terminal.shell",
+        label   = "rebuild monitor",
+        options = { command = { "sh", "-c",
+          os.getenv("HOME") .. "/dotfiles/bin/rex-monitor; printf 'Press Enter to close'; read -r _" } },
+      } },
+      focus  = true,
+    }
+    if err ~= nil then error(err, 0) end
+    return r
+  end,
+}

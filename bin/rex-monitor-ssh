@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Runs COMMAND on HOST over SSH in a Rex monitor pane, and reconnects when the
+# connection fails, such as while the host's ControlMaster is down.
+# Quitting COMMAND leaves an interactive shell on HOST.
+# Usage: rex-monitor-ssh HOST COMMAND
+set -uo pipefail
+
+host=$1
+cmd=$2
+ssh_opts=(-o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+
+printf '\033]0;%s: %s\007' "$host" "$cmd"
+while :; do
+	ssh "${ssh_opts[@]}" -t "$host" "$cmd"
+	# 255 is ssh's own failure: no master, network down. Anything else is COMMAND exiting.
+	(($? == 255)) || break
+	printf '\n%s: not connected. Log in with Ctrl+Shift+L; retrying every 15 s.\n' "$host"
+	sleep 15
+done
+exec ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=3 "$host"

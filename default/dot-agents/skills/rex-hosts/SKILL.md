@@ -92,3 +92,12 @@ On bengal: `systemctl --user disable --now rex-tunnel-zadkiel` and
 `rex hosts remove zadkiel`. On zadkiel:
 `systemctl --user disable --now rex-server`. Linger can stay on. herdr is
 untouched by this setup.
+
+## Monitor session
+
+`~/dotfiles/bin/rex-monitor` builds the `monitor` session on zadkiel: one tab
+per machine, its panes running `rex-monitor-ssh HOST CMD`, which reconnects
+after a failed connection. The "Rebuild Monitor" action (`init.lua`) runs it.
+To change what a machine shows, edit the `tabs`, `first_command` and
+`add_splits` in the script; tabs it doesn't name, such as "master agent", are
+kept.
