@@ -4,13 +4,18 @@
 local home = os.getenv("HOME") or ""
 
 -- SUPER+CTRL+RETURN is Herdr when preinstalled bindings are on; it opens Fain's
--- quick terminal in the middle of the screen instead, and SUPER+CTRL+UP/DOWN at
--- the top and bottom edge. Fain runs the action (`rex do`); its layer rules are
+-- quick terminal in the middle of the screen instead, and SUPER+CTRL+arrows at
+-- each edge. Fain runs the action (`rex do`); its layer rules are
 -- in windows.lua.
 hl.unbind("SUPER + CTRL + RETURN")
 o.bind("SUPER + CTRL + RETURN", "Fain quick terminal", "rex do quick.toggle position=center")
 o.bind("SUPER + CTRL + UP", "Fain quick terminal at the top", "rex do quick.toggle position=top")
 o.bind("SUPER + CTRL + DOWN", "Fain quick terminal at the bottom", "rex do quick.toggle position=bottom")
+-- Omarchy's group focus on these keys is also on SUPER+ALT+TAB / SUPER+ALT+SHIFT+TAB.
+hl.unbind("SUPER + CTRL + LEFT")
+hl.unbind("SUPER + CTRL + RIGHT")
+o.bind("SUPER + CTRL + LEFT", "Fain quick terminal at the left", "rex do quick.toggle position=left")
+o.bind("SUPER + CTRL + RIGHT", "Fain quick terminal at the right", "rex do quick.toggle position=right")
 
 -- Quattro default here is nautilus in the current directory.
 -- Unbind must match Omarchy's string exactly (modifier order matters).
