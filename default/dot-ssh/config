@@ -7,7 +7,6 @@ Host *
 Host saga betzy olivia
     User kholme
     Hostname %h.sigma2.no
-    ForwardAgent yes
     setEnv TERM=xterm-256color
     # IPv6 to olivia.sigma2.no stalls from the UiO hosts; IPv4 connects at once.
     AddressFamily inet
@@ -110,7 +109,6 @@ Host abacus*
 Host freebio* bioint0* ml*
     HostName %h.hpc.uio.no
     User kholme
-    ForwardAgent yes
     ProxyJump uio
     SendEnv TERM
     SetEnv TERM=xterm-256color

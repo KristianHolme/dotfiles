@@ -3,11 +3,14 @@
 
 local home = os.getenv("HOME") or ""
 
--- SUPER+CTRL+RETURN is Herdr when preinstalled bindings are on; keep it free for
--- the Ghostty quick terminal. Ghostty (>= 1.4) claims the key itself through the
--- Wayland hotkeys protocol (`global:` keybind in ghostty/config). A Hyprland bind
--- on the same key makes Ghostty's request fail with `.already_bound`.
+-- SUPER+CTRL+RETURN is Herdr when preinstalled bindings are on; it opens Fain's
+-- quick terminal in the middle of the screen instead, and SUPER+CTRL+UP/DOWN at
+-- the top and bottom edge. Fain runs the action (`rex do`); its layer rules are
+-- in windows.lua.
 hl.unbind("SUPER + CTRL + RETURN")
+o.bind("SUPER + CTRL + RETURN", "Fain quick terminal", "rex do quick.toggle position=center")
+o.bind("SUPER + CTRL + UP", "Fain quick terminal at the top", "rex do quick.toggle position=top")
+o.bind("SUPER + CTRL + DOWN", "Fain quick terminal at the bottom", "rex do quick.toggle position=bottom")
 
 -- Quattro default here is nautilus in the current directory.
 -- Unbind must match Omarchy's string exactly (modifier order matters).

@@ -111,3 +111,11 @@ hl.layer_rule({
     match = { namespace = "quickterminal" },
     dim_around = true,
 })
+
+-- Fain's quick terminal: one layer namespace per position, so each slides in
+-- from its own edge; Fain dims the rest of the screen itself (fain-quick-dim).
+for _, edge in ipairs({ "top", "bottom", "left", "right" }) do
+    hl.layer_rule({ name = "fain-quick-" .. edge, match = { namespace = "^fain-quick-" .. edge .. "$" }, animation = "slide " .. edge })
+end
+hl.layer_rule({ name = "fain-quick-center", match = { namespace = "^fain-quick-center$" }, animation = "popin 90%" })
+hl.layer_rule({ name = "fain-quick-dim", match = { namespace = "^fain-quick-dim$" }, animation = "fade" })

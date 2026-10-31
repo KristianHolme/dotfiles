@@ -490,11 +490,7 @@ upgrade_rustup_toolchain() {
 ensure_cargo() {
     cargo_prepend_path
     local cargo_bin="${CARGO_HOME:-$HOME/.cargo}/bin/cargo"
-    local rustup_bin="${CARGO_HOME:-$HOME/.cargo}/bin/rustup"
     if [[ -x "$cargo_bin" ]]; then
-        if dotfiles_setup_upgrade_enabled && [[ -x "$rustup_bin" ]]; then
-            upgrade_rustup_toolchain
-        fi
         return 0
     fi
 
@@ -582,6 +578,8 @@ setup_cargo_crates() {
     done
 
     if command -v cargo-install-update >/dev/null 2>&1; then
+        # New crate releases may need a newer rustc than the installed toolchain.
+        upgrade_rustup_toolchain
         log_info "Updating cargo-installed crates"
         cargo install-update -a || log_warning "cargo install-update failed; continuing"
     else
