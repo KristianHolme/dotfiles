@@ -1,0 +1,11 @@
+[Unit]
+Description=Rex server for this account, on its Unix socket only (reached over SSH)
+# The home directory is shared with nam-shub and abacus: run only on zadkiel.
+ConditionHost=zadkiel.uio.no
+
+[Service]
+ExecStart=%h/.local/bin/rex server run --listen %t/rex/server.sock
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

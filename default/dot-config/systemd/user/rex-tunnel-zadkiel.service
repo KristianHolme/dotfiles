@@ -1,0 +1,20 @@
+[Unit]
+Description=SSH forward of zadkiel's Rex server socket to %t/rex-tunnels/zadkiel.sock
+After=network-online.target
+
+[Service]
+# %t/rex-tunnels is created mode 0700 and removed when the unit stops.
+RuntimeDirectory=rex-tunnels
+RuntimeDirectoryMode=0700
+# zadkiel-herdr goes through the uio ControlMaster with BatchMode: without a
+# master this fails fast and systemd retries. Log in with dotfiles-ssh-login.sh.
+ExecStart=/usr/bin/ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes \
+    -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+    -o StreamLocalBindUnlink=yes \
+    -L %t/rex-tunnels/zadkiel.sock:/run/user/293575/rex/server.sock \
+    zadkiel-herdr
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
