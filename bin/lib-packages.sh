@@ -20,7 +20,7 @@
 #   remove = ["WebAppName", ...]
 #
 #   [cargo]
-#   install = ["crate", "crate:command", ...]
+#   install = ["crate", "crate:command", "git-url:command", ...]
 #
 #   [uv]
 #   install = ["package", "package[extras]:command", ...]  # desktop uv tool CLIs

@@ -520,9 +520,15 @@ cargo_install_crate() {
     local crate="$1" cmd="$2"
     local target_dir=""
     log_info "Installing $crate via cargo (binary: $cmd)..."
+    local -a src=("$crate")
+    # Git sources install with --git; the git CLI fetches, so SSH keys and
+    # credential helpers for private repositories apply.
+    if [[ "$crate" == *://* ]]; then
+        src=(--locked --git "$crate")
+    fi
     target_dir=$(mktemp -d)
     trap 't="${target_dir:-}"; [[ -n "$t" ]] && rm -rf "$t"' RETURN
-    if CARGO_TARGET_DIR="$target_dir" cargo install "$crate"; then
+    if CARGO_NET_GIT_FETCH_WITH_CLI=true CARGO_TARGET_DIR="$target_dir" cargo install "${src[@]}"; then
         cargo_prepend_path
         if command -v "$cmd" >/dev/null 2>&1; then
             log_success "Installed $cmd -> $(command -v "$cmd")"
@@ -537,7 +543,8 @@ cargo_install_crate() {
     trap - RETURN
 }
 
-# Install crates from packages.toml [cargo].install (crate or crate:command per entry).
+# Install crates from packages.toml [cargo].install (crate, crate:command, or
+# git-url:command per entry; for a git URL the package name must equal command).
 # Afterwards every cargo-installed crate is updated via cargo-install-update (cargo-update).
 setup_cargo_crates() {
     local -a entries=()
@@ -556,16 +563,23 @@ setup_cargo_crates() {
 
     local entry crate cmd
     for entry in "${entries[@]}"; do
-        if [[ "$entry" == *:* ]]; then
+        local pkg
+        if [[ "$entry" == *://* ]]; then
+            crate="${entry%:*}"
+            cmd="${entry##*:}"
+            pkg="$cmd"
+        elif [[ "$entry" == *:* ]]; then
             crate="${entry%%:*}"
             cmd="${entry##*:}"
+            pkg="$crate"
         else
             crate="$entry"
             cmd="$entry"
+            pkg="$crate"
         fi
 
         cargo_prepend_path
-        if cargo_crate_is_installed "$crate"; then
+        if cargo_crate_is_installed "$pkg"; then
             log_info "$cmd already installed via cargo; skipping $crate"
             continue
         fi
