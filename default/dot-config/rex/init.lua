@@ -88,3 +88,69 @@ rex.action{
     return r
   end,
 }
+
+-- Returns an action that toggles a floating terminal named `name` running
+-- `command` in the active tab. The first press opens it in the focused
+-- pane's directory. Later presses hide it when it has focus, and show and
+-- focus it when it is hidden or behind. Quitting the program closes it, so the
+-- next press opens a new one.
+local function float_toggle(name, command)
+  return function(ctx)
+    local view = rex.call("session.view", { session_id = ctx.session_id })
+    local window
+    for _, w in ipairs(view.windows or {}) do
+      if w.window_id == view.active_window_id then window = w end
+    end
+    if not window then return "no active tab" end
+
+    for _, layer in ipairs(window.layers or {}) do
+      if layer.kind ~= "tiled" then
+        for _, b in ipairs(layer.blocks or {}) do
+          if b.label == name then
+            local hide = layer.state ~= "minimized" and window.focused_block_id == b.block_id
+            rex.call("session.set_layer_state", {
+              session_id = ctx.session_id, layer_id = layer.layer_id,
+              state = hide and "minimized" or "normal", focus = not hide,
+            })
+            return hide and "hidden" or "shown"
+          end
+        end
+      end
+    end
+
+    local cwd = ""
+    if ctx.block_id then
+      local ok, p = pcall(rex.block.call, "com.superlogical.terminal", "process", { block_id = ctx.block_id })
+      if ok and p and p.foreground then cwd = p.foreground.cwd or "" end
+    end
+    local r, err = rex.session.new_layer{
+      bounds = { 0.05, 0.05, 0.9, 0.9 },
+      layout = { block = {
+        flavor  = "com.superlogical.terminal.shell",
+        label   = name,
+        options = { command = command, cwd = cwd },
+      } },
+      focus  = true,
+    }
+    if err ~= nil then error(err, 0) end
+    return r
+  end
+end
+
+rex.action{
+  name     = "float_lazygit",
+  title    = "Toggle Floating Lazygit",
+  category = "Scripts",
+  keywords = "git lazygit float toggle",
+  run      = float_toggle("lazygit", { "lazygit" }),
+}
+rex.bind("ctrl+alt+l", "float_lazygit")
+
+rex.action{
+  name     = "float_btop",
+  title    = "Toggle Floating btop",
+  category = "Scripts",
+  keywords = "btop top monitor float toggle",
+  run      = float_toggle("btop", { "btop" }),
+}
+rex.bind("ctrl+alt+b", "float_btop")
