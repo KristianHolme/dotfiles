@@ -21,29 +21,21 @@ o.bind("SUPER + CTRL + RIGHT", "Fain quick terminal at the right", "rex do quick
 -- Unbind must match Omarchy's string exactly (modifier order matters).
 hl.unbind("SUPER + ALT + SHIFT + F")
 o.bind(
-    "SUPER + SHIFT + ALT + F",
-    "File manager (floating)",
-    "[float;center;size 1000 600] uwsm-app -- nautilus --new-window"
+	"SUPER + SHIFT + ALT + F",
+	"File manager (floating)",
+	"[float;center;size 1000 600] uwsm-app -- nautilus --new-window"
 )
 
 -- Quattro preinstalled default is Google Photos; old scratch-nvim chord.
 hl.unbind("SUPER + SHIFT + P")
-o.bind(
-    "SUPER + SHIFT + P",
-    "Omawrite (floating)",
-    "[float;center;size 600 500] uwsm-app -- omawrite"
-)
+o.bind("SUPER + SHIFT + P", "Omawrite (floating)", "[float;center;size 600 500] uwsm-app -- omawrite")
 
 o.bind(
-    "SUPER + less",
-    "Obsidian",
-    home .. "/dotfiles/bin/dotfiles-cmd-launch-or-focus-class md.obsidian.Obsidian 'uwsm-app -- obsidian'"
+	"SUPER + less",
+	"Obsidian",
+	home .. "/dotfiles/bin/dotfiles-cmd-launch-or-focus-class md.obsidian.Obsidian 'uwsm-app -- obsidian'"
 )
-o.bind(
-    "SUPER + Z",
-    "Zotero",
-    home .. "/dotfiles/bin/dotfiles-cmd-launch-or-focus-zotero 'uwsm-app -- zotero'"
-)
+o.bind("SUPER + Z", "Zotero", home .. "/dotfiles/bin/dotfiles-cmd-launch-or-focus-zotero 'uwsm-app -- zotero'")
 o.bind("SUPER + SHIFT + backslash", "Passwords", { launch = "bitwarden-desktop" })
 
 o.bind("SUPER + ALT + RETURN", "Tmux", { omarchy = "terminal-tmux" })
@@ -65,23 +57,31 @@ o.bind("SUPER + bar", "Agent console", hl.dsp.workspace.toggle_special("scratchp
 o.bind("SUPER + A", "Agent console", hl.dsp.workspace.toggle_special("scratchpad"))
 
 -- Move the focused window into the agent console.
-o.bind("SUPER + ALT + bar", "Move to agent console", hl.dsp.window.move({ workspace = "special:scratchpad", follow = false }))
+o.bind(
+	"SUPER + ALT + bar",
+	"Move to agent console",
+	hl.dsp.window.move({ workspace = "special:scratchpad", follow = false })
+)
 
 -- Restored Omarchy 3.x-style fullscreen scratchpad, separate from the agent
 -- console. A second, fullscreen special workspace (special:restored).
 -- SUPER+S toggles it; SUPER+ALT+S moves the focused window into it.
 hl.workspace_rule({
-  workspace = "special:restored",
-  gaps_in = 0,
-  gaps_out = { top = 0, right = 0, bottom = 0, left = 0 },
-  no_border = true,
+	workspace = "special:restored",
+	gaps_in = 0,
+	gaps_out = { top = 0, right = 0, bottom = 0, left = 0 },
+	no_border = true,
 })
 o.bind("SUPER + S", "Fullscreen scratchpad", hl.dsp.workspace.toggle_special("restored"))
 
 -- Override the Omarchy default: SUPER+ALT+S previously moved to the agent
 -- console; this user wants it to move into the fullscreen scratchpad instead.
 hl.unbind("SUPER + ALT + S")
-o.bind("SUPER + ALT + S", "Move to fullscreen scratchpad", hl.dsp.window.move({ workspace = "special:restored", follow = false }))
+o.bind(
+	"SUPER + ALT + S",
+	"Move to fullscreen scratchpad",
+	hl.dsp.window.move({ workspace = "special:restored", follow = false })
+)
 
 o.bind("SUPER + SHIFT + G", "Grok", { webapp = "https://grok.com" })
 o.bind("SUPER + SHIFT + ALT + G", "Perplexity", { webapp = "https://perplexity.com" })
@@ -91,9 +91,9 @@ o.bind("SUPER + SHIFT + ALT + E", "Outlook", { webapp = "https://outlook.office.
 o.bind("SUPER + SHIFT + Y", "YouTube", { webapp = "https://youtube.com/" })
 o.bind("SUPER + SHIFT + M", "messenger", { webapp = "https://www.messenger.com/", focus = true })
 o.bind(
-    "SUPER + SHIFT + ALT + M",
-    "Google Messages",
-    { webapp = "https://messages.google.com/web/conversations", focus = true }
+	"SUPER + SHIFT + ALT + M",
+	"Google Messages",
+	{ webapp = "https://messages.google.com/web/conversations", focus = true }
 )
 o.bind("SUPER + SHIFT + CTRL + M", "Signal", { launch = "signal-desktop", focus = "signal" })
 o.bind("SUPER + SHIFT + X", "X", { webapp = "https://x.com/" })
