@@ -36,6 +36,14 @@ keybind = super+control+shift+alt+arrow_left=resize_split:left,100
 keybind = super+control+shift+alt+arrow_right=resize_split:right,100
 keybind = ctrl+shift+|=new_split:right
 keybind = ctrl+shift+-=new_split:down
+# Splits and prompt jumps on the same keys as Fain. Tabs keep ctrl+tab and
+# ctrl+page_up/down.
+keybind = ctrl+shift+arrow_right=new_split:right
+keybind = ctrl+shift+arrow_down=new_split:down
+keybind = ctrl+shift+arrow_left=new_split:left
+keybind = ctrl+shift+arrow_up=new_split:up
+keybind = ctrl+shift+page_up=jump_to_prompt:-1
+keybind = ctrl+shift+page_down=jump_to_prompt:1
 keybind = ctrl+alt+left=goto_split:left
 keybind = ctrl+alt+right=goto_split:right
 keybind = ctrl+alt+up=goto_split:up
