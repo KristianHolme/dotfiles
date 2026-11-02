@@ -66,8 +66,14 @@ fi
 
 for host in "${hosts[@]}"; do
 	if ssh -O check "$host" >/dev/null 2>&1; then
-		log_info "$host: already logged in"
-		continue
+		# A master whose connection died (network change, sleep) still
+		# answers -O check; only a command through it shows it is stale.
+		if timeout 10 ssh -o BatchMode=yes "$host" true >/dev/null 2>&1; then
+			log_info "$host: already logged in"
+			continue
+		fi
+		log_warning "$host: master is stale, logging in again"
+		ssh -O exit "$host" >/dev/null 2>&1
 	fi
 	log_info "$host: logging in"
 	if ssh -fN "$host"; then
