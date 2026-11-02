@@ -47,24 +47,23 @@ o.bind("SUPER + SHIFT + D", "Docker", { tui = "lazydocker" })
 o.bind("SUPER + D", "Downloads", "omarchy-shell shell toggle jankeesvw.downloads")
 o.bind("SUPER + SHIFT + R", "Screen ruler", { panel = "kristianholme.ruler" })
 
--- Agent console: the Omarchy Quake console (half-screen drop-down that
--- launches the default agent), toggled with SUPER + | (the pipe key).
--- On the Norwegian layout the pipe is the top-left key, XKB name `bar` (not
--- `grave`), so it is bound as SUPER + bar. SUPER + A also toggles it.
+-- Quick agent: Fain's quick pane running the default coding agent
+-- (`omarchy agent`), placed like the quick terminal: SUPER+CTRL+ALT+RETURN in
+-- the middle of the screen, SUPER+CTRL+ALT+arrows at each edge. SUPER + | (the
+-- pipe key) also opens it in the middle. On the Norwegian layout the pipe is
+-- the top-left key, XKB name `bar` (not `grave`), so it is bound as SUPER + bar.
+-- This replaces Omarchy's Quake console on SUPER + grave.
 hl.unbind("SUPER + S")
 hl.unbind("SUPER + grave")
-o.bind("SUPER + bar", "Agent console", hl.dsp.workspace.toggle_special("scratchpad"))
-o.bind("SUPER + A", "Agent console", hl.dsp.workspace.toggle_special("scratchpad"))
+hl.unbind("SUPER + SHIFT + grave")
+o.bind("SUPER + bar", "Fain quick agent", "rex do quick_agent.toggle position=center")
+o.bind("SUPER + CTRL + ALT + RETURN", "Fain quick agent", "rex do quick_agent.toggle position=center")
+o.bind("SUPER + CTRL + ALT + UP", "Fain quick agent at the top", "rex do quick_agent.toggle position=top")
+o.bind("SUPER + CTRL + ALT + DOWN", "Fain quick agent at the bottom", "rex do quick_agent.toggle position=bottom")
+o.bind("SUPER + CTRL + ALT + LEFT", "Fain quick agent at the left", "rex do quick_agent.toggle position=left")
+o.bind("SUPER + CTRL + ALT + RIGHT", "Fain quick agent at the right", "rex do quick_agent.toggle position=right")
 
--- Move the focused window into the agent console.
-o.bind(
-	"SUPER + ALT + bar",
-	"Move to agent console",
-	hl.dsp.window.move({ workspace = "special:scratchpad", follow = false })
-)
-
--- Restored Omarchy 3.x-style fullscreen scratchpad, separate from the agent
--- console. A second, fullscreen special workspace (special:restored).
+-- Restored Omarchy 3.x-style fullscreen scratchpad. A second, fullscreen special workspace (special:restored).
 -- SUPER+S toggles it; SUPER+ALT+S moves the focused window into it.
 hl.workspace_rule({
 	workspace = "special:restored",
@@ -74,8 +73,8 @@ hl.workspace_rule({
 })
 o.bind("SUPER + S", "Fullscreen scratchpad", hl.dsp.workspace.toggle_special("restored"))
 
--- Override the Omarchy default: SUPER+ALT+S previously moved to the agent
--- console; this user wants it to move into the fullscreen scratchpad instead.
+-- Override the Omarchy default: SUPER+ALT+S moves the focused window into the
+-- fullscreen scratchpad instead of Omarchy's scratchpad.
 hl.unbind("SUPER + ALT + S")
 o.bind(
 	"SUPER + ALT + S",
