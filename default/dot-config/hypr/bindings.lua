@@ -98,4 +98,3 @@ o.bind(
 o.bind("SUPER + SHIFT + CTRL + M", "Signal", { launch = "signal-desktop", focus = "signal" })
 o.bind("SUPER + SHIFT + X", "X", { webapp = "https://x.com/" })
 o.bind("SUPER + SHIFT + ALT + X", "X Post", { webapp = "https://x.com/compose/post" })
-o.bind("SUPER + SHIFT + T", "To-Do", { webapp = "https://to-do.live.com/tasks/inbox" })
