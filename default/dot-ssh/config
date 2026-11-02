@@ -1,6 +1,8 @@
 Host *
+    # A connection that gets no answer for 5 minutes ends. A dead master
+    # (wifi drop, router restart) then exits instead of hanging for a day.
     ServerAliveInterval 60
-    ServerAliveCountMax 1440
+    ServerAliveCountMax 5
     IdentityFile ~/.ssh/id_ed25519
     IdentitiesOnly yes
 
