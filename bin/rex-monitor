@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds the Rex "monitor" session on zadkiel: a local tab, then one tab per
-# machine running btop, nvidia-smi, slurry, cost and dusage over SSH.
+# machine running btop, gmon, slurry, cost and dusage over SSH. A GPU machine's
+# tab is the same as the btop+gmon action in rex/init.lua.
 # Running it again replaces those tabs; every other tab in the session (such as
 # "master agent") is kept, after the local "monitor" tab.
 # Usage: rex-monitor [SESSION]   (default: monitor)
@@ -31,7 +32,8 @@ add_splits() {
 		split "$r" below 64 "watch -n 600 dust" >/dev/null
 		;;
 	nam-shub-01 | nam-shub-02 | ml6 | ml7)
-		split "$b" right 34 "$mon $t 'watch -n 1 nvidia-smi'" >/dev/null
+		# gmon is in ~/.cargo/bin, which a non-interactive SSH shell lacks.
+		split "$b" right 42 "$mon $t 'PATH=\$HOME/.cargo/bin:\$PATH gmon'" >/dev/null
 		;;
 	saga | olivia)
 		r=$(split "$b" right 37 "$mon $t 'watch -n 300 cost --details'")

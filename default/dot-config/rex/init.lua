@@ -65,14 +65,14 @@ rex.action{
 rex.bind("ctrl+shift+l", "ssh_login")
 
 -- Rebuilds the "monitor" session on zadkiel with dotfiles' rex-monitor: one tab
--- per machine (btop, nvidia-smi, slurry, cost, dusage). Other tabs there, such
+-- per machine (btop, gmon, slurry, cost, dusage). Other tabs there, such
 -- as "master agent", are kept. Use it after a server restart; a lost connection
 -- needs only a login, as the panes reconnect.
 rex.action{
   name     = "monitor_rebuild",
   title    = "Rebuild Monitor",
   category = "Scripts",
-  keywords = "monitor btop nvidia slurry cost dusage machines",
+  keywords = "monitor btop gmon gpu slurry cost dusage machines",
   run      = function(ctx)
     local r, err = rex.session.new_layer{
       bounds = { 0.25, 0.3, 0.5, 0.4 },
@@ -86,6 +86,33 @@ rex.action{
     }
     if err ~= nil then error(err, 0) end
     return r
+  end,
+}
+
+-- Opens a tab named HOST with btop (left) and gmon (right) on HOST over SSH,
+-- like the GPU machine tabs in the "monitor" session. rex-monitor-ssh
+-- reconnects when the host's ControlMaster is down. gmon is in ~/.cargo/bin,
+-- which a non-interactive SSH shell does not have on its PATH.
+-- Run it from the palette (Fain asks for the host) or `rex do btop_gmon host=ml7`.
+rex.action{
+  name     = "btop_gmon",
+  title    = "btop+gmon",
+  category = "Scripts",
+  keywords = "monitor ssh host gpu btop gmon",
+  args     = { host = "string" },
+  run      = function(ctx, args)
+    local host = args.host or ""
+    if not host:match("^[%w][%w%.%-_@]*$") then error("not a host name: " .. host, 0) end
+    local ssh = os.getenv("HOME") .. "/dotfiles/bin/rex-monitor-ssh"
+    local shell = "com.superlogical.terminal.shell"
+    local w, err = rex.session.new_window{
+      window_label = host,
+      layout = rex.layout.horizontal(0.58,
+        rex.layout.block{ flavor = shell, options = { command = { ssh, host, "btop" } } },
+        rex.layout.block{ flavor = shell, options = { command = { ssh, host, "PATH=$HOME/.cargo/bin:$PATH gmon" } } }),
+    }
+    if err ~= nil then error(err, 0) end
+    return { window_id = w.window_id }
   end,
 }
 
