@@ -23,7 +23,7 @@ Host saga betzy olivia
 # herdr marks the machine; log in with dotfiles-ssh-login.sh (herdr: prefix+shift+l).
 # The uio-jump aliases come before `Host nam-shub*` / `ml*` so their settings win.
 Host saga-herdr
-    Hostname login-4
+    Hostname login-2
     HostKeyAlias saga.sigma2.no
     User kholme
     BatchMode yes
