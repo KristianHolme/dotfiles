@@ -123,9 +123,11 @@ Host uio zadkiel nam-shub* abacus* freebio* bioint0* ml*
     ControlPath ~/.ssh/cm-%C
     ControlPersist 4h
 
+# Educloud Fox (2FA). Not a hub host; the master lets later ssh/rsync reuse one login.
 Host fox
     Hostname fox.educloud.no
     User ec-kholme
     setEnv TERM=xterm-256color
     ControlMaster auto
-    ControlPath ~/.ssh/controlsock-%h-%p
+    ControlPath ~/.ssh/%r@%h:%p
+    ControlPersist 4h
