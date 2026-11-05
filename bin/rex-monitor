@@ -16,51 +16,51 @@ rex=(rex)
 tabs=(monitor abacus-as abacus-min nam-shub-01 nam-shub-02 ml6 ml7 saga olivia)
 
 first_command() {
-	case $1 in
-	monitor) echo "btop" ;;
-	saga | olivia) echo "$mon $1 slurry" ;;
-	*) echo "$mon $1 btop" ;;
-	esac
+    case $1 in
+    monitor) echo "btop" ;;
+    saga | olivia) echo "$mon $1 slurry" ;;
+    *) echo "$mon $1 btop" ;;
+    esac
 }
 
 # Splits beside the tab's first pane (block $2).
 add_splits() {
-	local t=$1 b=$2 r
-	case $t in
-	monitor)
-		r=$(split "$b" right 50 "watch -n 360 df -h")
-		split "$r" below 64 "watch -n 600 dust" >/dev/null
-		;;
-	nam-shub-01 | nam-shub-02 | ml6 | ml7)
-		# gmon is in ~/.cargo/bin, which a non-interactive SSH shell lacks.
-		split "$b" right 42 "$mon $t 'PATH=\$HOME/.cargo/bin:\$PATH gmon'" >/dev/null
-		;;
-	saga | olivia)
-		r=$(split "$b" right 37 "$mon $t 'watch -n 300 cost --details'")
-		split "$r" below 50 "$mon $t 'watch -n 600 dusage'" >/dev/null
-		;;
-	esac
+    local t=$1 b=$2 r
+    case $t in
+    monitor)
+        r=$(split "$b" right 50 "watch -n 360 df -h")
+        split "$r" below 64 "watch -c -n 600 dust -Pr" >/dev/null
+        ;;
+    nam-shub-01 | nam-shub-02 | ml6 | ml7)
+        # gmon is in ~/.cargo/bin, which a non-interactive SSH shell lacks.
+        split "$b" right 42 "$mon $t 'PATH=\$HOME/.cargo/bin:\$PATH gmon'" >/dev/null
+        ;;
+    saga | olivia)
+        r=$(split "$b" right 37 "$mon $t 'watch -n 300 cost --details'")
+        split "$r" below 50 "$mon $t 'watch -n 600 dusage'" >/dev/null
+        ;;
+    esac
 }
 
 split() { # anchor direction ratio command -> new block id
-	"${rex[@]}" split -s "$session" -b "$1" --split="$2" --ratio "$3" \
-		--focus=false --json -- sh -c "$4" | jq -er '.block_ids[0]'
+    "${rex[@]}" split -s "$session" -b "$1" --split="$2" --ratio "$3" \
+        --focus=false --json -- sh -c "$4" | jq -er '.block_ids[0]'
 }
 
 if ! "${rex[@]}" ls --json | jq -e --arg s "$session" '.. | objects | select(.label? == $s)' >/dev/null; then
-	"${rex[@]}" new "$session" --window placeholder >/dev/null
+    "${rex[@]}" new "$session" --window placeholder >/dev/null
 fi
 
 # The managed tabs that exist now, closed after the new ones are up.
 old=$("${rex[@]}" window ls -s "$session" --json | jq -r --argjson names "$(printf '%s\n' "${tabs[@]}" placeholder | jq -R . | jq -s .)" \
-	'.windows[] | select(.label as $l | $names | index($l)) | .window_id')
+    '.windows[] | select(.label as $l | $names | index($l)) | .window_id')
 
 first_window=
 for t in "${tabs[@]}"; do
-	created=$("${rex[@]}" window new -s "$session" "$t" --focus=false --json -- sh -c "$(first_command "$t")")
-	add_splits "$t" "$(jq -er '.block_ids[0]' <<<"$created")"
-	[[ -n $first_window ]] || first_window=$(jq -er '.window_id' <<<"$created")
-	echo "built $t"
+    created=$("${rex[@]}" window new -s "$session" "$t" --focus=false --json -- sh -c "$(first_command "$t")")
+    add_splits "$t" "$(jq -er '.block_ids[0]' <<<"$created")"
+    [[ -n $first_window ]] || first_window=$(jq -er '.window_id' <<<"$created")
+    echo "built $t"
 done
 
 # shellcheck disable=SC2086
@@ -69,8 +69,8 @@ done
 # Kept tabs go right after the local tab, before the machine tabs.
 pos=2
 while read -r w; do
-	"${rex[@]}" window move -s "$session" "$w" --index "$pos" >/dev/null
-	pos=$((pos + 1))
+    "${rex[@]}" window move -s "$session" "$w" --index "$pos" >/dev/null
+    pos=$((pos + 1))
 done < <("${rex[@]}" window ls -s "$session" --json | jq -r --argjson names "$(printf '%s\n' "${tabs[@]}" | jq -R . | jq -s .)" \
-	'.windows[] | select(.label as $l | $names | index($l) | not) | .window_id')
+    '.windows[] | select(.label as $l | $names | index($l) | not) | .window_id')
 echo "monitor session ready: ${#tabs[@]} tabs rebuilt"
