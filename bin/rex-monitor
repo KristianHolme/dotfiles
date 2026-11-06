@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds the Rex "monitor" session on zadkiel: a local tab, then one tab per
 # machine running btop, gmon, slurry, cost and dusage over SSH. A GPU machine's
-# tab is the same as the btop+gmon action in rex/init.lua.
+# tab is the same as the btop+gmon action in rex/init.lua; ml6 also has dust,
+# df and quota panes. The local tab has df, quota and dust.
 # Running it again replaces those tabs; every other tab in the session (such as
 # "master agent") is kept, after the local "monitor" tab.
 # Usage: rex-monitor [SESSION]   (default: monitor)
@@ -25,15 +26,21 @@ first_command() {
 
 # Splits beside the tab's first pane (block $2).
 add_splits() {
-    local t=$1 b=$2 r
+    local t=$1 b=$2 r g
     case $t in
     monitor)
         r=$(split "$b" right 50 "watch -n 360 df -h")
-        split "$r" below 64 "watch -c -n 600 dust -Pr" >/dev/null
+        split "$r" below 51 "watch -c -n 600 dust -Pr" >/dev/null
+        split "$r" below 50 "watch -n 600 quota -s" >/dev/null
         ;;
     nam-shub-01 | nam-shub-02 | ml6 | ml7)
         # gmon is in ~/.cargo/bin, which a non-interactive SSH shell lacks.
-        split "$b" right 42 "$mon $t 'PATH=\$HOME/.cargo/bin:\$PATH gmon'" >/dev/null
+        g=$(split "$b" right 42 "$mon $t 'PATH=\$HOME/.cargo/bin:\$PATH gmon'")
+        if [[ $t == ml6 ]]; then
+            r=$(split "$b" below 35 "$mon $t 'watch -c -n 600 dust -Pr'")
+            split "$r" right 48 "$mon $t 'watch -n 600 df -h'" >/dev/null
+            split "$g" below 15 "$mon $t 'watch -n 600 quota -s'" >/dev/null
+        fi
         ;;
     saga | olivia)
         r=$(split "$b" right 37 "$mon $t 'watch -n 300 cost --details'")
