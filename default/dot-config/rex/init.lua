@@ -181,3 +181,12 @@ rex.action{
   run      = float_toggle("btop", { "btop" }),
 }
 rex.bind("ctrl+alt+b", "float_btop")
+
+rex.action{
+  name     = "float_yazi",
+  title    = "Toggle Floating Yazi",
+  category = "Scripts",
+  keywords = "yazi files file manager float toggle",
+  run      = float_toggle("yazi", { "yazi" }),
+}
+rex.bind("ctrl+alt+f", "float_yazi")
