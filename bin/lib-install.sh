@@ -838,7 +838,9 @@ setup_zotero_mcp_cli() {
         configure_zotero_mcp local || true
         ;;
     web)
-        # Package is also listed under [uv.replica]; configure after uv install step.
+        local -a entries=()
+        mapfile -t entries < <(uv_replica_zotero_list) || return 1
+        setup_uv_tools "${entries[@]}" || return 1
         configure_zotero_mcp web || true
         ;;
     *)

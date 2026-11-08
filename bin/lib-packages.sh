@@ -153,6 +153,11 @@ uv_replica_install_list() {
     jq -r '.uv.replica.install[]?' <<<"$_PACKAGES_JSON"
 }
 
+uv_replica_zotero_list() {
+    _packages_ensure || return 1
+    jq -r '.uv.replica.zotero[]?' <<<"$_PACKAGES_JSON"
+}
+
 bin_replica_prereq_list() {
     _packages_ensure || return 1
     jq -r '.bin.replica.prereq[]?' <<<"$_PACKAGES_JSON"

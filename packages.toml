@@ -76,7 +76,9 @@ install = ["zotero-mcp-server[semantic]:zotero-cli"]
 
 [uv.replica]
 # package:command — CLI checked before uv tool install on replica servers.
-install = ["trash-cli:trash-list", "zotero-mcp-server[semantic]:zotero-cli"]
+install = ["trash-cli:trash-list"]
+# Installed only with dotfiles-setup-replica.sh --zotero (or when zotero-cli is already present).
+zotero = ["zotero-mcp-server[semantic]:zotero-cli"]
 
 [bin.replica]
 # spec:command — CLI checked before marcosnils/bin install on replica servers.

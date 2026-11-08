@@ -13,9 +13,10 @@ set -Eeuo pipefail
 # - GNU stow: built from source into ~/.local (not available via bin).
 # - Neovim: AppImage + glibc-aware repo (neovim vs neovim-releases), not via bin.
 # - juliaup (curl); optional Cursor CLI (gum confirm → official curl installer); tpm.
-# - uv tool install for Python CLIs (packages.toml [uv.replica], e.g. trash-cli/trash-list,
-#   zotero-mcp-server → zotero-cli). Replica configures zotero-cli for the Zotero Web API
-#   using ZOTERO_API_KEY + ZOTERO_LIBRARY_ID (env or ~/.config/zotero-mcp/credentials.env).
+# - uv tool install for Python CLIs (packages.toml [uv.replica].install, e.g. trash-cli/trash-list).
+# - Optional (--zotero, or zotero-cli already on PATH): zotero-mcp-server → zotero-cli from
+#   [uv.replica].zotero, configured for the Zotero Web API using ZOTERO_API_KEY +
+#   ZOTERO_LIBRARY_ID (env or ~/.config/zotero-mcp/credentials.env).
 # - yazi + ya from GitHub release zip; cargo crates from packages.toml; ya pkg plugins.
 #
 # PATH skip: distro or other installs satisfy the checker (e.g. bat but not Debian's batcat-only name).
@@ -261,11 +262,12 @@ maybe_install_cursor_cli() {
 
 main() {
     DOTFILES_SETUP_UPGRADE="${DOTFILES_SETUP_UPGRADE:-0}"
+    local setup_zotero=0
     while [[ $# -gt 0 ]]; do
         case "$1" in
         -h | --help)
             cat <<EOF
-Usage: $0 [--upgrade]
+Usage: $0 [--upgrade] [--zotero]
 
 Install user-local CLI tools (no sudo) using marcosnils/bin for
 GitHub release binaries. Binaries go to INSTALL_DIR (default ~/.local/bin).
@@ -284,9 +286,12 @@ scopes) or run gh auth login so the token is exported for bin and curl API calls
 After juliaup, if gum is available, asks via gum confirm whether to install Cursor CLI.
 Installs cargo crates and Yazi plugins (ya pkg) after bin tools.
 
-zotero-cli (via uv): configured for Zotero Web API. Set ZOTERO_API_KEY and
-ZOTERO_LIBRARY_ID (optional ZOTERO_LIBRARY_TYPE=user|group), or put them in
-~/.config/zotero-mcp/credentials.env before running.
+  --zotero        Install zotero-cli (via uv) and configure it for the Zotero
+                  Web API. Off by default; runs anyway when zotero-cli is
+                  already on PATH, so --upgrade keeps it updated. Set
+                  ZOTERO_API_KEY and ZOTERO_LIBRARY_ID (optional
+                  ZOTERO_LIBRARY_TYPE=user|group), or put them in
+                  ~/.config/zotero-mcp/credentials.env before running.
 
 See header comments for INSTALL_DIR, etc.
 EOF
@@ -294,6 +299,10 @@ EOF
             ;;
         --upgrade | -u)
             DOTFILES_SETUP_UPGRADE=1
+            shift
+            ;;
+        --zotero)
+            setup_zotero=1
             shift
             ;;
         *)
@@ -388,7 +397,11 @@ EOF
         marcos_bin_update_managed
     fi
     setup_uv_replica_tools || log_warning "uv tool setup failed; continuing"
-    setup_zotero_mcp_cli web || log_warning "zotero-cli web configure failed; continuing"
+    if [[ "$setup_zotero" == "1" ]] || command -v zotero-cli >/dev/null 2>&1; then
+        setup_zotero_mcp_cli web || log_warning "zotero-cli setup failed; continuing"
+    else
+        log_info "Skipping zotero-cli (pass --zotero to install)"
+    fi
     install_yazi_from_release || log_warning "yazi release install failed; continuing"
     setup_cargo_crates || log_warning "cargo crate setup failed; continuing"
     setup_yazi_plugins || log_warning "Yazi plugin setup failed; continuing"
