@@ -19,6 +19,7 @@ bengal's server and connects to each host itself. Only `rex-hosts` facts that
 |---|---|---|
 | bengal (this desktop, Arch) | `rex-user.service`: `/usr/bin/rex` from Superlogical's pacman repo, `--tailscale` as `rex-bengal` | Fain via `/run/user/1000/rex/server.sock` |
 | zadkiel (UiO, Fedora) | `rex-server.service`: `~/.local/bin/rex`, a copy of bengal's binary, Unix socket only, linger on | `rex-tunnel-zadkiel.service` on bengal: `ssh -L /run/user/1000/rex-tunnels/zadkiel.sock` → `/run/user/293575/rex/server.sock` via `zadkiel-herdr` |
+| sibir (Arch) | `rex-user.service` as on bengal, `--tailscale` as `rex-sibir` | Tailscale, `rex-sibir.tail564136.ts.net` |
 | bali | its own server | Tailscale, `rex-bali.tail564136.ts.net` |
 
 All three units live in `~/dotfiles/default/dot-config/systemd/user/` and are
@@ -26,6 +27,12 @@ stowed to both hosts. Each host enables only its own: bengal `rex-user` and
 `rex-tunnel-zadkiel`, zadkiel `rex-server`.
 
 Facts that bite:
+
+- `rex-user.service` names the tailnet node `rex-%l` (short hostname), so the
+  same stowed unit gives bengal and sibir separate nodes. A new tsnet node
+  logs in once: `rex server status` on that host prints the URL for the user.
+  Pull dotfiles there with `git pull --ff-only --no-rebase`, as hosts can have
+  uncommitted edits.
 
 - zadkiel's home is NFS, shared with nam-shub and abacus. `rex-server.service`
   has `ConditionHost=zadkiel.uio.no`: the full name, as the short one does not
