@@ -8,6 +8,9 @@ o.window({ class = "^org\\.dotfiles\\.quicknotes$" }, { float = true, center = t
 
 o.window({ class = "^cursor$" }, { workspace = "2" })
 
+-- Open links in the background: Vivaldi doesn't take focus when activated.
+o.window({ class = "^vivaldi-stable$" }, { focus_on_activate = false })
+
 o.window({ class = "^md\\.obsidian\\.Obsidian$" }, { workspace = "name:O" })
 
 -- Fain (Rex client) is a terminal: Omarchy's universal Super+C/V then sends it
