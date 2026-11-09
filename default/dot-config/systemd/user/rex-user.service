@@ -1,8 +1,8 @@
 [Unit]
-Description=Rex server for this account, on the tailnet as rex-bengal
+Description=Rex server for this account, on the tailnet as rex-<short hostname>
 
 [Service]
-ExecStart=/usr/bin/rex server run --tailscale --tailscale-hostname rex-bengal
+ExecStart=/usr/bin/rex server run --tailscale --tailscale-hostname rex-%l
 Restart=on-failure
 
 [Install]
