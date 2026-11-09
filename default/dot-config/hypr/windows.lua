@@ -102,6 +102,15 @@ o.window({ class = "^sticky\\.py$" }, { float = true, size = { 300, 250 }, pin =
 -- Zotero is Firefox/XUL; default opacity makes the library UI look soft/fuzzy.
 o.window({ class = "^Zotero$" }, { tag = "-default-opacity", opacity = "1 1" })
 o.window({ class = "^Zotero$", title = "^Citation Dialog$" }, { float = true, center = true })
+-- Zotero.ProgressWindow notifications (Connector saves, MinerU parsing, Actions & Tags):
+-- float bottom-right without taking focus.
+o.window({ class = "^Zotero$", title = "^Progress$" }, {
+    float = true,
+    pin = true,
+    no_initial_focus = true,
+    focus_on_activate = false,
+    move = { "(monitor_w-window_w-40)", "(monitor_h-window_h-40)" },
+})
 
 -- omarchy-downloads: keep the list as a real window (needed for drag-and-drop)
 -- but make it read as a popout under the bar on the right.
