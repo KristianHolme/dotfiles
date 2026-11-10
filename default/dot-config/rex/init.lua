@@ -41,8 +41,8 @@ rex.action{
 -- Opens a floating terminal that logs in to the 2FA SSH masters (uio, saga,
 -- olivia) with dotfiles-ssh-login.sh. The action runs on the server of the
 -- focused session, so the masters start on that host: bengal or zadkiel.
--- Fain reads key bindings from the local server only, so every server needs
--- the action, and only bengal's binding is used.
+-- Fain reads key bindings from the local server and runs the action on the
+-- focused session's server, so every server needs both.
 rex.action{
   name     = "ssh_login",
   title    = "SSH Login (2FA Masters)",
