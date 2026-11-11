@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Reads Educloud Fox `dusage` output on stdin and prints one short row per
-# fileset: space used, limit and percent, then files used, limit and percent.
+# fileset: space used, limit, left and percent, then files used, limit, left
+# and percent.
 # Home shows the user's own quota; the home inode numbers are for the whole
 # fileset, so they are left out. Rows at 90 % or more are red.
 # Usage: ssh fox /cluster/bin/dusage | dusage-brief
@@ -21,12 +22,12 @@ function row(name, used, lim, iu, it,   p, ip, c) {
     p = lim > 0 ? 100 * used / lim : 0
     ip = it > 0 ? 100 * iu / it : -1
     c = (p >= 90 || ip >= 90) ? "\033[31m" : ""
-    printf "%s%-8s %7s %7s %4.0f%%", c, name, h(used), h(lim), p
-    if (ip >= 0) printf "   %6s %6s %4.0f%%", n(iu), n(it), ip
+    printf "%s%-8s %6s %6s %6s %4.0f%%", c, name, h(used), h(lim), h(lim - used), p
+    if (ip >= 0) printf "   %6s %6s %6s %4.0f%%", n(iu), n(it), n(it - iu), ip
     printf "%s\n", c ? "\033[0m" : ""
 }
 $1 == "filesystemName" { body = 1
-    printf "%-8s %7s %7s %5s   %6s %6s %5s\n", "", "used", "limit", "", "files", "limit", ""
+    printf "%-8s %6s %6s %6s %5s   %6s %6s %6s %5s\n", "", "used", "limit", "left", "", "files", "limit", "left", ""
     next }
 !body || NF < 11 { next }
 $1 ~ /homes/ { row("home", $3 / 1048576, $4 / 1048576); next }
