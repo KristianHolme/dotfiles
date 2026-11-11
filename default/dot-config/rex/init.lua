@@ -65,8 +65,8 @@ rex.action{
 rex.bind("ctrl+shift+l", "ssh_login")
 
 -- Rebuilds the "monitor" session on zadkiel with dotfiles' rex-monitor: one tab
--- per machine (btop, gmon, slurry, cost, dusage). Other tabs there, such
--- as "master agent", are kept. Use it after a server restart; a lost connection
+-- per machine (btop, gmon, slurry, cost, dusage), fox included. Other tabs
+-- there, such as "master agent", are kept. Use it after a server restart; a lost connection
 -- needs only a login, as the panes reconnect.
 rex.action{
   name     = "monitor_rebuild",

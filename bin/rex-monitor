@@ -2,7 +2,8 @@
 # Builds the Rex "monitor" session on zadkiel: a local tab, then one tab per
 # machine running btop, gmon, slurry, cost and dusage over SSH. A GPU machine's
 # tab is the same as the btop+gmon action in rex/init.lua; ml6 also has dust,
-# df and quota panes. The local tab has df, quota and dust.
+# df and quota panes. The local tab has df, quota and dust. Fox has slurry
+# and dusage, shortened by dusage-brief; it has no cost command.
 # Running it again replaces those tabs; every other tab in the session (such as
 # "master agent") is kept, after the local "monitor" tab.
 # Usage: rex-monitor [SESSION]   (default: monitor)
@@ -14,12 +15,12 @@ rex=(rex)
 [[ "$(hostname -s)" == zadkiel ]] || rex=(rex -S zadkiel)
 
 # Tab definitions: the tab name, then its first pane's command.
-tabs=(monitor abacus-as abacus-min nam-shub-01 nam-shub-02 ml6 ml7 saga olivia)
+tabs=(monitor abacus-as abacus-min nam-shub-01 nam-shub-02 ml6 ml7 saga olivia fox)
 
 first_command() {
     case $1 in
     monitor) echo "btop" ;;
-    saga | olivia) echo "$mon $1 slurry" ;;
+    saga | olivia | fox) echo "$mon $1 slurry" ;;
     *) echo "$mon $1 btop" ;;
     esac
 }
@@ -45,6 +46,11 @@ add_splits() {
     saga | olivia)
         r=$(split "$b" right 37 "$mon $t 'watch -n 300 cost --details'")
         split "$r" below 50 "$mon $t 'watch -n 600 dusage'" >/dev/null
+        ;;
+    fox)
+        # dusage is in /cluster/bin, which a non-interactive SSH shell lacks.
+        # Its output is too wide for a pane, so zadkiel shortens it.
+        split "$b" right 40 "watch -c -n 600 'ssh -o BatchMode=yes fox /cluster/bin/dusage 2>&1 | \$HOME/dotfiles/bin/dusage-brief'" >/dev/null
         ;;
     esac
 }
