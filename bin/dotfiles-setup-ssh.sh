@@ -114,4 +114,4 @@ for server in "${SERVERS[@]}"; do
     fi
 done
 
-log_success "SSH setup complete! Test with: ssh abacus-as"
+log_success "SSH setup complete! Test with: ssh zadkiel"

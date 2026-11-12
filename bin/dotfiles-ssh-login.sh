@@ -34,7 +34,7 @@ for arg in "$@"; do
 	esac
 done
 
-if [[ ${#hosts[@]} -eq 0 && "$(hostname -s)" != abacus-as ]]; then
+if [[ ${#hosts[@]} -eq 0 ]]; then
 	mapfile -t hosts < <(hosts_ssh_masters)
 fi
 
@@ -52,17 +52,6 @@ fi
 failed=0
 machine="$(hostname -s)"
 log_info "Machine: $machine"
-
-# abacus-as is the hub for Saga, Olivia and the ml nodes (sockets on local disk,
-# no uio master); its login lives in dotfiles-hub-login.sh.
-if [[ "$machine" == abacus-as ]]; then
-	"$SCRIPT_DIR/dotfiles-hub-login.sh" "${hosts[@]}" || failed=1
-	if ((pause)); then
-		read -rsn1 -p "Press any key to close"
-		echo
-	fi
-	exit "$failed"
-fi
 
 for host in "${hosts[@]}"; do
 	if ssh -O check "$host" >/dev/null 2>&1; then

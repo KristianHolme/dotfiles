@@ -6,7 +6,7 @@
 
 set -Eeuo pipefail
 
-HUB_HOSTS=(saga olivia)
+HUB_HOSTS=(saga olivia fox)
 write=0
 hosts=()
 for arg in "$@"; do

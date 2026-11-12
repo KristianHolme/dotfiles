@@ -1,6 +1,6 @@
 [Unit]
 Description=Check hub SSH ControlMasters every 2 minutes
-ConditionHost=abacus-as*
+ConditionHost=zadkiel*
 
 [Timer]
 OnBootSec=1min
