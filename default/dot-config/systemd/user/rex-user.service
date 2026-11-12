@@ -4,6 +4,21 @@ Description=Rex server for this account, on the tailnet as rex-<short hostname>
 [Service]
 ExecStart=/usr/bin/rex server run --tailscale --tailscale-hostname rex-%l
 Restart=on-failure
+RestartSec=5s
+# The rest follows /usr/lib/systemd/user/rex.service, which explains each line.
+# Go refuses to start on a GODEBUG value it no longer knows.
+Environment=GODEBUG=
+# SIGTERM goes to the server alone, so it saves sessions before its terminals close.
+KillMode=mixed
+# An out-of-memory kill takes one program, not the whole unit.
+OOMPolicy=continue
+OOMScoreAdjust=0
+# Each terminal gets its own cgroup (Rex preview.15), so systemd-oomd and
+# systemd-cgtop see terminals one by one. The variable must never appear
+# without Delegate=yes.
+Delegate=yes
+DelegateSubgroup=server
+Environment=REX_CGROUP_DELEGATED=1
 
 [Install]
 WantedBy=default.target

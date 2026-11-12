@@ -39,7 +39,7 @@ rex.action{
 }
 
 -- Opens a floating terminal that logs in to the 2FA SSH masters (uio, saga,
--- olivia) with dotfiles-ssh-login.sh. The action runs on the server of the
+-- olivia, fox) with dotfiles-ssh-login.sh. The action runs on the server of the
 -- focused session, so the masters start on that host: bengal or zadkiel.
 -- Fain reads key bindings from the local server and runs the action on the
 -- focused session's server, so every server needs both.
@@ -47,7 +47,7 @@ rex.action{
   name     = "ssh_login",
   title    = "SSH Login (2FA Masters)",
   category = "Scripts",
-  keywords = "ssh 2fa controlmaster uio saga olivia login",
+  keywords = "ssh 2fa controlmaster uio saga olivia fox login",
   run      = function(ctx)
     local r, err = rex.session.new_layer{
       bounds = { 0.15, 0.2, 0.7, 0.6 },
