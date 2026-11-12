@@ -123,7 +123,7 @@ Host uio zadkiel nam-shub* abacus* freebio* bioint0* ml*
     ControlPath ~/.ssh/cm-%C
     ControlPersist 4h
 
-# Educloud Fox (2FA). Not a hub host; the master lets later ssh/rsync reuse one login.
+# Educloud Fox (2FA). Not a hub host; dotfiles-ssh-login.sh opens its master (hosts.toml ssh_masters).
 Host fox
     Hostname fox.educloud.no
     User ec-kholme

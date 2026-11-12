@@ -16,7 +16,7 @@
 
 [defaults]
 # 2FA hosts that dotfiles-ssh-login.sh opens a ControlMaster for (uio is the jump host).
-ssh_masters = ["uio", "saga", "olivia"]
+ssh_masters = ["uio", "saga", "olivia", "fox"]
 sync_root = "Code"
 
 # ---- Individual SSH aliases. Mount fields => mountable as own filesystem. ----
