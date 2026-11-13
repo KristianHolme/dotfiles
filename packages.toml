@@ -18,6 +18,7 @@ install = [
     "stow",
     "git-lfs",
     "bitwarden",
+    "bitwarden-cli",
     # "google-chrome",
     "tmux",
     "shfmt",
