@@ -42,7 +42,7 @@
         },
         {
           "id": "io.github.elevate08.qs-bitwarden-cli",
-          "autoLockMinutes": 60,
+          "autoLockMinutes": 360,
           "clearClipboardSec": 300,
           "pinUnlock": true
         },
