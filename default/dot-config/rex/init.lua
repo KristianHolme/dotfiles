@@ -190,3 +190,12 @@ rex.action{
   run      = float_toggle("yazi", { "yazi" }),
 }
 rex.bind("ctrl+alt+f", "float_yazi")
+
+-- Live Typst preview beside the editor (github.com/CiaranMcDonnell/rex-typst).
+-- The module is a link to a clone and the binary is built per host, so a host
+-- without them loads the rest of this file. The key is bound on every host:
+-- Fain reads bindings from the local server and runs the action on the
+-- focused session's server.
+local ok, typst = pcall(require, "rex-typst")
+if ok then typst.setup{} end
+rex.bind("ctrl+space>t", "typst_toggle")
