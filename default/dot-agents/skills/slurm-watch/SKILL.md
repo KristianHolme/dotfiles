@@ -101,6 +101,13 @@ For an unclear or widespread failure, notify and stop automatic relaunch. A
 long queue is not a failure: report the reason, and notify once if it persists
 for many hours.
 
+To drop a pending job that others depend on (e.g. skip a prep job), first clear
+the dependants' dependency (`scontrol update jobid=<id> Dependency=`), check it
+took, then `scancel` the job. Cancelling it first makes Slurm cancel the
+dependants at once (`DependencyNeverSatisfied`); they must then be resubmitted
+and lose their queue position. Also cancel any `afternotok` notify job on it,
+or the cancel triggers a false failure notice.
+
 Done when every expected task succeeded and has its result. Notify completion,
 stop the recurring check, and confirm no jobs for the run remain queued.
 
