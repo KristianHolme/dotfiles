@@ -9,6 +9,18 @@ x86_64)
     ;;
 aarch64)
     export JULIA_CPU_TARGET="generic;neoverse-v2,clone_all"
+    # ARM juliaup and depot: the x86 ones from .dotfiles-install-env do not run here. Strip the
+    # x86 juliaup bin (the juliaup block in ~/.bashrc adds it back after the first pass) and put
+    # the ARM one first; safe to source repeatedly. Update with `juliaup update` on a GPU node.
+    _jl_root=/cluster/projects/nn9886k/kholme
+    export JULIAUP_DEPOT_PATH="$_jl_root/.julia-aarch64"
+    export JULIA_DEPOT_PATH="$JULIAUP_DEPOT_PATH"
+    _jl_path=":$PATH:"
+    _jl_path="${_jl_path//:$_jl_root\/.juliaup\/bin:/:}"
+    _jl_path="${_jl_path//:$_jl_root\/.juliaup-aarch64\/bin:/:}"
+    _jl_path="${_jl_path#:}"
+    export PATH="$_jl_root/.juliaup-aarch64/bin:${_jl_path%:}"
+    unset _jl_root _jl_path
     ;;
 esac
 
