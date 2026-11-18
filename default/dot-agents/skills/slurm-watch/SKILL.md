@@ -38,9 +38,10 @@ If the project gives none of these, ask the user before you submit.
    another cluster.
 3. Size memory and walltime for the job and the cluster limits. Estimate
    walltime from a comparable completed run (`sacct` elapsed), scale by the
-   amount of work, and add time for checkpoints and evaluation. Record the
-   settings and job IDs for later checks and retries. Check cluster limits
-   before `scontrol update` of a time limit.
+   amount of work, and add time for checkpoints and evaluation. Keep the limit
+   tight (about 1.5× the expected time, per GPU type): short jobs start
+   earlier through backfill. Record the settings and job IDs for later checks
+   and retries. Check cluster limits before `scontrol update` of a time limit.
 
 Known values, to verify on the target:
 
@@ -93,7 +94,12 @@ often than every 30 s. At each check, on the target cluster:
 4. Read the latest lines of each running task's log for progress and errors.
    Julia `@info` and warnings go to stderr, so the `.err` file is not only
    errors.
-5. Report completed, running, failed, and pending tasks with queue reasons.
+5. Once a task's progress gives a measured run time, lower the time limit of
+   the still-pending tasks to about 1.5× that time for their GPU type
+   (`scontrol update JobId=<array>_<task> TimeLimit=…`). Users can only
+   shorten a limit, never extend it, and an update on the bare array ID also
+   shortens the running tasks, so update pending tasks one by one.
+6. Report completed, running, failed, and pending tasks with queue reasons.
 
 For a clear code or environment failure, fix the cause and relaunch only the
 failed IDs with the recorded settings; notify with the cause and new job IDs.
