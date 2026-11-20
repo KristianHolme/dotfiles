@@ -11,8 +11,9 @@ export PATH="$HOME/.local/bin:$HOME/dotfiles/bin:$PATH"
 [[ $- != *i* ]] && return
 
 # Omarchy bash rc when present (desktop). Replicas skip this silently.
+# It needs bash 5 (`complete -I`); RHEL 8 hosts on a shared home have bash 4.4.
 _omarchy_rc="$HOME/.local/share/omarchy/default/bash/rc"
-if [[ -f "$_omarchy_rc" ]]; then
+if [[ -f "$_omarchy_rc" ]] && ((BASH_VERSINFO[0] >= 5)); then
     # shellcheck source=/dev/null
     source "$_omarchy_rc"
 fi
