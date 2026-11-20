@@ -1,131 +1,102 @@
 ---
 name: slurm-watch
 description: >-
-  Launch and monitor Slurm GPU jobs on Saga or Olivia: choose the cluster,
-  size resources, arm a recurring watch, retry clear failures, and send
-  notifications. Use for training runs, job arrays, relaunches, and watch
-  check-ins.
+  Launch and monitor Slurm GPU jobs on Saga, Olivia or Fox: submit, watch the
+  start closely, fix clear failures, notify. Use for training runs, job
+  arrays, relaunches, and watch check-ins.
 ---
 
 # Slurm job watch
 
-Launch a job or job array on the user's chosen Slurm cluster. Monitor it, fix
-clear failures, notify on notable events, and stop when every expected task
-has a result.
+Submit, watch the start closely, then check at longer intervals. Fix clear
+failures, notify the user when something is wrong, and stop when every
+expected task has a result.
 
-## Project details
+The project's `AGENTS.md` (Slurm section) gives the launch command and its
+environment variables, the expected task IDs, the result and log paths, the
+errors to look for, and what counts as done. If it gives none, ask the user.
 
-Read the project's `AGENTS.md` (Slurm or cluster section) in the checkout on
-the cluster. Get from it:
+## Submit
 
-- the launch command or wrapper, and its required environment variables;
-- how to determine the expected task or trial IDs;
-- where results and logs go, and which errors to look for;
-- what counts as done.
+Submit the same tasks on all three clusters, Olivia first, unless the user
+names clusters. On each cluster:
 
-If the project gives none of these, ask the user before you submit.
+- `git pull` the checkout to `origin/main`.
+- Set account and partition explicitly: wrapper defaults may belong to another
+  cluster.
+- Time limit: about 1.5× the run time of a comparable run on that GPU type
+  (`sacct` elapsed). Short jobs start earlier through backfill.
+- `--mem`: from a run on that cluster. The same job needs about twice the host
+  RAM on Olivia.
+- GPUs: `--gpus-per-node=<n>`. With `--gpus=<n>`, Fox and Olivia can start the
+  job on fewer GPUs.
 
-## Resolve the target before submission
+| Cluster | Account | Project area | GPU partition | Notes |
+|---------|---------|--------------|---------------|-------|
+| Olivia | `nn9886k` | `/cluster/projects/nn9886k/kholme` | `accel` (GH200, aarch64; about 2× an A100) | Only `accel` works, so Slurm failure-notify jobs fail to submit; the watch sends those notices. GPUs are `Exclusive_Process`: keep MPS on for several processes per GPU. |
+| Saga | `nn9886k` | `/cluster/projects/nn9886k/kholme` | `a100` (A100 80 GB, AMD hosts) | Notify partition `normal`. |
+| Fox | `ec12` | `/fp/projects01/ec12/ec-kholme` | `accel` (mixed GPU types) | The 10 TB project disk has been full: check free space first. |
 
-1. Use the cluster the user named; otherwise the cluster of the active login
-   session; ask if several remain plausible. Saga and Olivia use the same
-   project paths, so a checkout path does not identify the cluster. Run all
-   submission and status commands on the chosen cluster.
-2. Check the Slurm account and partitions (`sinfo`, local configuration).
-   Select a GPU partition that supports the job's GPU request and, if the
-   project uses failure-notification jobs, a short CPU partition for them.
-   Set account and partitions explicitly: wrapper defaults may belong to
-   another cluster.
-3. Size memory and walltime for the job and the cluster limits. Estimate
-   walltime from a comparable completed run (`sacct` elapsed), scale by the
-   amount of work, and add time for checkpoints and evaluation. Keep the limit
-   tight (about 1.5× the expected time, per GPU type): short jobs start
-   earlier through backfill. Record the settings and job IDs for later checks
-   and retries. Check cluster limits before `scontrol update` of a time limit.
+Write the watch state to a file in the project's git-ignored output folder:
+per cluster the job IDs, account, partition, resource flags, expected task
+IDs, result and log paths. Update it when jobs change.
 
-Known values, to verify on the target:
-
-| Cluster | GPU partition | Notification partition |
-|---------|---------------|------------------------|
-| Saga | `a100` (A100 80 GB, AMD hosts) | `normal` |
-| Olivia | `accel` (GH200, aarch64) | none (see below) |
-
-Both use account `nn9886k` and project area `/cluster/projects/nn9886k/kholme`.
-On Olivia, check the job's Julia and depot setup for aarch64.
-
-**Olivia:** only `accel` is usable; submitting to `small` fails with
-`AssocGrpBillingMinutes`, so Slurm failure-notification jobs cannot be created
-(main jobs still go through). The watcher must cover this: check job states
-with `sacct` every tick, send the ntfy failure notice itself for any
-FAILED/TIMEOUT/CANCELLED/OUT_OF_MEMORY job, and use a recurring cron (e.g.
-`7,37 * * * *`) rather than Slurm-triggered notices.
-
-**Olivia MPS:** GPUs are in `Exclusive_Process` mode, so several processes per
-GPU only work through an MPS daemon. Do not disable MPS for multi-process GPU
-jobs (in Julia, workers after the first fail at setup with a misleading
-`MethodError ... ::RemoteException`).
+**Race:** when a copy of a task starts, cancel a pending copy on another
+cluster only when that copy, started now, could not finish first. Take a
+copy's expected run time as its time limit / 1.5. Example: a 4 h A100 job
+leaves a pending Olivia copy queued until the A100 job has run about 2 h.
+Cancel per task, not per array, and check that one copy of a task runs.
 
 ## Watch
 
-Arming the recurring check is part of the launch. Before replying after
-submission, arm a check every 30 minutes with the harness's scheduler and tell
-the user which mechanism runs and when it stops. Make the check prompt
-self-contained: job IDs, cluster, account, partitions, resource flags, expected
-task IDs, result and log paths.
+**Start-up, close:** check each task every 2 minutes from its start until it
+passes all three:
 
-- Claude Code: load `CronCreate` (deferred; fetch with ToolSearch) and schedule
-  a recurring job at an off-minute such as `7,37 * * * *`. Session only,
-  expires after 7 days. `ScheduleWakeup` is only for `/loop`.
-- Harness with a monitored `/loop`: follow its skill, arm it with a unique
-  `AGENT_LOOP_TICK_<N>` sentinel, smoke-check the process and child sleep, and
-  track the loop PID and children to stop them on completion.
-- Other harnesses (Cursor, Codex, pi, ...): use the native scheduler or
-  background-task facility.
-- No scheduler: poll during the active session and say plainly that monitoring
-  ends with it. Use only after confirming nothing above exists.
+1. `sacct -X --format=JobID,State,AllocTRES` shows it running with the GPUs
+   requested.
+2. Its log shows the environment loaded with no error.
+3. Its log shows the first progress line.
 
-Run the first status check immediately, then every tick. Do not poll Slurm more
-often than every 30 s. At each check, on the target cluster:
+**After a good start:** arm one recurring check every 30 minutes before you
+reply, and tell the user what runs and when it stops. In Claude Code use
+`CronCreate` (fetch with ToolSearch) at an off-minute such as `7,37 * * * *`,
+with a prompt that names the state file. Elsewhere use the harness's
+scheduler; with none, say that monitoring ends with the session. Do not poll
+a cluster more often than every 30 s.
 
-1. `squeue -u "$USER"` for the job and its array tasks.
-2. `sacct -j <job-id> --format=JobID,State,ExitCode,Elapsed` for final states;
-   ignore `.batch` and `.extern`.
-3. Match result files to the expected task IDs.
-4. Read the latest lines of each running task's log for progress and errors.
-   Julia `@info` and warnings go to stderr, so the `.err` file is not only
-   errors.
-5. Once a task's progress gives a measured run time, lower the time limit of
-   the still-pending tasks to about 1.5× that time for their GPU type
-   (`scontrol update JobId=<array>_<task> TimeLimit=…`). Users can only
-   shorten a limit, never extend it, and an update on the bare array ID also
-   shortens the running tasks, so update pending tasks one by one.
-6. Report completed, running, failed, and pending tasks with queue reasons.
+At each check:
 
-For a clear code or environment failure, fix the cause and relaunch only the
-failed IDs with the recorded settings; notify with the cause and new job IDs.
-For an unclear or widespread failure, notify and stop automatic relaunch. A
-long queue is not a failure: report the reason, and notify once if it persists
-for many hours.
+- Job states (`squeue`, `sacct`), result files against the expected task IDs,
+  and the latest log lines of each running task.
+- Apply the race rule.
+- Once a task gives a measured run time, shorten the limit of pending tasks to
+  about 1.5× that time: `scontrol update JobId=<array>_<task> TimeLimit=…`,
+  one pending task at a time. An update on the bare array ID also shortens the
+  running tasks, and a limit cannot be extended.
+- Report done, running, failed and pending tasks, with percent done and
+  expected finish.
 
-To drop a pending job that others depend on (e.g. skip a prep job), first clear
-the dependants' dependency (`scontrol update jobid=<id> Dependency=`), check it
-took, then `scancel` the job. Cancelling it first makes Slurm cancel the
-dependants at once (`DependencyNeverSatisfied`); they must then be resubmitted
-and lose their queue position. Also cancel any `afternotok` notify job on it,
-or the cancel triggers a false failure notice.
+## Failures
 
-Done when every expected task succeeded and has its result. Notify completion,
-stop the recurring check, and confirm no jobs for the run remain queued.
+- Clear cause (out of memory, time limit, missing package or precompile
+  error, bad path, too few GPUs): fix it, relaunch only the failed task IDs
+  with the recorded flags, and notify with the cause and the new job IDs.
+- Unclear or widespread failure: notify and stop automatic relaunch.
+- A long queue is not a failure. Notify once if it lasts many hours.
 
-## Notifications
+To cancel a pending job that others depend on, first clear the dependants
+(`scontrol update jobid=<id> Dependency=`), check it took, then `scancel`.
+The other order cancels the dependants (`DependencyNeverSatisfied`). Cancel
+its `afternotok` notify job too.
 
-When `.secrets/NTFY_TOPIC` exists in the checkout, send start, completion,
-failure, and relaunch notices with concise run and cluster details:
+## Notify
+
+When `.secrets/NTFY_TOPIC` exists in the checkout, send a one-line notice for
+a failure, a relaunch, and completion:
 
 ```bash
-topic=$(cat .secrets/NTFY_TOPIC)
-curl -sS -H "Title: <short>" -d "<one-line body>" "https://ntfy.sh/$topic"
+curl -sS -H "Title: <short>" -d "<one-line body>" "https://ntfy.sh/$(cat .secrets/NTFY_TOPIC)"
 ```
 
-If the project's wrapper also creates Slurm failure-notification jobs, verify
-they were accepted.
+Done when every expected task has its result. Notify, stop the recurring
+check, and confirm no copy of the run remains queued on any cluster.
