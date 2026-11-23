@@ -1,7 +1,7 @@
 {
   "collapseChangelog": true,
   "quietStartup": true,
-  "lastChangelogVersion": "1.5.2",
+  "lastChangelogVersion": "1.6.0",
   "defaultTools": [
     "+codemode"
   ],
@@ -10,16 +10,15 @@
   "packages": [],
   "defaultThinkingLevel": "high",
   "enabledModels": [
-    "openrouter/openrouter/auto",
     "gpt-uio/gpt-5.4",
     "gpt-uio/moonshotai/Kimi-K2.6",
     "gpt-uio/Qwen/Qwen3.8-27B-FP8",
     "gpt-uio/Inferact/GLM-5.3-NVFP4",
+    "openrouter/openai/gpt-6.1-sol",
+    "openrouter/google/gemini-4-neon",
+    "anthropic/claude-haiku-5-5",
     "anthropic/claude-opus-5-5",
-    "anthropic/claude-sonnet-5-5",
-    "openrouter/anthropic/claude-opus-5.5",
-    "openrouter/anthropic/claude-sonnet-5.5",
-    "openrouter/openai/gpt-6.1-sol"
+    "anthropic/claude-sonnet-5-5"
   ],
   "theme": "omarchy-system"
 }
