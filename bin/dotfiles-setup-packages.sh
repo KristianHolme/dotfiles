@@ -242,7 +242,7 @@ setup_marcosnils_bin() {
 SETUP_STEPS=(
     'Remove webapps:step_remove_webapps'
     'Remove packages:step_remove_packages'
-    'Install Node dev env:step_install_node'
+    'Install Node dev env + Bitwarden CLI:step_install_node'
     'Install packages:step_install_packages'
     'Setup cargo crates:step_setup_cargo_crates'
     'Setup Yazi plugins:step_setup_yazi_plugins'
@@ -310,6 +310,9 @@ step_remove_packages() {
 
 step_install_node() {
     omarchy-install-dev-env node
+    # Bitwarden CLI from npm: the standalone build starts slower and ignores
+    # NODE_OPTIONS preloads that the qs-bitwarden-cli plugin uses.
+    mise use -g npm:@bitwarden/cli@latest || log_warning "Bitwarden CLI install failed; continuing"
 }
 
 step_install_packages() {

@@ -113,11 +113,49 @@ local function write_bar_blocks(monitors)
 		lines[#lines + 1] = (index - 1) .. "\t" .. monitor.name .. "\t" .. (description ~= "" and description or monitor.name)
 	end
 
-	local file = io.open(state_home .. "/omarchy/monitor-workspaces", "w")
+	os.execute("mkdir -p '" .. state_home .. "/omarchy/monitors'")
+	local file = io.open(state_home .. "/omarchy/monitors/workspaces", "w")
 	if file then
 		file:write(table.concat(lines, "\n") .. "\n")
 		file:close()
 	end
+end
+
+-- The bar's workspace buttons call o.workspaces.focus(slot, monitor). Omarchy's
+-- version uses its own blocks and rewrites the bar file with them.
+o.workspaces.workspace_id = function(monitor, slot)
+	for index, candidate in ipairs(layout()) do
+		if candidate.name == monitor.name then
+			return (index - 1) * SLOTS + slot
+		end
+	end
+	return slot
+end
+
+o.workspaces.focus = function(slot, monitor_name)
+	local fn = function()
+		local monitor = monitor_name and hl.get_monitor(monitor_name) or hl.get_active_monitor()
+		if not monitor then
+			return
+		end
+		if not monitor.focused then
+			hl.dispatch(hl.dsp.focus({ monitor = monitor.name }))
+		end
+		hl.dispatch(hl.dsp.focus({ workspace = tostring(o.workspaces.workspace_id(monitor, slot)) }))
+	end
+	o.bind_expressions[fn] = "o.workspaces.focus(" .. slot .. (monitor_name and string.format(", %q", monitor_name) or "") .. ")"
+	return fn
+end
+
+-- Omarchy's move_to_monitor renumbers the workspace into the target's block.
+-- Here it keeps its number.
+for key, direction in pairs({ LEFT = "l", RIGHT = "r", UP = "u", DOWN = "d" }) do
+	o.rebind("SUPER + SHIFT + ALT + " .. key, "Move workspace to " .. direction .. " monitor", function()
+		local target = hl.get_monitor(direction)
+		if target then
+			hl.dispatch(hl.dsp.workspace.move({ monitor = target.name }))
+		end
+	end)
 end
 
 -- Show a workspace on a monitor, bringing it over from another or creating it.

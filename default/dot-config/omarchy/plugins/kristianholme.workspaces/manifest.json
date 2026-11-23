@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "kristianholme.workspaces",
+  "name": "Workspaces (main monitor)",
+  "version": "1.0.0",
+  "author": "kristianholme",
+  "description": "Workspace indicators: 1-10 on the main monitor, one workspace on each other monitor",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "BarWidget.qml" },
+  "barWidget": {
+    "displayName": "Workspaces (main monitor)",
+    "description": "Workspace indicators: 1-10 on the main monitor, one workspace on each other monitor",
+    "category": "Compositor",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}
