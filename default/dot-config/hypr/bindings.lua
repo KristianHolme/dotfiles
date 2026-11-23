@@ -52,10 +52,11 @@ o.bind("SUPER + SHIFT + R", "Screen ruler", { panel = "kristianholme.ruler" })
 -- the middle of the screen, SUPER+CTRL+ALT+arrows at each edge. SUPER + | (the
 -- pipe key) also opens it in the middle. On the Norwegian layout the pipe is
 -- the top-left key, XKB name `bar` (not `grave`), so it is bound as SUPER + bar.
--- This replaces Omarchy's Quake console on SUPER + grave.
+-- This replaces Omarchy's Quake console, which Omarchy binds by keycode
+-- (code:49, the same key); unbinding `grave` or `bar` does not remove it.
 hl.unbind("SUPER + S")
-hl.unbind("SUPER + grave")
-hl.unbind("SUPER + SHIFT + grave")
+hl.unbind("SUPER + code:49")
+hl.unbind("SUPER + SHIFT + code:49")
 o.bind("SUPER + bar", "Fain quick agent", "rex do quick_agent.toggle position=center")
 o.bind("SUPER + CTRL + ALT + RETURN", "Fain quick agent", "rex do quick_agent.toggle position=center")
 o.bind("SUPER + CTRL + ALT + UP", "Fain quick agent at the top", "rex do quick_agent.toggle position=top")
