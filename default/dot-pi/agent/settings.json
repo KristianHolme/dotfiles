@@ -1,4 +1,6 @@
 {
+  "collapseChangelog": true,
+  "quietStartup": true,
   "lastChangelogVersion": "1.4.0",
   "defaultTools": [
     "+codemode"
