@@ -60,6 +60,98 @@ rex.action{
 }
 rex.bind("ctrl+shift+l", "ssh_login")
 
+-- Server-side prompt actions used by dotfiles-rex-askpass and
+-- dotfiles-ssh-login.sh --rex (rex.ui prompts run only in server actions,
+-- not in client-side `rex do -e` scripts).
+rex.action{
+  name     = "ssh_askpass",
+  title    = "SSH Askpass Prompt",
+  category = "Scripts",
+  args     = { prompt = "string", host = "string", mode = "string" },
+  run      = function(ctx, a)
+    local lines = {}
+    for l in (a.prompt or ""):gmatch("[^\n]+") do
+      l = l:gsub("^%s+", ""):gsub("%s+$", "")
+      if l ~= "" then lines[#lines + 1] = l end
+    end
+    local last = lines[#lines] or ""
+    local title = (a.host and a.host ~= "") and ("ssh " .. a.host) or "ssh"
+
+    if (a.prompt or ""):find("(yes/no", 1, true) then
+      local fingerprint = ""
+      for _, l in ipairs(lines) do
+        if l:find("fingerprint is", 1, true) then fingerprint = l end
+      end
+      local id = rex.ui.pick{
+        title = title .. ": unknown host key",
+        placeholder = "Trust this host key?",
+        items = {
+          { id = "yes", title = "Trust and Connect", subtitle = fingerprint, icon = "server" },
+          { id = "no", title = "Don't Connect" },
+        },
+        timeout = 3600,
+      }
+      return { text = id == "yes" and "yes" or "no" }
+    end
+    if a.mode == "confirm" or a.mode == "none" then
+      local items = a.mode == "none" and { { id = "yes", title = "OK" } }
+        or { { id = "yes", title = "Yes" }, { id = "no", title = "No" } }
+      local id = rex.ui.pick{ title = title, placeholder = last, items = items, timeout = 3600 }
+      if id == "yes" then return { text = "" } end
+      return {}
+    end
+    local text = rex.ui.input{ title = title, placeholder = last, confirm = "Send", timeout = 3600 }
+    if text == nil then return {} end
+    return { text = text }
+  end,
+}
+
+rex.action{
+  name     = "ssh_login_pick",
+  title    = "SSH Login Host Picker",
+  category = "Scripts",
+  args     = { title = "string", hosts = "string" },
+  run      = function(ctx, a)
+    local items = {}
+    for line in (a.hosts or ""):gmatch("[^\n]+") do
+      local host, status = line:match("^([^\t]+)\t?(.*)$")
+      if host and host ~= "" then
+        items[#items + 1] = {
+          id       = host,
+          title    = host,
+          detail   = status ~= "" and status or nil,
+          icon     = "server",
+          selected = true,
+        }
+      end
+    end
+    local ids = rex.ui.pick{
+      title    = a.title,
+      multiple = true,
+      confirm  = "Log in",
+      items    = items,
+      timeout  = 3600,
+    }
+    if ids == nil then return {} end
+    return { hosts = ids }
+  end,
+}
+
+rex.action{
+  name     = "ssh_login_summary",
+  title    = "SSH Login Summary",
+  category = "Scripts",
+  args     = { title = "string", detail = "string", retry = "boolean" },
+  run      = function(ctx, a)
+    local items = { { id = "ok", title = "OK", subtitle = a.detail } }
+    if a.retry then
+      table.insert(items, 1, { id = "retry", title = "Retry", subtitle = a.detail })
+    end
+    local id = rex.ui.pick{ title = a.title, items = items, timeout = 3600 }
+    return id or "ok"
+  end,
+}
+
 -- Rebuilds the "monitor" session on zadkiel with dotfiles' rex-monitor: one tab
 -- per machine (btop, gmon, slurry, cost, dusage), fox included. Other tabs
 -- there, such as "master agent", are kept. Use it after a server restart; a lost connection

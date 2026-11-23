@@ -11,6 +11,11 @@
 
 set -Euo pipefail
 
+# Stop immediately if an earlier prompt in this login run was cancelled.
+if [[ -n ${DOTFILES_ASKPASS_CANCEL_FILE:-} && -e $DOTFILES_ASKPASS_CANCEL_FILE ]]; then
+	exit 1
+fi
+
 prompt="${1:-}"
 host="${DOTFILES_ASKPASS_HOST:-}"
 mode="${SSH_ASKPASS_PROMPT:-}"
@@ -25,42 +30,12 @@ rex_bin="$(command -v rex || true)"
 args="$(jq -n --arg prompt "$prompt" --arg host "$host" --arg mode "$mode" \
 	'{prompt: $prompt, host: $host, mode: $mode}')"
 
-# The script prints JSON: {"text": ...} for an answer, {} for a cancel.
-# shellcheck disable=SC2016
-script='
-local a = rex.args
-local lines = {}
-for l in a.prompt:gmatch("[^\n]+") do
-  l = l:gsub("^%s+", ""):gsub("%s+$", "")
-  if l ~= "" then lines[#lines + 1] = l end
-end
-local last = lines[#lines] or ""
-local title = a.host ~= "" and ("ssh " .. a.host) or "ssh"
-
-if a.prompt:find("(yes/no", 1, true) then
-  local fingerprint = ""
-  for _, l in ipairs(lines) do
-    if l:find("fingerprint is", 1, true) then fingerprint = l end
-  end
-  local id = rex.ui.pick{ title = title .. ": unknown host key", placeholder = "Trust this host key?",
-    items = { { id = "yes", title = "Trust and Connect", subtitle = fingerprint, icon = "server" },
-              { id = "no", title = "Don'"'"'t Connect" } }, timeout = 3600 }
-  return { text = id == "yes" and "yes" or "no" }
-end
-if a.mode == "confirm" or a.mode == "none" then
-  local items = a.mode == "none" and { { id = "yes", title = "OK" } }
-    or { { id = "yes", title = "Yes" }, { id = "no", title = "No" } }
-  local id = rex.ui.pick{ title = title, placeholder = last, items = items, timeout = 3600 }
-  if id == "yes" then return { text = "" } end
-  return {}
-end
-local text = rex.ui.input{ title = title, placeholder = last, confirm = "Send", timeout = 3600 }
-if text == nil then return {} end
-return { text = text }
-'
-
-out="$(env -u REX_BLOCK "$rex_bin" do --json --args "$args" -e "$script" 2>/dev/null)" || exit 1
-jq -e 'has("text")' >/dev/null <<<"$out" || exit 1
+# The ssh_askpass action in init.lua prints JSON: {"text": ...} or {} on cancel.
+if ! out="$(env -u REX_BLOCK "$rex_bin" do --json --args "$args" ssh_askpass 2>/dev/null)" \
+	|| ! jq -e 'has("text")' >/dev/null <<<"$out"; then
+	[[ -n ${DOTFILES_ASKPASS_CANCEL_FILE:-} ]] && : >"$DOTFILES_ASKPASS_CANCEL_FILE"
+	exit 1
+fi
 text="$(jq -r '.text' <<<"$out")"
 [[ -z $text && ($mode == confirm || $mode == none) ]] && exit 0
 printf '%s\n' "$text"

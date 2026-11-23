@@ -17,9 +17,9 @@ Host saga betzy olivia
     ControlPersist 4h
 
 Host uio
-    Hostname login.math.uio.no
+    Hostname login.uio.no
     user kholme
-    AddressFamily inet
+    ConnectTimeout 5
 
 Host zadkiel
     Hostname zadkiel
