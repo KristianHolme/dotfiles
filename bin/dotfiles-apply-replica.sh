@@ -130,7 +130,7 @@ run_stow_passthrough() {
 		exit 1
 	}
 	copy_directory_contents "$HOME/.agents/skills" "$HOME/.codex/skills" "Codex skills"
-	link_claude_skills
+	link_agent_skills
 	stow_replica_package dot-pi "$HOME/.pi" "${stow_flags[@]}" || {
 		log_error "dot-pi stow failed; aborting"
 		exit 1
@@ -268,7 +268,7 @@ run_selected_steps() {
 			exit 1
 		}
 		copy_directory_contents "$HOME/.agents/skills" "$HOME/.codex/skills" "Codex skills"
-		link_claude_skills
+		link_agent_skills
 	fi
 
 	if task_is_selected "$TASK_STOW_PI" "$selection"; then

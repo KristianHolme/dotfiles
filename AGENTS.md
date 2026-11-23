@@ -3,7 +3,9 @@
 - Global agent instructions: edit `default/dot-agents/AGENTS.md` (general) or
   the machine's `~/.agents/AGENTS.local.md` (machine-specific, not in this repo),
   then run `install_agent_instructions` from `bin/lib-dotfiles.sh` (or `dar`/`dac`).
-  The files under `~/.claude`, `~/.codex`, `~/.pi` and `~/.cursor/rules` are generated.
+  The files under `~/.claude`, `~/.codex`, `~/.pi`, `~/.gemini/GEMINI.md` and
+  `~/.cursor/rules` are generated. Skills are symlinked per skill into
+  `~/.claude/skills` and `~/.gemini/config/skills` (Antigravity CLI).
 
 - The setup scripts copy skills into `~/.codex/skills` because Codex does not
   currently read skills through the symlinks in `~/.agents`. This workaround

@@ -145,8 +145,8 @@ link_agent_configs() {
 		return 0
 	fi
 
-	log_info "Linking agent skills to Claude Code and Cursor..."
-	link_claude_skills
+	log_info "Linking agent skills to Claude Code, Antigravity and Cursor..."
+	link_agent_skills
 	copy_directory_contents "$agents_dir/skills" "$HOME/.codex/skills" "Codex skills"
 	create_symlink_with_backup "$agents_dir/skills" "$HOME/.cursor/skills" "Cursor skills"
 	install_agent_instructions

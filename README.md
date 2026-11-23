@@ -48,7 +48,8 @@ global agent instructions (below), and reloads Hyprland.
 one machine or filesystem go in `~/.agents/AGENTS.local.md` on that machine
 (not in this repo). `dac` and `dar` concatenate the two into each harness's
 global instructions file: `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`,
-`~/.pi/agent/AGENTS.md`, and `~/.cursor/rules/global-agents.mdc`
+`~/.pi/agent/AGENTS.md`, `~/.gemini/GEMINI.md` (Antigravity CLI), and
+`~/.cursor/rules/global-agents.mdc`
 (`alwaysApply: true`). These are generated copies; edit the sources and rerun.
 
 Host-specific Hyprland (monitors, scale, workspace pins) is in
