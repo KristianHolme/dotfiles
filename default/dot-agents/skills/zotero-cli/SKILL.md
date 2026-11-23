@@ -3,7 +3,7 @@ name: zotero-cli
 description: Read and write a Zotero library from the shell with the `zotero-cli` command - search papers by keyword or meaning, read PDF full text and page ranges, get and set metadata, manage collections, tags, notes and annotations, add items by DOI/URL/ISBN, and export bibliographies. Use whenever the user asks about their Zotero library, references, citations, papers they have saved, or their reading notes.
 metadata:
   upstream: zotero-mcp install-skill
-  last_refreshed: "2026-11-16"
+  last_refreshed: "2026-11-23"
   refresh_interval_days: "30"
 ---
 
@@ -15,7 +15,7 @@ metadata:
 ## Upstream refresh reminder
 
 Once per session when this skill loads: if today is **30 or more days** after
-`metadata.last_refreshed` (currently `2026-11-16`), remind the user once that
+`metadata.last_refreshed` (currently `2026-11-23`), remind the user once that
 the vendored skill may be stale, and offer to refresh:
 
 1. `tmp=$(mktemp -d) && zotero-mcp install-skill --target agents --root "$tmp" --force`
@@ -24,20 +24,21 @@ the vendored skill may be stale, and offer to refresh:
 
 Do not refresh without asking. If the interval has not elapsed, say nothing about updates.
 
-`zotero-cli` reaches a Zotero library directly. Prefer it over the Zotero MCP
-server when you have shell access: the MCP server's tool schemas cost ~14k
-tokens of context on every request whether or not you use them, while this
-costs only what you actually run.
+When you have shell access, prefer `zotero-cli` for direct library access.
 
-Check it is set up before the first real call:
+Before using the library, check settings and read access.
 
 ```bash
-zotero-cli config          # prints the resolved Zotero settings
+zotero-cli config
+zotero-cli --json get recent --limit 1
 ```
 
-If that fails, Zotero is not reachable. Local mode needs the Zotero desktop
-app running with its local API enabled; web mode needs `ZOTERO_API_KEY` and
-`ZOTERO_LIBRARY_ID`. Say so rather than guessing at library contents.
+`config` displays settings. `ok: true` from `get recent` confirms read access
+even when the library is empty. On failure, report `error.message`. Check
+`ZOTERO_DB_PATH` for a custom SQLite location, the running app and enabled
+API for local API reads, or `ZOTERO_API_KEY` and `ZOTERO_LIBRARY_ID` for web
+reads. SQLite reads can work with Zotero closed. Local API writes require
+running Zotero, an enabled local API, and write authorization.
 
 ## Always pass --json when you will read the output
 
@@ -222,17 +223,15 @@ first 40 characters of comment). Check what is stored with `annotations preview
 `annotations update KEY --rect x,y,w,h` (or `--page N`).
 
 Colors take Zotero's names: yellow, red, green, blue, purple, magenta,
-orange, gray. Three or four colors with fixed meanings read better than
-eight; say what they mean in a note on the item.
+orange, gray.
 
 Writes in local mode need a one-time `zotero-mcp authorize-local` (Zotero 10
 or newer) or web API credentials. A write refused for that reason says so.
 
 ## When something looks wrong
 
-- Empty search results: check `zotero-cli config` and, for semantic mode,
-  `zotero-cli db status`. Do not report "you have no papers on X" until you
-  know the library is actually reachable and indexed.
+- Empty search results: confirm read access as above. For semantic mode,
+  check the index with `zotero-cli db status`.
 - `ok: false`: read `error.message`. It names the cause.
 - A partial-results note on a search means the scan was cut short, not that
   nothing else matched. Narrow the query and re-run.

@@ -2,3 +2,7 @@ lazy-lock.json
 local*
 *.code-workspace
 MEMORY.md
+
+# Omarchy-managed skill symlinks (created by omarchy migrations via ~/.agents -> dot-agents)
+/default/dot-agents/skills/omarchy
+/default/dot-agents/skills/omarchy-*
