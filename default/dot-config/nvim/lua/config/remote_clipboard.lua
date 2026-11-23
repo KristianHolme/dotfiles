@@ -5,46 +5,13 @@
 -- text from the host when no readable clipboard exists, use terminal paste.
 local M = {}
 
-local function proc_lines(pid, file)
-  local ok, lines = pcall(vim.fn.readfile, "/proc/" .. pid .. "/" .. file)
-  return ok and lines or {}
-end
-
-local function proc_ppid(pid)
-  for _, line in ipairs(proc_lines(pid, "status")) do
-    local ppid = line:match("^PPid:%s+(%d+)")
-    if ppid then
-      return tonumber(ppid)
-    end
-  end
-end
-
-local function ancestor_process_named(name)
-  local pid = vim.fn.getpid()
-
-  for _ = 1, 16 do
-    local ppid = proc_ppid(pid)
-    if not ppid or ppid <= 1 then
-      return false
-    end
-
-    local comm = proc_lines(ppid, "comm")[1] or ""
-    if comm:find(name, 1, true) then
-      return true
-    end
-
-    pid = ppid
-  end
-
-  return false
-end
-
 function M.setup()
   local in_tmux = vim.env.TMUX ~= nil
   local in_ssh = vim.env.SSH_TTY ~= nil or vim.env.SSH_CONNECTION ~= nil
-  local in_herdr = vim.env.HERDR_PANE_ID ~= nil or ancestor_process_named("herdr")
+  -- A Rex pane, here or on a remote host the app reaches over ssh:// or Tailscale.
+  local in_rex = vim.env.REX_SESSION ~= nil
 
-  if not (in_tmux or in_ssh or in_herdr) then
+  if not (in_tmux or in_ssh or in_rex) then
     return
   end
 

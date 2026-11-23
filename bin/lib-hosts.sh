@@ -24,9 +24,6 @@
 #   remote_path = "/home/..."
 #   local_path  = "/mnt/..."
 #
-#   [herdr]                          # saved herdr machines
-#   <label> = "<ssh target>"         # session name = label
-#
 #   [defaults]
 #   sync_root = "Code"               # optional; relative to remote_path, or absolute if starts with /
 #   ssh_masters = ["uio", ...]       # optional; 2FA hosts for dotfiles-ssh-login.sh
@@ -119,12 +116,6 @@ hosts_standalone_machines() {
 hosts_ssh_masters() {
     _hosts_ensure || return 1
     jq -r '.defaults.ssh_masters // [] | .[]' <<<"$_HOSTS_JSON"
-}
-
-# Saved herdr machines as "label<TAB>ssh target" lines, sorted by label.
-hosts_herdr_machines() {
-    _hosts_ensure || return 1
-    jq -r '.herdr // {} | to_entries[] | "\(.key)\t\(.value)"' <<<"$_HOSTS_JSON" | sort
 }
 
 # Pinned login node for dst (empty if unset). Short name used for an intra-cluster hop.

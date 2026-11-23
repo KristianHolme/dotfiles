@@ -38,9 +38,11 @@ rex.action{
   end,
 }
 
--- Opens a floating terminal that logs in to the 2FA SSH masters (uio, saga,
--- olivia, fox) with dotfiles-ssh-login.sh. The action runs on the server of the
--- focused session, so the masters start on that host: bengal or zadkiel.
+-- Logs in to the 2FA SSH masters (uio, saga, olivia, fox) with
+-- dotfiles-ssh-login.sh --rex, in the background: ssh asks for passwords and
+-- codes in the app's command palette (dotfiles-rex-askpass), and a summary
+-- shows there at the end. The action runs on the server of the focused
+-- session, so the masters start on that host: bengal or zadkiel.
 -- Fain reads key bindings from the local server and runs the action on the
 -- focused session's server, so every server needs both.
 rex.action{
@@ -49,17 +51,11 @@ rex.action{
   category = "Scripts",
   keywords = "ssh 2fa controlmaster uio saga olivia fox login",
   run      = function(ctx)
-    local r, err = rex.session.new_layer{
-      bounds = { 0.15, 0.2, 0.7, 0.6 },
-      layout = { block = {
-        flavor  = "com.superlogical.terminal.shell",
-        label   = "ssh login",
-        options = { command = { os.getenv("HOME") .. "/dotfiles/bin/dotfiles-ssh-login.sh", "--pause" } },
-      } },
-      focus  = true,
-    }
-    if err ~= nil then error(err, 0) end
-    return r
+    local h, err = rex.exec.start(
+      { os.getenv("HOME") .. "/dotfiles/bin/dotfiles-ssh-login.sh", "--rex" },
+      { detach = true, stdout = false, stderr = false, env = { REX_SESSION = ctx.session_id } })
+    if not h then error(err, 0) end
+    return "logging in"
   end,
 }
 rex.bind("ctrl+shift+l", "ssh_login")

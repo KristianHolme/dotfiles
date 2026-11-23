@@ -16,72 +16,6 @@ Host saga betzy olivia
     ControlPath ~/.ssh/%r@%h:%p
     ControlPersist 4h
 
-# herdr saved machines: pinned login node (home is shared across round-robin
-# nodes, so the herdr server must always live on one). Reuses the 2FA master above.
-# Never prompt: herdr reconnects in the background, and a ProxyJump hop would
-# ask for 2FA on herdr's own terminal. Without a master these fail fast and
-# herdr marks the machine; log in with dotfiles-ssh-login.sh (herdr: prefix+shift+l).
-# The uio-jump aliases come before `Host nam-shub*` / `ml*` so their settings win.
-Host saga-herdr
-    Hostname login-2
-    HostKeyAlias saga.sigma2.no
-    User kholme
-    BatchMode yes
-    ProxyCommand ssh -o BatchMode=yes -W %h:%p saga
-
-Host olivia-herdr
-    Hostname uan02
-    HostKeyAlias olivia.sigma2.no
-    User kholme
-    BatchMode yes
-    ProxyCommand ssh -o BatchMode=yes -W %h:%p olivia
-
-Host abacus-as-herdr
-    Hostname abacus-as
-    User kholme
-    BatchMode yes
-    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
-
-Host abacus-min-herdr
-    Hostname abacus-min
-    User kholme
-    BatchMode yes
-    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
-
-Host nam-shub-01-herdr
-    Hostname nam-shub-01
-    User kholme
-    BatchMode yes
-    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
-
-Host nam-shub-02-herdr
-    Hostname nam-shub-02
-    User kholme
-    BatchMode yes
-    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
-
-Host zadkiel-herdr
-    Hostname zadkiel
-    User kholme
-    BatchMode yes
-    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
-
-Host ml6-herdr
-    Hostname ml6.hpc.uio.no
-    User kholme
-    BatchMode yes
-    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
-
-Host ml7-herdr
-    Hostname ml7.hpc.uio.no
-    User kholme
-    BatchMode yes
-    ProxyCommand ssh -o BatchMode=yes -W %h:%p uio
-
-Host bali-herdr
-    Hostname bali
-    BatchMode yes
-
 Host uio
     Hostname login.math.uio.no
     user kholme
@@ -115,7 +49,8 @@ Host freebio* bioint0* ml*
     SendEnv TERM
     SetEnv TERM=xterm-256color
 
-# Multiplex through the 2FA jump host: one interactive login, reuse for dst/theme-sync/rsync.
+# Multiplex through the 2FA jump host: one interactive login, reuse for dst/theme-sync/rsync
+# and Fain's ssh://zadkiel (Fain asks for the 2FA code in its command palette).
 # dst starts a dedicated `ssh -fN` master. Cursor Remote-SSH must not own this
 # socket (it recycles its tunnel and would drop multiplexed tmux with it).
 Host uio zadkiel nam-shub* abacus* freebio* bioint0* ml*

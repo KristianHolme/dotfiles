@@ -41,4 +41,4 @@ After changing Hyprland configs, always run `hyprctl reload` and `hyprctl config
 Replicas do not clone Omarchy. `dotfiles-theme-sync-remote.sh` rsyncs the locally staged theme (`~/.local/state/omarchy/current/theme`) and applies terminal/tmux/neovim hooks.
 
 - Neovim needs `~/.config/nvim/lua/plugins/theme.lua` → staged `neovim.lua`, or LazyVim stays on tokyonight. `autocmds.lua` finishes the apply (`highlight clear` + `background` + `colorscheme`) so groups like CursorLine do not survive a light→dark switch.
-- UiO Herdr targets use the `uio` jump ControlMaster; theme sync needs no per-target master.
+- UiO hosts (ProxyJump `uio`) count as active when the `uio` jump ControlMaster is up; theme sync needs no per-target master.

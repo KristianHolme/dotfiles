@@ -3,8 +3,8 @@ name: rex-hosts
 description: >-
   Maintain the Rex server setup on the user's machines (bengal, sibir, zadkiel,
   bali; Fain as client): upgrade or compare rex versions, restart a server,
-  reload config after an init.lua edit, fix the zadkiel SSH tunnel, add another
-  Rex host. Use when Fain cannot reach a host, an action works on one host but
+  reload config after an init.lua edit, fix the ssh://zadkiel connection, add
+  another Rex host. Use when Fain cannot reach a host, an action works on one host but
   not another, after a rex package update, or before changing any rex-*.service
   unit.
 ---
@@ -23,13 +23,13 @@ with `hostname -s` before you act. "Local" means that machine.
 |---|---|---|---|
 | bengal (desktop, Arch) | client host | `rex-user.service`: `/usr/bin/rex` from Superlogical's pacman repo, `--tailscale` as `rex-bengal` | local Fain via `/run/user/1000/rex/server.sock` |
 | sibir (laptop, Arch) | client host | `rex-user.service` as on bengal, `--tailscale` as `rex-sibir` | local Fain; Tailscale `rex-sibir.tail564136.ts.net` |
-| zadkiel (UiO, Fedora) | remote | `rex-server.service`: `~/.local/bin/rex`, a copy of a client host's binary, Unix socket only, linger on | each client host's `rex-tunnel-zadkiel.service`: `ssh -L /run/user/1000/rex-tunnels/zadkiel.sock` → `/run/user/293575/rex/server.sock` via `zadkiel-herdr` |
+| zadkiel (UiO, Fedora) | remote | `rex-server.service`: `~/.local/bin/rex`, a copy of a client host's binary, Unix socket only, linger on | host `ssh://zadkiel` on each client host: Fain (and `rex -S zadkiel`) runs the system ssh, ProxyJump `uio` |
 | bali (desktop) | other | its own server | Tailscale, `rex-bali.tail564136.ts.net` |
 
 Fain on a client host reads the host list and key bindings from that host's
 own server. All units live in `~/dotfiles/default/dot-config/systemd/user/`
 and are stowed everywhere. Each host enables only its own: a client host
-enables `rex-user` and `rex-tunnel-zadkiel`, and zadkiel enables `rex-server`.
+enables `rex-user`, and zadkiel enables `rex-server`.
 
 Facts that bite:
 
@@ -50,10 +50,14 @@ Facts that bite:
 - zadkiel's home is NFS, shared with nam-shub and abacus. `rex-server.service`
   has `ConditionHost=zadkiel.uio.no`: the full name, as the short one does not
   match. Keep a host condition on any unit enabled there.
-- The tunnel uses BatchMode through the `uio` ControlMaster. With no master it
-  fails and restarts every 10 s. The fix is a login: Ctrl+Shift+L in Fain, or
-  `~/dotfiles/bin/dotfiles-ssh-login.sh` in a terminal. Never add a password or
-  2FA prompt to the unit.
+- ssh://zadkiel goes through the `uio` jump host, which needs 2FA. Fain runs
+  ssh with itself as SSH_ASKPASS, so the password and code questions open in
+  Fain's command palette; ssh then leaves a `uio` ControlMaster (4 h
+  ControlPersist) that `rex -S zadkiel`, theme sync and rsync reuse. In a
+  script or agent shell, use `ssh -o BatchMode=yes zadkiel …`: it works while
+  the master is up and fails fast otherwise. The fix for a down master is a
+  login: Ctrl+Shift+L in Fain (`ssh_login` action, questions in the palette)
+  or `~/dotfiles/bin/dotfiles-ssh-login.sh` in a terminal.
 - Restarting a server keeps layouts and kills every program in its sessions,
   including agents. zadkiel runs the user's Claude sessions.
 
@@ -69,13 +73,13 @@ its old build until it restarts, and zadkiel keeps its copy until you replace it
    `rex -S zadkiel ls`. Proceed only on a yes.
 3. zadkiel, from a client host with the new build:
    ```sh
-   scp -q /usr/bin/rex zadkiel-herdr:.local/bin/rex.new
-   ssh zadkiel-herdr 'chmod 755 ~/.local/bin/rex.new && mv ~/.local/bin/rex.new ~/.local/bin/rex && systemctl --user restart rex-server'
+   scp -q -o BatchMode=yes /usr/bin/rex zadkiel:.local/bin/rex.new
+   ssh -o BatchMode=yes zadkiel 'chmod 755 ~/.local/bin/rex.new && mv ~/.local/bin/rex.new ~/.local/bin/rex && systemctl --user restart rex-server'
    ```
    Local client host: `systemctl --user restart rex-user.service`. The other
    client host upgrades itself through pacman; tell the user it needs the same.
 4. Run `rex skill setup` on each upgraded host
-   (`ssh zadkiel-herdr ~/.local/bin/rex skill setup`). It updates the installed skill and hook.
+   (`ssh -o BatchMode=yes zadkiel ~/.local/bin/rex skill setup`). It updates the installed skill and hook.
 5. If `api: revision` changed, check whether Fain still works and rebuild it
    from `~/Code/Fain` (README: Build and run).
 
@@ -88,26 +92,19 @@ version of `rex version`, and `rex -S zadkiel client ls` lists Fain without
 Done when every line below is healthy:
 
 - `rex hosts check`: each host `reachable`.
-- Local client host: `systemctl --user is-active rex-user rex-tunnel-zadkiel`.
-  For tunnel failures: `journalctl --user -u rex-tunnel-zadkiel -n 20`.
-  `Permission denied (keyboard-interactive)` means the uio master is down.
-- zadkiel: `ssh zadkiel-herdr 'systemctl --user is-active rex-server; loginctl show-user $(id -un) -p Linger'`
+- Local client host: `systemctl --user is-active rex-user`.
+  For zadkiel failures: `ssh -O check uio` (no master: log in as above) and
+  `journalctl --user -o cat | grep 'ssh tunnel'` for Fain's own ssh errors.
+- zadkiel: `ssh -o BatchMode=yes zadkiel 'systemctl --user is-active rex-server; loginctl show-user $(id -un) -p Linger'`
   shows `active` and `Linger=yes`.
 
 ## Another SSH host
 
 Copy the zadkiel pattern: a socket-only server unit with a `ConditionHost` on
-the host, a `rex-tunnel-<host>.service` enabled on each client host, and
-`rex hosts add <host> unix:///run/user/1000/rex-tunnels/<host>.sock` on each.
-Use the `<host>-herdr` SSH alias, which has BatchMode. The remote server needs a
-systemd user manager and linger; cluster login nodes usually have neither.
-
-## Revert to herdr
-
-On each client host: `systemctl --user disable --now rex-tunnel-zadkiel` and
-`rex hosts remove zadkiel`. On zadkiel:
-`systemctl --user disable --now rex-server`. Linger can stay on. herdr is
-untouched by this setup.
+the host, then `rex hosts add <host> ssh://<ssh alias>` on each client host.
+Rex starts the server over ssh when none runs (`rex server start`), but it dies
+at logout without linger, so keep the unit. The remote server needs a systemd
+user manager and linger; cluster login nodes usually have neither.
 
 ## Monitor session
 

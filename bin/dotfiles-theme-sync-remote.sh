@@ -27,7 +27,7 @@ theme files (e.g. light.mode). No Omarchy install is required on the replica.
 
   --host ALIAS   Sync only this inventory alias (e.g. dst after connect)
 
-Active = host ControlMaster up, or a Herdr target with a live jump master.
+Active = host ControlMaster up, or its jump host's (ProxyJump) master up.
 Never opens a new 2FA session.
 On hosts with login_node (e.g. saga), files rsync to shared home via the VIP
 and live tmux/OSC apply hops to that node — same pin dst uses.
@@ -80,19 +80,25 @@ resolve_local_theme() {
 	return 1
 }
 
-# A Herdr target uses its ProxyCommand's ControlMaster for the 2FA hop.
+# A host is reachable without a 2FA prompt when it has a ControlMaster, or
+# when its ProxyJump (or ProxyCommand) jump host has one.
 theme_sync_master_available() {
-	local host="$1" proxy
+	local host="$1" jump
 	if ssh -O check "$host" >/dev/null 2>&1; then
 		return 0
 	fi
-	proxy="$(ssh -G "$host" 2>/dev/null | awk '$1 == "proxycommand" { print $NF; exit }')"
-	[[ -n $proxy ]] && ssh -O check "$proxy" >/dev/null 2>&1
+	jump="$(ssh -G "$host" 2>/dev/null | awk '
+		$1 == "proxyjump" { split($2, a, ","); print a[1]; exit }
+		$1 == "proxycommand" { print $NF; exit }')"
+	jump="${jump#*@}"
+	jump="${jump%%:*}"
+	[[ -n $jump && $jump != none ]] && ssh -O check "$jump" >/dev/null 2>&1
 }
 
-# Print inventory and Herdr targets with a live ControlMaster, excluding local host.
+# Print inventory hosts with a live ControlMaster (theirs or their jump
+# host's), excluding the local host.
 hosts_active_ssh() {
-	local host local_host entry label target
+	local host local_host
 	local_host="$(hosts_local_hostname)"
 	while IFS= read -r host; do
 		[[ -n "$host" ]] || continue
@@ -103,14 +109,6 @@ hosts_active_ssh() {
 			echo "$host"
 		fi
 	done < <(hosts_all_machines)
-	while IFS= read -r entry; do
-		label="${entry%%$'\t'*}"
-		target="${entry#*$'\t'}"
-		[[ "${label,,}" == "${local_host,,}" ]] && continue
-		if ! ssh -O check "$label" >/dev/null 2>&1 && theme_sync_master_available "$target"; then
-			echo "$target"
-		fi
-	done < <(hosts_herdr_machines)
 }
 
 # SSH options: never block on interactive MFA. A host or its jump must have a ControlMaster.
@@ -140,13 +138,6 @@ push_theme_files() {
 		-e "$ssh_cmd" \
 		"${LOCAL_THEME}/" \
 		"${host}:.local/state/omarchy/current/theme/" || return 1
-	# Static herdr settings; the replica joins them with the theme block.
-	if [[ -f ${HOME}/.config/herdr/config.base.toml ]]; then
-		ssh "${_SSH_SYNC_OPTS[@]}" "$host" "mkdir -p .config/herdr" || return 1
-		rsync -azL -e "$ssh_cmd" \
-			"${HOME}/.config/herdr/config.base.toml" \
-			"${host}:.config/herdr/config.base.toml" || return 1
-	fi
 	if [[ -f ${LOCAL_CURRENT}/theme.name ]]; then
 		rsync -az -e "$ssh_cmd" \
 			"${LOCAL_CURRENT}/theme.name" \
@@ -248,12 +239,11 @@ main() {
 		fi
 	fi
 
-	local host label group key pid failed=0
+	local host group key pid failed=0
 	local -a groups=() members=() pids=()
 	local -A group_targets=()
 	for host in "${targets[@]}"; do
-		label="${host%-herdr}"
-		group="$(hosts_machine_group "$label")"
+		group="$(hosts_machine_group "$host")"
 		key="${group:-$host}"
 		if [[ ! -v group_targets["$key"] ]]; then
 			groups+=("$key")
