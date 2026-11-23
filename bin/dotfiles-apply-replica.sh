@@ -5,10 +5,10 @@ set -Eeuo pipefail
 # - Stows default/dot-config into ~/.config (nvim, tmux, starship, hypr, etc.)
 # - Stows default/dot-agents into ~/.agents (skills)
 # - Copies skills into ~/.codex/skills (Codex does not read the symlink)
-# - Symlinks skills into ~/.claude/skills (per skill)
+# - Symlinks skills into ~/.claude/skills and ~/.gemini/config/skills (per skill)
 # - Stows default/dot-pi into ~/.pi (agent settings.json)
 # - Writes ~/.agents/AGENTS.md + AGENTS.local.md into each harness's global
-#   instructions file (Claude, Codex, pi, Cursor)
+#   instructions file (Claude, Codex, pi, Antigravity, Cursor)
 # - Creates symlink for Julia config ($JULIA_DEPOT_PATH/config or ~/.julia/config)
 # - Adds source line to server's ~/.bashrc for our dot-bashrc (idempotent)
 #
