@@ -152,6 +152,40 @@ rex.action{
   end,
 }
 
+-- Generic picker for CLI callers (`rex.ui.pick` runs only in server actions).
+-- `items` is newline-separated `id\ttitle\tsubtitle\tdetail` rows.
+rex.action{
+  name     = "ui_pick",
+  title    = "UI Picker",
+  category = "Scripts",
+  args     = { title = "string", placeholder = "string", confirm = "string", multiple = "boolean", items = "string" },
+  run      = function(ctx, a)
+    local items = {}
+    for line in (a.items or ""):gmatch("[^\n]+") do
+      local id, title, subtitle, detail = line:match("^([^\t]+)\t([^\t]*)\t([^\t]*)\t?(.*)$")
+      if id and id ~= "" then
+        items[#items + 1] = {
+          id       = id,
+          title    = title ~= "" and title or id,
+          subtitle = subtitle ~= "" and subtitle or nil,
+          detail   = detail ~= "" and detail or nil,
+        }
+      end
+    end
+    local res = rex.ui.pick{
+      title       = a.title,
+      placeholder = (a.placeholder and a.placeholder ~= "") and a.placeholder or nil,
+      confirm     = (a.confirm and a.confirm ~= "") and a.confirm or nil,
+      multiple    = a.multiple == true,
+      items       = items,
+      timeout     = 3600,
+    }
+    if res == nil then return { cancelled = true, ids = {} } end
+    if type(res) == "table" then return { ids = res } end
+    return { ids = { res } }
+  end,
+}
+
 -- Rebuilds the "monitor" session on zadkiel with dotfiles' rex-monitor: one tab
 -- per machine (btop, gmon, slurry, cost, dusage), fox included. Other tabs
 -- there, such as "master agent", are kept. Use it after a server restart; a lost connection
