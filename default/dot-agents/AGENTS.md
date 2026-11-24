@@ -1,5 +1,6 @@
 # Global agent instructions
 
 - Put files the user reads or watches (reports, drafts, logs, figures, run outputs) in a git-ignored folder in the working directory. Use the folder `.gitignore` already ignores (e.g. `_research/`), else add one to `.git/info/exclude`. Keep `/tmp` and session scratchpads for throwaway intermediates.
+- During storage cleanup, Delete only files the user explicitly approved. During cleanups, approval for named items does not cover other stale or adjacent files; list them with size and reason and wait.
 - A run expected to take more than about 2 minutes (simulation, training, video render, benchmark) must report progress to its log: steps done of total, elapsed time and ETA. When you report on it, give percent done and the expected finish time, not only "running".
 - If in Claude Code: wait for a long run with `run_in_background` (it notifies on exit) or, for a wait under 30 min, one Monitor with `timeout_ms: 1800000`. A Monitor expires after 30 min, so wait longer with a `run_in_background` until-loop. A `sleep N` before a read is blocked.
