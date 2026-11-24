@@ -43,11 +43,37 @@ if [[ ${#hosts[@]} -eq 0 ]]; then
 	mapfile -t hosts < <(hosts_ssh_masters)
 fi
 
+cancel_file=""
 if ((rex)); then
+	cancel_file="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/dotfiles-ssh-login-cancel.XXXXXX")"
+	rm -f "$cancel_file"
+	trap 'rm -f "$cancel_file"' EXIT
+	export DOTFILES_ASKPASS_CANCEL_FILE="$cancel_file"
 	export SSH_ASKPASS="$SCRIPT_DIR/dotfiles-rex-askpass"
 	export SSH_ASKPASS_REQUIRE=force
 	exec </dev/null
 fi
+
+# Shows a multi-select picker of hosts in the Rex app's palette, all selected
+# by default. Prints one chosen host per line; exits 1 on cancel.
+rex_pick_hosts() {
+	local title="$1"
+	shift
+	local rex_bin lines="" h status out
+	rex_bin="$(command -v rex || echo "${HOME}/.local/bin/rex")"
+	for h in "$@"; do
+		if ssh -O check "$h" >/dev/null 2>&1; then
+			status="connected"
+		else
+			status="disconnected"
+		fi
+		lines+="${h}"$'\t'"${status}"$'\n'
+	done
+	out="$(env -u REX_BLOCK "$rex_bin" do --json --args "$(jq -n --arg t "$title" --arg h "$lines" \
+		'{title: $t, hosts: $h}')" ssh_login_pick 2>/dev/null)" || return 1
+	jq -e 'has("hosts")' >/dev/null <<<"$out" || return 1
+	jq -r '.hosts[]' <<<"$out"
+}
 
 # Shows text in the Rex app's palette with OK, or Retry when retry is set.
 # Prints the chosen id.
@@ -55,14 +81,8 @@ rex_summary() {
 	local title="$1" detail="$2" retry="$3"
 	local rex_bin
 	rex_bin="$(command -v rex || echo "${HOME}/.local/bin/rex")"
-	# shellcheck disable=SC2016
 	env -u REX_BLOCK "$rex_bin" do --args "$(jq -n --arg t "$title" --arg d "$detail" --argjson r "$retry" \
-		'{title: $t, detail: $d, retry: $r}')" -e '
-local a = rex.args
-local items = { { id = "ok", title = "OK", subtitle = a.detail } }
-if a.retry then table.insert(items, 1, { id = "retry", title = "Retry", subtitle = a.detail }) end
-local id = rex.ui.pick{ title = a.title, items = items, timeout = 3600 }
-return id or "ok"' 2>/dev/null | tr -d '"'
+		'{title: $t, detail: $d, retry: $r}')" ssh_login_summary 2>/dev/null | tr -d '"'
 }
 
 # One login run at a time: overlapping runs send duplicate 2FA pushes.
@@ -80,17 +100,31 @@ fi
 machine="$(hostname -s)"
 log_info "Machine: $machine"
 
+if ((rex && ${#hosts[@]} > 1)); then
+	if ! picked="$(rex_pick_hosts "SSH login on $machine" "${hosts[@]}")"; then
+		log_warning "SSH login cancelled"
+		exit 0
+	fi
+	if [[ -z $picked ]]; then
+		log_info "No hosts selected"
+		exit 0
+	fi
+	mapfile -t hosts <<<"$picked"
+fi
+
 while true; do
 failed=0
+cancelled=0
 failed_hosts=()
-ok_hosts=()
+already_hosts=()
+logged_in_hosts=()
 for host in "${hosts[@]}"; do
 	if ssh -O check "$host" >/dev/null 2>&1; then
 		# A master whose connection died (network change, sleep) still
 		# answers -O check; only a command through it shows it is stale.
 		if timeout 10 ssh -o BatchMode=yes "$host" true >/dev/null 2>&1; then
 			log_info "$host: already logged in"
-			ok_hosts+=("$host")
+			already_hosts+=("$host")
 			continue
 		fi
 		log_warning "$host: master is stale, logging in again"
@@ -99,22 +133,43 @@ for host in "${hosts[@]}"; do
 	log_info "$host: logging in"
 	if DOTFILES_ASKPASS_HOST="$host" ssh -fN "$host"; then
 		log_success "$host: logged in"
-		ok_hosts+=("$host")
+		logged_in_hosts+=("$host")
 	else
+		if [[ -n $cancel_file && -e $cancel_file ]]; then
+			log_warning "SSH login cancelled"
+			cancelled=1
+			failed=1
+			break
+		fi
 		log_warning "$host: login failed"
 		failed=1
 		failed_hosts+=("$host")
 	fi
 done
 ((rex)) || break
+if ((cancelled)); then
+	detail="Cancelled"
+	((${#logged_in_hosts[@]})) && detail+=". Logged in: ${logged_in_hosts[*]}"
+	((${#already_hosts[@]})) && detail+=". Already connected: ${already_hosts[*]}"
+	rex_summary "SSH login on $machine" "$detail" false >/dev/null
+	break
+fi
 if ((failed)); then
 	detail="Failed: ${failed_hosts[*]}"
-	((${#ok_hosts[@]})) && detail+=". Logged in: ${ok_hosts[*]}"
+	((${#logged_in_hosts[@]})) && detail+=". Logged in: ${logged_in_hosts[*]}"
+	((${#already_hosts[@]})) && detail+=". Already connected: ${already_hosts[*]}"
 	[[ "$(rex_summary "SSH login on $machine" "$detail" true)" == retry ]] || break
 	hosts=("${failed_hosts[@]}")
 	continue
 fi
-rex_summary "SSH login on $machine" "Logged in: ${ok_hosts[*]}" false >/dev/null
+if ((${#logged_in_hosts[@]} == 0)); then
+	detail="Already connected: ${already_hosts[*]}"
+elif ((${#already_hosts[@]} == 0)); then
+	detail="Logged in: ${logged_in_hosts[*]}"
+else
+	detail="Logged in: ${logged_in_hosts[*]}. Already connected: ${already_hosts[*]}"
+fi
+rex_summary "SSH login on $machine" "$detail" false >/dev/null
 break
 done
 
