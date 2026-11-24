@@ -12,6 +12,7 @@ export JULIA_DAEMON_CPU=haswell
 export EDITOR=nvim
 export LC_ALL=C.UTF-8
 export CODEX_TUI_DISABLE_KEYBOARD_ENHANCEMENT=1
+export AGY_CLI_DISABLE_AUTO_UPDATE=1
 unset MESA_LOADER_DRIVER_OVERRIDE
 
 # Lmod is missing on some hosts (e.g. abacus-min), and absent when this runs
