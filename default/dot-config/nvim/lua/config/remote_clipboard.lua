@@ -9,7 +9,7 @@ function M.setup()
   local in_tmux = vim.env.TMUX ~= nil
   local in_ssh = vim.env.SSH_TTY ~= nil or vim.env.SSH_CONNECTION ~= nil
   -- A Rex pane, here or on a remote host the app reaches over ssh:// or Tailscale.
-  local in_rex = vim.env.REX_SESSION ~= nil
+  local in_rex = vim.env.REX_BLOCK ~= nil or vim.env.REX_SESSION ~= nil
 
   if not (in_tmux or in_ssh or in_rex) then
     return
