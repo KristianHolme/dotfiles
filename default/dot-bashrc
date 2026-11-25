@@ -44,6 +44,9 @@ alias lg='lazygit'
 # Omarchy defines these aliases on the desktop; replicas may not have them.
 unalias r cd ls lsa 2>/dev/null || true
 alias r='source ~/.bashrc'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
 alias l='eza -lh --group-directories-first --icons=auto'
 alias la='l -a'
 alias f='y'
