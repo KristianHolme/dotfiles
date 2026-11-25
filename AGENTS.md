@@ -4,7 +4,9 @@
   the machine's `~/.agents/AGENTS.local.md` (machine-specific, not in this repo),
   then run `install_agent_instructions` from `bin/lib-dotfiles.sh` (or `dar`/`dac`).
   The files under `~/.claude`, `~/.codex`, `~/.pi`, `~/.gemini/GEMINI.md` and
-  `~/.cursor/rules` are generated. Skills are symlinked per skill into
+  `~/.cursor/rules` are generated. On Omarchy machines `~/.claude/CLAUDE.md` is
+  instead Omarchy's symlink to `~/.agents/AGENTS.md`, which does not include
+  `AGENTS.local.md`. Skills are symlinked per skill into
   `~/.claude/skills` and `~/.gemini/config/skills` (Antigravity CLI).
 
 - The setup scripts copy skills into `~/.codex/skills` because Codex does not
