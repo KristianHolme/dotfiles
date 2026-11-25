@@ -51,6 +51,8 @@ global instructions file: `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`,
 `~/.pi/agent/AGENTS.md`, `~/.gemini/GEMINI.md` (Antigravity CLI), and
 `~/.cursor/rules/global-agents.mdc`
 (`alwaysApply: true`). These are generated copies; edit the sources and rerun.
+On Omarchy machines `~/.claude/CLAUDE.md` is not generated: Omarchy links it
+to `~/.agents/AGENTS.md`, so Claude there does not read `AGENTS.local.md`.
 
 Host-specific Hyprland (monitors, scale, workspace pins) is in
 `default/dot-config/hypr/monitors.lua`: it reads `/etc/hostname` and the
