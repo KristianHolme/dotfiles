@@ -56,7 +56,7 @@ Facts that bite:
   ControlPersist) that `rex -S zadkiel`, theme sync and rsync reuse. In a
   script or agent shell, use `ssh -o BatchMode=yes zadkiel …`: it works while
   the master is up and fails fast otherwise. The fix for a down master is a
-  login: Ctrl+Shift+L in Fain (`ssh_login` action, questions in the palette)
+  login: Ctrl+Shift+L in Fain (`ssh_login` action, a floating pane)
   or `~/dotfiles/bin/dotfiles-ssh-login.sh` in a terminal.
 - Restarting a server keeps layouts and kills every program in its sessions,
   including agents. zadkiel runs the user's Claude sessions.

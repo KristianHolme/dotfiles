@@ -38,11 +38,10 @@ rex.action{
   end,
 }
 
--- Logs in to the 2FA SSH masters (uio, saga, olivia, fox) with
--- dotfiles-ssh-login.sh --rex, in the background: ssh asks for passwords and
--- codes in the app's command palette (dotfiles-rex-askpass), and a summary
--- shows there at the end. The action runs on the server of the focused
--- session, so the masters start on that host: bengal or zadkiel.
+-- Opens a floating terminal that logs in to the 2FA SSH masters (uio, saga,
+-- olivia, fox) with dotfiles-ssh-login.sh: a gum menu chooses the hosts, then
+-- ssh asks for passwords and codes in the pane. The action runs on the server
+-- of the focused session, so the masters start on that host: bengal or zadkiel.
 -- Fain reads key bindings from the local server and runs the action on the
 -- focused session's server, so every server needs both.
 rex.action{
@@ -51,106 +50,20 @@ rex.action{
   category = "Scripts",
   keywords = "ssh 2fa controlmaster uio saga olivia fox login",
   run      = function(ctx)
-    local h, err = rex.exec.start(
-      { os.getenv("HOME") .. "/dotfiles/bin/dotfiles-ssh-login.sh", "--rex" },
-      { detach = true, stdout = false, stderr = false, env = { REX_SESSION = ctx.session_id } })
-    if not h then error(err, 0) end
-    return "logging in"
+    local r, err = rex.session.new_layer{
+      bounds = { 0.15, 0.2, 0.7, 0.6 },
+      layout = { block = {
+        flavor  = "com.superlogical.terminal.shell",
+        label   = "ssh login",
+        options = { command = { os.getenv("HOME") .. "/dotfiles/bin/dotfiles-ssh-login.sh", "--pick", "--pause" } },
+      } },
+      focus  = true,
+    }
+    if err ~= nil then error(err, 0) end
+    return r
   end,
 }
 rex.bind("ctrl+shift+l", "ssh_login")
-
--- Server-side prompt actions used by dotfiles-rex-askpass and
--- dotfiles-ssh-login.sh --rex (rex.ui prompts run only in server actions,
--- not in client-side `rex do -e` scripts).
-rex.action{
-  name     = "ssh_askpass",
-  title    = "SSH Askpass Prompt",
-  category = "Scripts",
-  args     = { prompt = "string", host = "string", mode = "string" },
-  run      = function(ctx, a)
-    local lines = {}
-    for l in (a.prompt or ""):gmatch("[^\n]+") do
-      l = l:gsub("^%s+", ""):gsub("%s+$", "")
-      if l ~= "" then lines[#lines + 1] = l end
-    end
-    local last = lines[#lines] or ""
-    local title = (a.host and a.host ~= "") and ("ssh " .. a.host) or "ssh"
-
-    if (a.prompt or ""):find("(yes/no", 1, true) then
-      local fingerprint = ""
-      for _, l in ipairs(lines) do
-        if l:find("fingerprint is", 1, true) then fingerprint = l end
-      end
-      local id = rex.ui.pick{
-        title = title .. ": unknown host key",
-        placeholder = "Trust this host key?",
-        items = {
-          { id = "yes", title = "Trust and Connect", subtitle = fingerprint, icon = "server" },
-          { id = "no", title = "Don't Connect" },
-        },
-        timeout = 3600,
-      }
-      return { text = id == "yes" and "yes" or "no" }
-    end
-    if a.mode == "confirm" or a.mode == "none" then
-      local items = a.mode == "none" and { { id = "yes", title = "OK" } }
-        or { { id = "yes", title = "Yes" }, { id = "no", title = "No" } }
-      local id = rex.ui.pick{ title = title, placeholder = last, items = items, timeout = 3600 }
-      if id == "yes" then return { text = "" } end
-      return {}
-    end
-    local text = rex.ui.input{ title = title, placeholder = last, confirm = "Send", timeout = 3600 }
-    if text == nil then return {} end
-    return { text = text }
-  end,
-}
-
-rex.action{
-  name     = "ssh_login_pick",
-  title    = "SSH Login Host Picker",
-  category = "Scripts",
-  args     = { title = "string", hosts = "string" },
-  run      = function(ctx, a)
-    local items = {}
-    for line in (a.hosts or ""):gmatch("[^\n]+") do
-      local host, status = line:match("^([^\t]+)\t?(.*)$")
-      if host and host ~= "" then
-        items[#items + 1] = {
-          id       = host,
-          title    = host,
-          detail   = status ~= "" and status or nil,
-          icon     = "server",
-          selected = true,
-        }
-      end
-    end
-    local ids = rex.ui.pick{
-      title    = a.title,
-      multiple = true,
-      confirm  = "Log in",
-      items    = items,
-      timeout  = 3600,
-    }
-    if ids == nil then return {} end
-    return { hosts = ids }
-  end,
-}
-
-rex.action{
-  name     = "ssh_login_summary",
-  title    = "SSH Login Summary",
-  category = "Scripts",
-  args     = { title = "string", detail = "string", retry = "boolean" },
-  run      = function(ctx, a)
-    local items = { { id = "ok", title = "OK", subtitle = a.detail } }
-    if a.retry then
-      table.insert(items, 1, { id = "retry", title = "Retry", subtitle = a.detail })
-    end
-    local id = rex.ui.pick{ title = a.title, items = items, timeout = 3600 }
-    return id or "ok"
-  end,
-}
 
 -- Generic picker for CLI callers (`rex.ui.pick` runs only in server actions).
 -- `items` is newline-separated `id\ttitle\tsubtitle\tdetail` rows.
