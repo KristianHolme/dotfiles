@@ -234,3 +234,26 @@ rex.bind("ctrl+alt+f", "float_yazi")
 local ok, typst = pcall(require, "rex-typst")
 if ok then typst.setup{} end
 rex.bind("ctrl+space>t", "typst_toggle")
+
+-- Trust slurry for OSC 7577 program resume on Rex builds that support resume rules.
+if rex.set then
+  rex.set("resume.trust.slurry", {
+    command = { "slurry" },
+    flags = {
+      ["-n"] = { "keep", values = 1 },
+      ["--interval"] = { "keep", values = 1 },
+      ["-p"] = { "keep", values = 1 },
+      ["--partitions"] = { "keep", values = 1 },
+      ["-u"] = { "keep", values = 1 },
+      ["--user"] = { "keep", values = 1 },
+      ["-g"] = { "keep", values = 1 },
+      ["--graphics"] = { "keep", values = 1 },
+      ["--days"] = { "keep", values = 1 },
+      ["--no-mouse"] = "keep",
+      ["--no-persist"] = "keep",
+      ["--stats"] = "keep",
+      ["-t"] = { "keep", values = 1 },
+      ["--tab"] = { "keep", values = 1 },
+    },
+  })
+end
