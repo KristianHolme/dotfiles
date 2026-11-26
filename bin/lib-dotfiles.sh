@@ -327,6 +327,64 @@ install_agent_instructions() {
     done < <(agent_instruction_targets)
 }
 
+# Program Resume hooks, so Rex starts coding agents again after a server
+# restart: Claude Code's SessionStart hook runs Rex's own reporter, and
+# Antigravity's PreInvocation hook runs ~/.agents/hooks/rex-resume-agy.sh.
+# Both files are also written by their apps, so the hooks are merged in
+# rather than linked; an app whose config folder is missing is skipped.
+install_agent_hooks() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        log_warning "python3 not found; skipping agent resume hooks"
+        return 0
+    fi
+    python3 -I - "$HOME" <<'PY'
+import json, os, sys
+
+home = sys.argv[1]
+
+def update(path, change):
+    if not os.path.isdir(os.path.dirname(path)):
+        return
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        data = {}
+    except ValueError:
+        print(f"[WARNING] {path} is not valid JSON; skipping", file=sys.stderr)
+        return
+    if not change(data):
+        return
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
+    os.replace(tmp, path)
+    print(f"[INFO] Added Rex resume hook to {path}", file=sys.stderr)
+
+REX_CLAUDE = "/bin/sh -c 'rex __internal session-start --agent claude --feature-session-naming=false 2>/dev/null || true'"
+
+def claude(data):
+    starts = data.setdefault("hooks", {}).setdefault("SessionStart", [])
+    if any("rex __internal session-start" in h.get("command", "")
+           for entry in starts for h in entry.get("hooks", [])):
+        return False
+    starts.append({"hooks": [{"type": "command", "command": REX_CLAUDE, "timeout": 5}]})
+    return True
+
+def antigravity(data):
+    want = {"PreInvocation": [{"command": f"sh '{home}/.agents/hooks/rex-resume-agy.sh'",
+                               "timeout": 5, "type": "command"}]}
+    if data.get("rex") == want:
+        return False
+    data["rex"] = want
+    return True
+
+update(os.path.join(home, ".claude", "settings.json"), claude)
+update(os.path.join(home, ".gemini", "config", "hooks.json"), antigravity)
+PY
+}
+
 # Remove agent symlinks created by link_agent_configs when they point into ~/.agents.
 unlink_agent_configs() {
     local agents_dir="$HOME/.agents" target resolved agents_real dir

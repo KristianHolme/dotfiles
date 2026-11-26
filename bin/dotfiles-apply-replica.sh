@@ -137,6 +137,7 @@ run_stow_passthrough() {
 	}
 	if ! stow_flags_include -n "${stow_flags[@]}"; then
 		install_agent_instructions
+		install_agent_hooks
 	fi
 }
 
@@ -280,6 +281,7 @@ run_selected_steps() {
 
 	if task_is_selected "$TASK_STOW_AGENTS" "$selection"; then
 		install_agent_instructions
+		install_agent_hooks
 	fi
 
 	if task_is_selected "$TASK_BASHRC" "$selection"; then

@@ -257,3 +257,44 @@ if rex.set then
     },
   })
 end
+
+-- Program Resume (rex config check lists the rules in force). Claude Code
+-- reports through the SessionStart hook from `rex skill setup` and resumes
+-- with the built-in rule, which keeps --allow-dangerously-skip-permissions
+-- and --dangerously-skip-permissions (the cc alias).
+--
+-- Antigravity: ~/.agents/hooks/rex-resume-agy.sh reports `agy --resume <id>`
+-- with the flags it keeps; the flags here must match its KEEP and DROP lists,
+-- since a program started with a flag the rule doesn't list is not resumed.
+-- Rex builds without resume rules have no rex.set or rex.match.
+if rex.set and rex.match then
+  rex.set("resume.trust.agy", {
+    command = { "agy", "--resume", rex.match.uuid },
+    flags = {
+      ["--model"] = { "keep", values = 1 },
+      ["--mode"] = { "keep", values = 1 },
+      ["--effort"] = { "keep", values = 1 },
+      ["--agent"] = { "keep", values = 1 },
+      ["--project"] = { "keep", values = 1 },
+      ["--add-dir"] = { "keep", values = 1 },
+      ["--settings"] = { "keep", values = 1 },
+      ["--dangerously-skip-permissions"] = "keep",
+      ["--sandbox"] = "keep",
+      ["--remote-control"] = "keep",
+      ["-c"] = "drop",
+      ["--continue"] = "drop",
+      ["-r"] = { "drop", values = 1 },
+      ["--resume"] = { "drop", values = 1 },
+      ["--conversation"] = { "drop", values = 1 },
+      ["-i"] = { "drop", values = 1 },
+      ["--prompt-interactive"] = { "drop", values = 1 },
+      ["--new-project"] = "drop",
+    },
+  })
+
+  -- Neovim: the nvim config saves its persistence.nvim session while you work
+  -- and reports `nvim -S <session>`; only sessions in its folder are trusted.
+  rex.set("resume.trust.nvim", {
+    command = { "nvim", "-S", rex.match.under("~/.local/state/nvim/sessions") },
+  })
+end
