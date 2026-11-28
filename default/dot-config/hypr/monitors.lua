@@ -44,12 +44,10 @@ if host == "bengal" then
 	-- so the HP's connector name changes with driver load order.
 	local main = "desc:HP Inc. HP E273q"
 	local right = "desc:Philips Consumer Electronics Company PHL 241B8Q"
-	local left = "desc:Dell Inc. DELL 2001FP"
 
 	hl.env("GDK_SCALE", "1")
 	hl.monitor({ output = main, mode = "2560x1440@59.95", position = "0x0", scale = 1 })
 	hl.monitor({ output = right, mode = "1920x1080@74.97", position = "2560x180", scale = 1 })
-	hl.monitor({ output = left, mode = "1600x1200@60", position = "-1600x60", scale = 1 })
 elseif host == "kaspi" then
 	hl.env("GDK_SCALE", "2")
 	hl.monitor({

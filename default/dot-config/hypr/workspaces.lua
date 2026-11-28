@@ -29,7 +29,6 @@ if host == "bengal" then
 	preference = {
 		"HP Inc. HP E273q",
 		"Philips Consumer Electronics Company PHL 241B8Q",
-		"Dell Inc. DELL 2001FP",
 	}
 elseif host == "sibir" then
 	preference = {
